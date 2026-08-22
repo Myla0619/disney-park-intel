@@ -106,3 +106,45 @@ describe("休息块", () => {
     }
   });
 });
+
+describe("用户自购的尊享卡项目必须排入", () => {
+  const withPackage = (bundle3Rides: string[]) =>
+    route({ mode: "family", kids: [{ age: 6, heightCm: 115 }], llPackage: "bundle3", bundle3Rides });
+
+  it("三项套餐里符合身高的项目都会被排入", () => {
+    // 回归测试：用户花 399 元指定了三项，但成本排序把其中两项挤掉，
+    // 实际只排进一项。自选尊享卡项目是真金白银单独指定的，应提升为 must-do
+    const items = withPackage(["soaring", "seven-dwarfs", "pirates"]);
+    const ids = items.map((i) => i.itemId);
+    for (const id of ["soaring", "seven-dwarfs", "pirates"]) {
+      expect(ids, `${id} 未排入行程`).toContain(id);
+    }
+  });
+
+  it("身高不足的项目即使买了卡也不排入", () => {
+    // TRON 需要 122cm，孩子 115cm
+    const items = withPackage(["tron", "soaring", "seven-dwarfs"]);
+    expect(items.map((i) => i.itemId)).not.toContain("tron");
+  });
+
+  it("未购卡时不做优先级提升", () => {
+    const items = route({ llPackage: "none" });
+    expect(items.length).toBeGreaterThan(0);
+  });
+});
+
+describe("演出与巡游的等待时间", () => {
+  it("缺数据时不套用游乐项目的 30 分钟排队默认值", () => {
+    // 回归测试：演出没有常规排队，套用 30 分钟会让行程凭空多出大段虚构等待
+    const shows = route().filter((i) => i.type === "show");
+    expect(shows.length).toBeGreaterThan(0);
+    for (const s of shows) {
+      expect(s.estimatedWait, `${s.itemName} 等待 ${s.estimatedWait} 分`).toBeLessThanOrEqual(15);
+    }
+  });
+
+  it("演出备注说的是提前占位而不是排队", () => {
+    const show = route().find((i) => i.type === "show" && !i.llType);
+    if (show) expect(show.note).toMatch(/提前.*到场占位/);
+  });
+});
