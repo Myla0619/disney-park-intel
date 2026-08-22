@@ -129,13 +129,22 @@ export async function getParkHours(
 }
 
 // ─── 锚点构建（含边缘情况修复）──────────────────────────────────────────────
-export function buildAnchors(profile: UserProfile, parkHours: ParkHours): ItineraryItem[] {
+/**
+ * @param nowMin 园区当地"现在"的分钟数。当天使用时传入，已经开始的场次会被跳过；
+ *               非当天规划传 undefined。
+ */
+export function buildAnchors(
+  profile: UserProfile,
+  parkHours: ParkHours,
+  nowMin?: number
+): ItineraryItem[] {
   const anchors: ItineraryItem[] = [];
   const reserved    = hasReservedSpot(profile.llPackage);
   const arrMin      = timeToMin(profile.arrivalTime);
   const depMin      = timeToMin(profile.departureTime);
   const openMin     = timeToMin(parkHours.open);
-  const effectiveStart = Math.max(arrMin, openMin);
+  // 当天使用时，"起点"是此刻而非入园时间——下午打开不该再排上午的场次
+  const effectiveStart = Math.max(arrMin, openMin, nowMin ?? 0);
 
   const paradePreMin    = reserved ? 10 : 20;
   const fireworksPreMin = reserved ? 15 : 30;
@@ -355,13 +364,14 @@ function buildTimeline(
   anchors: ItineraryItem[],
   profile: UserProfile,
   startArea: string,
-  parkHours: ParkHours
+  parkHours: ParkHours,
+  nowMin?: number
 ): ItineraryItem[] {
   const result: ItineraryItem[] = [...anchors];
   const restaurants = getRestaurants(profile.park);
   const openMin  = timeToMin(parkHours.open);
   const depMin   = timeToMin(profile.departureTime);
-  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin);
+  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin, nowMin ?? 0);
 
   // 边缘情况：游玩时间极短（< 60分钟）→ 只取第一个项目
   const effectiveDep = depMin;
@@ -632,12 +642,16 @@ export function buildRoute(params: {
   startArea: string;
   parkHours: ParkHours;
   anchors: ItineraryItem[];
+  /** 园区当地"现在"的分钟数。当天规划时传入，行程从此刻起排。 */
+  nowMin?: number;
 }): ItineraryItem[] {
-  const { rides, scores, historical, live, profile, startArea, parkHours, anchors } = params;
+  const { rides, scores, historical, live, profile, startArea, parkHours, anchors, nowMin } = params;
 
   const openMin  = timeToMin(parkHours.open);
   const depMin   = timeToMin(profile.departureTime);
-  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin);
+  // 当天规划必须从此刻开始。此前恒等于入园时间，人在园里下午打开时，
+  // 排出来的整个上午都是已经过去的时间。
+  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin, nowMin ?? 0);
 
   // 边缘情况：离园时间 <= 入园时间
   if (depMin <= startMin) {
@@ -710,6 +724,6 @@ export function buildRoute(params: {
     allCandidates = interleaved;
   }
 
-  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours);
+  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin);
   return fillGaps(raw, profile);
 }
