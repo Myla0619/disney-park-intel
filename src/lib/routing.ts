@@ -23,6 +23,7 @@ import {
   getPhotoSpots, getShopSpots, getRestaurants
 } from "./parks-data";
 import { getUserLLRides, hasReservedSpot, getPackageById } from "./ll-packages";
+import { isHeightBlocked } from "./height";
 
 // ─── 시간 도구 ────────────────────────────────────────────────────────────────
 export function timeToMin(t: string): number {
@@ -281,11 +282,7 @@ function buildRideNote(
 
   if (ride.singleRider) parts.push("💡 可能开放 Single Rider 通道，到场后查 App 或问工作人员");
 
-  // 身高检查：用精确身高
-  const minKidHeight = (profile.kids ?? []).length > 0
-    ? Math.min(...(profile.kids ?? []).map((k) => k.heightCm))
-    : 999;
-  if (ride.heightRequirement && minKidHeight < ride.heightRequirement) {
+  if (isHeightBlocked(ride, profile)) {
     parts.push(`⚠️ 注意：部分孩子身高不足 ${ride.heightRequirement}cm`);
   }
 
@@ -312,16 +309,11 @@ function buildCandidates(
   const weights    = getWeights(profile);
   const isGateRush = startMin <= openMin + 15;
 
-  // 身高过滤：用精确身高（KidInfo.heightCm）
-  const minKidHeight = (profile.kids ?? []).length > 0
-    ? Math.min(...(profile.kids ?? []).map((k) => k.heightCm))
-    : 999;
-
   const filtered = rides.filter((r) => {
     const s = scores.find((sc) => sc.rideId === r.id);
     if (!s || !priorityFilter(s)) return false;
-    // 边缘情况：身高刚好等于限制 = 允许（>= 即可）
-    if (r.heightRequirement && minKidHeight < r.heightRequirement) return false;
+    // 身高刚好等于限制 = 允许（isHeightBlocked 内部按 >= 判定）
+    if (isHeightBlocked(r, profile)) return false;
     return true;
   });
 
@@ -571,12 +563,7 @@ export function buildRoute(params: {
     ridesPool = thrillRides.length > 0 ? thrillRides : rides;
   }
   if (profile.mode === "family") {
-    const minH = (profile.kids ?? []).length > 0
-      ? Math.min(...(profile.kids ?? []).map((k) => k.heightCm))
-      : 999;
-    const familyRides = rides.filter(
-      (r) => !r.heightRequirement || minH >= r.heightRequirement
-    );
+    const familyRides = rides.filter((r) => !isHeightBlocked(r, profile));
     // 边缘情况：family模式孩子太小导致候选池为空 → 放宽到 kidsScore >= 3
     if (familyRides.length === 0) {
       ridesPool = rides.filter((r) => r.kidsScore >= 3);

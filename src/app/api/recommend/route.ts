@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { UserProfile, Ride, RideScore, LiveWaitData, Review } from "@/types";
 import { getRidesByPark } from "@/lib/parks-data";
+import { isHeightBlocked, minKidHeightCm } from "@/lib/height";
 
 const client = new Anthropic();
 
@@ -48,10 +49,11 @@ export async function POST(req: NextRequest) {
     .filter(Boolean)
     .join("\n");
 
-  const kidsInfo =
-    (profile.kids??[]).map((k:any)=>k.age).length > 0
-      ? `带有孩子，年龄分别为: ${(profile.kids??[]).map((k:any)=>k.age).join(", ")}岁。预估身高约: ${(profile.kids??[]).map((k:any)=>k.age).map((a) => Math.min(70 + a * 6, 160)).join(", ")}cm。`
-      : "无孩子同行。";
+  const kids = profile.kids ?? [];
+  const kidsInfo = kids.length
+    ? `带有孩子，年龄与身高分别为: ${kids.map((k) => `${k.age}岁/${k.heightCm}cm`).join("、")}。` +
+      `团队中最矮的孩子身高 ${minKidHeightCm(profile)}cm。`
+    : "无孩子同行。";
 
   const prompt = `你是迪士尼乐园专家 AI。分析以下项目，并根据该游客的具体情况为每个项目打分。请用中文输出 reasoning 字段。
 
@@ -100,7 +102,7 @@ ${reviewContext || "暂无评论数据"}
       messages: [{ role: "user", content: prompt }],
     });
 
-    const raw = (message.content[0] as any).text.trim();
+    const raw = (message.content[0] as any).text.trim().replace(/```json|```/g, "").trim();
     const scores: RideScore[] = JSON.parse(raw);
     return NextResponse.json({ scores });
   } catch (err: any) {
@@ -112,14 +114,7 @@ ${reviewContext || "暂无评论数据"}
 }
 
 function generateFallbackScore(ride: Ride, profile: UserProfile): RideScore {
-  const kidsMinHeight = (profile.kids??[]).map((k:any)=>k.age).length
-    ? Math.min(...(profile.kids??[]).map((k:any)=>k.age).map((a) => Math.min(70 + a * 6, 160)))
-    : 200;
-
-  const heightBlocked =
-    ride.heightRequirement != null &&
-    (profile.kids??[]).map((k:any)=>k.age).length > 0 &&
-    kidsMinHeight < ride.heightRequirement;
+  const heightBlocked = isHeightBlocked(ride, profile);
 
   const waitScore = ride.waitTime == null ? 50 : Math.max(0, 100 - ride.waitTime);
   const thrillMatch =
@@ -138,7 +133,7 @@ function generateFallbackScore(ride: Ride, profile: UserProfile): RideScore {
     sentimentScore: 70,
     profileMatchScore: thrillMatch,
     reasoning: heightBlocked
-      ? `身高要求 ${ride.heightRequirement}cm，团队中较小的孩子可能无法乘坐。`
+      ? `身高要求 ${ride.heightRequirement}cm，团队中最矮的孩子 ${minKidHeightCm(profile)}cm，无法乘坐。`
       : `符合你的${profile.mode === "family" ? "亲子" : profile.mode === "thrill" ? "刺激" : "休闲"}游玩偏好。`,
     recommended: overallScore >= 60 && !heightBlocked,
     priority: heightBlocked ? "skip" : overallScore >= 75 ? "must-do" : overallScore >= 55 ? "worth-it" : "if-time",
