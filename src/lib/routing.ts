@@ -360,11 +360,21 @@ function buildTimeline(
   const totalAvail   = effectiveDep - startMin;
   const maxItems     = totalAvail < 60 ? 1 : 999;
 
-  // 锚点封锁区间
-  const blocked = anchors.map((a) => ({
-    start: timeToMin(a.time) - 5,
-    end:   timeToMin(a.endTime) + 5,
-  }));
+  // 锚点封锁区间（前后各留 5 分钟走位时间）
+  const blocked = anchors
+    .map((a) => ({
+      start: timeToMin(a.time) - 5,
+      end: timeToMin(a.endTime) + 5,
+      area: a.area,
+    }))
+    .sort((x, y) => x.start - y.start);
+
+  /** 若时刻落在某个锚点封锁区间内，返回该区间，否则返回 null。 */
+  const blockAt = (min: number) => blocked.find((b) => min >= b.start && min < b.end) ?? null;
+
+  // 90 分钟间隔是 Multi Pass 的预约约束（同一时间只能持有一个预约），
+  // 无限次套餐（VIP33）不受此限——套用会把 2688 元的无限次卡压成每 90 分钟一项。
+  const llUnlimited = getPackageById(profile.llPackage)?.unlimited ?? false;
 
   const mealSlots   = getMealSlots(profile, openMin);
   const usedMeals   = new Set<string>();
@@ -414,17 +424,42 @@ function buildTimeline(
 
     if (usedItems.has(item.id)) continue;
 
-    const wk      = walkTime(currentArea, item.area, profile);
-    const arrAt   = currentMin + wk;
-    const itemEnd = arrAt + item.wait + item.duration;
+    // 游标正处在锚点区间内（比如刚好卡在巡游时段），先推到锚点结束再排。
+    // 锚点期间人就在锚点位置，当前区域一并更新。
+    const nowBlock = blockAt(currentMin);
+    if (nowBlock) {
+      currentMin = nowBlock.end;
+      currentArea = nowBlock.area ?? currentArea;
+    }
 
-    if (itemEnd > depMin) break;
+    let wk = walkTime(currentArea, item.area, profile);
+    let arrAt = currentMin + wk;
+    let itemEnd = arrAt + item.wait + item.duration;
 
-    // 锚点冲突检查
+    // 与锚点重叠时把该项目顺延到锚点之后重排，而不是丢弃它。
+    //
+    // 此前这里是 `continue`：游标不前进，于是后续每个候选都从锚点前的同一时刻起算、
+    // 同样重叠、同样被跳过——排程在第一个锚点处整体停摆，锚点之后的几个小时全空，
+    // 再被 fillGaps 填成一整块数百分钟的"休息补给"。
+    // 最多顺延 blocked.length 次即可跨过所有锚点，不会无限循环。
+    for (let attempt = 0; attempt <= blocked.length; attempt++) {
+      const hit = blocked.find((b) => arrAt < b.end && itemEnd > b.start);
+      if (!hit) break;
+      currentMin = hit.end;
+      currentArea = hit.area ?? currentArea;
+      wk = walkTime(currentArea, item.area, profile);
+      arrAt = currentMin + wk;
+      itemEnd = arrAt + item.wait + item.duration;
+    }
+
+    // 顺延后仍与锚点重叠（项目太长，跨越了下一个锚点）：只跳过这个项目
     if (blocked.some((b) => arrAt < b.end && itemEnd > b.start)) continue;
 
-    // Multi Pass 90分钟间隔（边缘情况：严格使用 >= 90）
-    if (item.llType === "package" && (arrAt - lastLLMin) < 90) continue;
+    // 超出离园时间：后续候选只会更晚，直接结束
+    if (itemEnd > depMin) break;
+
+    // Multi Pass 90 分钟间隔（严格 >= 90）；无限次套餐不适用
+    if (!llUnlimited && item.llType === "package" && (arrAt - lastLLMin) < 90) continue;
 
     if (wk > 0) result.push({
       time: minToTime(currentMin), endTime: minToTime(arrAt),
@@ -441,7 +476,7 @@ function buildTimeline(
       llType: item.llType, singleRiderTip: item.singleRider,
     });
 
-    if (item.llType === "package") lastLLMin = arrAt;
+    if (!llUnlimited && item.llType === "package") lastLLMin = arrAt;
     currentArea = item.area;
     currentMin  = itemEnd;
     usedItems.add(item.id);
@@ -452,6 +487,9 @@ function buildTimeline(
 }
 
 // ─── 空档填满 ─────────────────────────────────────────────────────────────────
+/** 单个休息块的时长上限（分钟）。 */
+const MAX_REST_MINUTES = 45;
+
 export function fillGaps(
   itinerary: ItineraryItem[],
   profile: UserProfile,
@@ -512,12 +550,18 @@ export function fillGaps(
 
       const remainGap = gapEnd - cursor;
       if (remainGap >= 15 && inserts.length === 0) {
+        // 休息块封顶 45 分钟：真到了几小时的空档，那是排程出了问题，
+        // 用一个"4 小时休息补给"盖住只会把问题藏起来，如实标成自由活动。
+        const restDuration = Math.min(remainGap, MAX_REST_MINUTES);
+        const isOversized = remainGap > MAX_REST_MINUTES;
         inserts.push({
-          time: minToTime(cursor), endTime: minToTime(gapEnd),
-          itemId: "rest", itemName: "☕ 休息补给",
+          time: minToTime(cursor), endTime: minToTime(cursor + restDuration),
+          itemId: "rest", itemName: isOversized ? "🚶 自由活动" : "☕ 休息补给",
           area: current.area, estimatedWait: 0, walkMinutes: 0,
-          duration: remainGap,
-          note: "补充水分和体力，可在附近小吃摊买零食。",
+          duration: restDuration,
+          note: isOversized
+            ? `这段有 ${Math.round(remainGap / 60 * 10) / 10} 小时空档，可自由安排或让 AI 助手重新规划。`
+            : "补充水分和体力，可在附近小吃摊买零食。",
           type: "rest",
         });
       }
@@ -531,6 +575,36 @@ export function fillGaps(
   }
 
   return result;
+}
+
+/**
+ * 手动调整顺序后重算时间轴。
+ *
+ * 用户长按拖动或删除条目时，前端此前只交换数组位置、不动 time/endTime，于是
+ * 一个 22:00 的项目被挪到 11:00 的项目前面后，列表就显示成"晚上10点的下一项是
+ * 上午11点"。这里按新顺序把开始时间重新串一遍。
+ *
+ * 每个条目保留它原本占用的时长（endTime - time，对游乐项目而言已包含排队时间），
+ * 只平移起始时刻。巡游、烟花这类锚点是外部固定场次，时间不可移动，游标直接跳到
+ * 锚点结束。
+ */
+export function resequenceItinerary(items: ItineraryItem[]): ItineraryItem[] {
+  if (!items.length) return items;
+
+  // 起点取整个行程的最早开始时刻，而不是 items[0].time——交换之后首位带的是
+  // 它原来的（可能很晚的）时间戳，用它当起点会把整个行程平移到深夜。
+  let cursor = Math.min(...items.map((i) => timeToMin(i.time)));
+
+  return items.map((item) => {
+    if (item.isAnchor) {
+      cursor = Math.max(cursor, timeToMin(item.endTime));
+      return item;
+    }
+    const length = Math.max(0, timeToMin(item.endTime) - timeToMin(item.time));
+    const next = { ...item, time: minToTime(cursor), endTime: minToTime(cursor + length) };
+    cursor += length;
+    return next;
+  });
 }
 
 // ─── 主路由入口 ───────────────────────────────────────────────────────────────
