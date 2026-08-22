@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { getAnthropicClient } from "@/lib/anthropic-client";
 import { ITINERARY_MODEL } from "@/lib/models";
+import { logUsage } from "@/lib/usage-log";
 import { UserProfile, RideScore, HistoricalWaitData, LiveWaitData } from "@/types";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { buildRoute, buildAnchors, getParkHours, fillGaps } from "@/lib/routing";
@@ -81,6 +82,8 @@ ${routeSummary}
       output_config: { format: zodOutputFormat(NotesSchema) },
       messages: [{ role: "user", content: prompt }],
     });
+    logUsage("itinerary_notes", ITINERARY_MODEL, message.usage);
+
     const notes = message.parsed_output?.notes;
     if (!notes) throw new Error("结构化输出解析失败");
     const noteMap: Record<string,string> = {};
