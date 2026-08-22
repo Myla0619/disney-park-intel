@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/lib/store";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { resequenceItinerary } from "@/lib/routing";
+import LocateMeButton from "@/components/LocateMeButton";
 import { RideCard } from "@/components/rides/RideCard";
 import AgentChat from "@/components/AgentChat";
 import { Ride, RideScore, Review, LiveWaitData, HistoricalWaitData, ItineraryItem } from "@/types";
@@ -263,6 +264,15 @@ export default function DashboardPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+            <LocateMeButton
+              areaNameOf={(id) => park.areas.find((a) => a.id === id)?.name ?? id}
+              onLocated={(id) => {
+                setShowAreaPicker(false);
+                setReplanning(true);
+                setTab("itinerary");
+                loadAllData(id);
+              }}
+            />
             <div className="grid grid-cols-2 gap-2">
               {park.areas.map((area) => (
                 <button key={area.id} onClick={() => { setShowAreaPicker(false); setReplanning(true); setTab("itinerary"); loadAllData(area.id); }}

@@ -3,6 +3,14 @@ import { LL_ELIGIBLE_RIDES } from "./ll-packages";
 
 // ─── 步行时间矩阵（上海迪士尼，分钟，成人正常步速 80m/min）──────────────
 // 数据基于园区实际路线距离估算，行动不便×2.0，带幼童×1.6，带小学生×1.3
+//
+// 由 scripts/check_walk_matrix.mjs 对照 themeparks.wiki 的真实坐标做几何校验，
+// CI 每次运行。校验只能证伪不能证实：低于「直线距离÷步速」的条目是硬错误
+// （走得比直线还快），偏高则可能是绕湖等真实原因，需实地核对。
+//
+// 待实地核对（几何上偏高，但园区中央有湖，绕行可能是真的）：
+//   treasure→zootopia  直线 206m，估 15 分钟（期望约 4.7）
+//   fantasy→zootopia   直线 215m，估 11 分钟（期望约 4.8）
 export const WALK_MATRIX: Record<string, Record<string, number>> = {
   entrance:  { entrance:0, mickey:2,  garden:5,  fantasy:8,  adventure:12, treasure:14, tomorrow:10, toytown:13, zootopia:16 },
   mickey:    { entrance:2, mickey:0,  garden:4,  fantasy:6,  adventure:10, treasure:12, tomorrow:8,  toytown:11, zootopia:14 },
@@ -11,8 +19,8 @@ export const WALK_MATRIX: Record<string, Record<string, number>> = {
   adventure: { entrance:12,mickey:10, garden:8,  fantasy:7,  adventure:0,  treasure:5,  tomorrow:9,  toytown:11, zootopia:13 },
   treasure:  { entrance:14,mickey:12, garden:10, fantasy:8,  adventure:5,  treasure:0,  tomorrow:11, toytown:13, zootopia:15 },
   tomorrow:  { entrance:10,mickey:8,  garden:6,  fantasy:6,  adventure:9,  treasure:11, tomorrow:0,  toytown:5,  zootopia:7  },
-  toytown:   { entrance:13,mickey:11, garden:9,  fantasy:8,  adventure:11, treasure:13, tomorrow:5,  toytown:0,  zootopia:5  },
-  zootopia:  { entrance:16,mickey:14, garden:12, fantasy:11, adventure:13, treasure:15, tomorrow:7,  toytown:5,  zootopia:0  },
+  toytown:   { entrance:13,mickey:11, garden:9,  fantasy:8,  adventure:11, treasure:13, tomorrow:5,  toytown:0,  zootopia:7  },
+  zootopia:  { entrance:16,mickey:14, garden:12, fantasy:11, adventure:13, treasure:15, tomorrow:7,  toytown:7,  zootopia:0  },
 };
 
 export function walkTime(

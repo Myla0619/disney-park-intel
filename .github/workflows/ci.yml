@@ -31,6 +31,9 @@ jobs:
       - name: 单元测试
         run: npm test
 
+      - name: 步行时间矩阵几何校验
+        run: npm run check:walk-matrix
+
       - name: 生产构建
         run: npm run build
         env:
