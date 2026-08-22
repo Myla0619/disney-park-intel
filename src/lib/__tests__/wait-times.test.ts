@@ -101,3 +101,31 @@ describe("dateFactor / isChineseHoliday", () => {
     expect(dateFactor("2026-08-19").value).toBe(1.0);
   });
 });
+
+describe("闭园时段的快照外推", () => {
+  it("未开放的项目不产生预测，而不是记为 0 分钟等待", () => {
+    // 回归测试：闭园时 Queue-Times 的 wait_time 全是 0，照单全收会让行程里
+    // 每个项目都写"预计等待 0 分钟"、尊享卡"节省约 0 分钟"——
+    // 看起来像正常结果，实际毫无信息量
+    const out = mapQueueTimesPayload(
+      "shanghai",
+      { rides: [{ id: 2985, wait_time: 0, is_open: false }, { id: 2996, wait_time: 25, is_open: true }] },
+      "2026-08-19"
+    );
+    expect(out.map((r) => r.rideId)).toEqual(["pirates"]);
+  });
+
+  it("wait_time 缺失的项目同样跳过", () => {
+    const out = mapQueueTimesPayload("shanghai", { rides: [{ id: 2985, is_open: true }] }, "2026-08-19");
+    expect(out).toEqual([]);
+  });
+
+  it("全园闭园时返回空列表，由调用方回退到项目静态基准", () => {
+    const out = mapQueueTimesPayload(
+      "shanghai",
+      { rides: [{ id: 2985, wait_time: 0, is_open: false }, { id: 2996, wait_time: 0, is_open: false }] },
+      "2026-08-19"
+    );
+    expect(out).toEqual([]);
+  });
+});

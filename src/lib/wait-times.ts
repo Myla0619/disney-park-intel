@@ -175,9 +175,16 @@ export function mapQueueTimesPayload(
   for (const ride of allRides) {
     const rideId = rideIdFromQueueTimes(parkId, ride.id);
     if (!rideId) continue;
+
+    // 闭园或项目未开放时 wait_time 是 0，这不是"不用排队"而是"没有数据"。
+    // 照单全收会让闭园时段生成的行程里每个项目都写着"预计等待 0 分钟"、
+    // 尊享卡"节省约 0 分钟"——看起来像正常结果，实际完全没有信息量。
+    if (ride.is_open === false) continue;
+    if (ride.wait_time == null) continue;
+
     predicted.push({
       rideId,
-      predictedWait: Math.round((ride.wait_time ?? 30) * factor.value),
+      predictedWait: Math.round(ride.wait_time * factor.value),
       confidence: "low",
       basis: `当前排队快照${factor.label}`,
     });
