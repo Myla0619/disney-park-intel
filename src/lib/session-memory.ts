@@ -6,6 +6,7 @@
  */
 
 import { UserProfile } from "@/types";
+import { getSessionStore } from "./session-store";
 
 export type PreferenceUpdate = {
   type: "max_wait"        // "我不想排队超过X分钟"
@@ -37,12 +38,14 @@ export type SessionMemory = {
   };
 };
 
-// ─── 存储后端 ─────────────────────────────────────────────────────────────
-// 进程内 Map：Serverless 上每个实例各存一份，冷启动即丢失。
-// 生产部署应设置 UPSTASH_REDIS_REST_URL，见 src/lib/session-store.ts。
-const sessions = new Map<string, SessionMemory>();
+// ─── 持久化 ───────────────────────────────────────────────────────────────
+// 后端由 session-store.ts 决定：默认进程内，配置了 Upstash 则走 Redis。
+// 一次游园不会超过一天，24 小时 TTL 足够，也不至于让废弃会话一直占空间。
+const TTL_SECONDS = 24 * 60 * 60;
 
-export function createSession(sessionId: string, profile: UserProfile): SessionMemory {
+const key = (sessionId: string) => `session:${sessionId}`;
+
+export async function createSession(sessionId: string, profile: UserProfile): Promise<SessionMemory> {
   const memory: SessionMemory = {
     sessionId,
     baseProfile: profile,
@@ -53,16 +56,23 @@ export function createSession(sessionId: string, profile: UserProfile): SessionM
       mustRides: [],
     },
   };
-  sessions.set(sessionId, memory);
+  await getSessionStore().set(key(sessionId), memory, TTL_SECONDS);
   return memory;
 }
 
-export function getSession(sessionId: string): SessionMemory | null {
-  return sessions.get(sessionId) ?? null;
+export async function getSession(sessionId: string): Promise<SessionMemory | null> {
+  return getSessionStore().get<SessionMemory>(key(sessionId));
 }
 
-export function updateSession(sessionId: string, update: PreferenceUpdate): SessionMemory | null {
-  const session = sessions.get(sessionId);
+export async function saveSession(session: SessionMemory): Promise<void> {
+  await getSessionStore().set(key(session.sessionId), session, TTL_SECONDS);
+}
+
+export async function updateSession(
+  sessionId: string,
+  update: PreferenceUpdate
+): Promise<SessionMemory | null> {
+  const session = await getSession(sessionId);
   if (!session) return null;
 
   session.updates.push(update);
@@ -95,19 +105,23 @@ export function updateSession(sessionId: string, update: PreferenceUpdate): Sess
       break;
   }
 
-  sessions.set(sessionId, session);
+  await saveSession(session);
   return session;
 }
 
-export function addMessage(sessionId: string, role: "user" | "assistant", content: string) {
-  const session = sessions.get(sessionId);
+export async function addMessage(
+  sessionId: string,
+  role: "user" | "assistant",
+  content: string
+): Promise<void> {
+  const session = await getSession(sessionId);
   if (!session) return;
   session.conversationHistory.push({ role, content });
-  // 只保留最近20条（避免 context 过长）
+  // 只保留最近 20 条，避免上下文无限增长
   if (session.conversationHistory.length > 20) {
     session.conversationHistory = session.conversationHistory.slice(-20);
   }
-  sessions.set(sessionId, session);
+  await saveSession(session);
 }
 
 // ─── 从对话中提取偏好更新（传给 Claude 解析）────────────────────────────────

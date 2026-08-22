@@ -3,16 +3,20 @@
  *
  * 路由层（/api/reviews）与 Agent 的 search_reviews 工具共用同一份实现。
  *
- * 数据源与降级：
- *   - 小红书：Apify actor，需 APIFY_TOKEN
- *   - TripAdvisor：RapidAPI，需 RAPIDAPI_KEY 且该项目在 TA_IDS 中有映射
- *   - 两者都未配置或调用失败时，回退到 seed-reviews.ts 里的人工示例数据，
- *     并在结果中置 fallback: true，调用方据此标注「示例数据」
+ * 取数优先级：
+ *   1. data/reviews/ 下已抓取并提交的真实小红书语料（review-store.ts）——
+ *      默认路径，无需 token、无每次请求的抓取开销
+ *   2. TripAdvisor（RapidAPI，需 RAPIDAPI_KEY）作为补充来源
+ *   3. 两者都没有时，回退到 seed-reviews.ts 的人工示例，并置 fallback: true，
+ *      UI 与 Agent 据此标注「示例数据」，不会把它当作真实用户评价陈述
+ *
+ * 抓取本身不在请求路径里：Apify 按次计费，且评论几周才有实质变化。
+ * 由 scripts/collect_reviews.mjs 离线执行并提交结果。
  */
 
 import { Review } from "@/types";
-import { RIDE_KEYWORDS, RESTAURANT_KEYWORDS } from "./parks-data";
 import { SEED_REVIEWS } from "./seed-reviews";
+import { loadCorpus } from "./review-store";
 
 export type ReviewTargetType = "ride" | "restaurant";
 
@@ -27,71 +31,48 @@ export type ReviewSummary = {
 export type ReviewsResult = {
   reviews: Review[];
   summary: ReviewSummary;
-  /** true 表示至少部分内容来自示例数据而非真实抓取 */
+  /** true 表示返回的是人工示例数据，不是真实抓取的用户评论 */
   fallback: boolean;
   sources: string[];
+  /** 真实语料的抓取时间，供 UI 显示「数据更新于」 */
+  scrapedAt?: string;
 };
 
 /** TripAdvisor attraction id 映射；未列出的项目不走 TA 数据源。 */
 const TA_IDS: Record<string, string> = { tron: "8763542", soaring: "7123841" };
 
 export async function getReviews(id: string, type: ReviewTargetType): Promise<ReviewsResult> {
-  const [xhs, ta] = await Promise.all([fetchXHSReviews(id, type), fetchTripAdvisorReviews(id)]);
+  const corpus = loadCorpus(id);
+  const ta = await fetchTripAdvisorReviews(id);
 
-  const live = [...xhs.reviews, ...ta.reviews];
-  const sources = [...xhs.sources, ...ta.sources];
+  const real = [...(corpus?.reviews ?? []), ...ta.reviews];
 
-  // 任一数据源缺席就补上该来源的示例数据，保证 UI 与 RAG 检索始终有内容
-  const seeded = live.length ? live : (SEED_REVIEWS[id] ?? []);
-  const fallback = !live.length || xhs.fallback || ta.fallback;
+  if (real.length) {
+    const reviews = sortByDateDesc(real);
+    return {
+      reviews,
+      summary: computeSummary(reviews),
+      fallback: false,
+      sources: [...(corpus ? ["xiaohongshu"] : []), ...ta.sources],
+      scrapedAt: corpus?.scrapedAt,
+    };
+  }
 
-  const reviews = seeded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+  // 没有任何真实语料时才用示例数据，并明确标注
+  const seeded = sortByDateDesc(SEED_REVIEWS[id] ?? []);
   return {
-    reviews,
-    summary: computeSummary(reviews),
-    fallback,
-    sources: sources.length ? sources : ["seed"],
+    reviews: seeded,
+    summary: computeSummary(seeded),
+    fallback: true,
+    sources: ["seed"],
   };
 }
 
-type SourceResult = { reviews: Review[]; fallback: boolean; sources: string[] };
-
-// ─── 小红书（Apify，多关键词并发）──────────────────────────────────────────
-async function fetchXHSReviews(id: string, type: ReviewTargetType): Promise<SourceResult> {
-  if (!process.env.APIFY_TOKEN) return { reviews: [], fallback: true, sources: [] };
-
-  const keywords = type === "ride" ? (RIDE_KEYWORDS[id] ?? [id]) : (RESTAURANT_KEYWORDS[id] ?? [id]);
-
-  try {
-    const batches = await Promise.all(
-      keywords.map(async (kw) => {
-        const res = await fetch(
-          `https://api.apify.com/v2/acts/joshina~xiaohongshu-scraper/run-sync?token=${process.env.APIFY_TOKEN}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ searchQuery: `迪士尼 ${kw}`, maxResults: 5 }),
-          }
-        );
-        if (!res.ok) throw new Error(`Apify responded ${res.status}`);
-        const data = await res.json();
-        return (data.items ?? []).map(normalizeXHS);
-      })
-    );
-
-    const seen = new Set<string>();
-    const reviews = batches.flat().filter((r: Review) => {
-      if (!r.url || seen.has(r.url)) return false;
-      seen.add(r.url);
-      return true;
-    });
-    return { reviews, fallback: false, sources: ["xiaohongshu"] };
-  } catch (err) {
-    console.error("[reviews] Apify 小红书抓取失败:", err);
-    return { reviews: [], fallback: true, sources: [] };
-  }
+function sortByDateDesc(reviews: Review[]): Review[] {
+  return [...reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
+
+type SourceResult = { reviews: Review[]; fallback: boolean; sources: string[] };
 
 // ─── TripAdvisor（RapidAPI）───────────────────────────────────────────────
 async function fetchTripAdvisorReviews(id: string): Promise<SourceResult> {
@@ -115,20 +96,6 @@ async function fetchTripAdvisorReviews(id: string): Promise<SourceResult> {
     console.error("[reviews] TripAdvisor 抓取失败:", err);
     return { reviews: [], fallback: true, sources: [] };
   }
-}
-
-function normalizeXHS(item: any): Review {
-  const text = `${item.title ?? ""} ${item.desc ?? ""}`.slice(0, 300);
-  return {
-    source: "xiaohongshu",
-    author: item.author?.nickname ?? "小红书用户",
-    rating: item.likeCount > 1000 ? 5 : item.likeCount > 200 ? 4 : 3,
-    text,
-    date: item.time ?? new Date().toISOString(),
-    tags: extractTags(text),
-    sentiment: analyzeSentiment(text),
-    url: `https://www.xiaohongshu.com/explore/${item.id}`,
-  };
 }
 
 function normalizeTA(item: any): Review {
