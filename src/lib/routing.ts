@@ -151,13 +151,18 @@ export function buildAnchors(profile: UserProfile, parkHours: ParkHours): Itiner
       console.warn(`[routing] 花车时间 ${profile.paradeTime} 在入园前，跳过`);
     }
     // 边缘情况2：花车时间在离园后 → 跳过
-    else if (paradeStart >= depMin) {
+    // 用 > 而非 >=：把离园时间设成和演出同一时刻（"看完就走"）是最常见的填法，
+    // 用 >= 会把用户明确勾选的演出静默丢掉
+    else if (paradeStart > depMin) {
       console.warn(`[routing] 花车时间 ${profile.paradeTime} 在离园后，跳过`);
     }
     else {
-      const note = reserved
-        ? `已购套餐含花车预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.paradeTime}正式出发，约30分钟。`
-        : `提前${paradePreMin}分钟到玩具总动员区域占位，互动概率最高。${profile.paradeTime}正式出发，约30分钟。时间以官方App为准。`;
+      const paradeEnd = paradeStart + 30;
+      const note =
+        (reserved
+          ? `已购套餐含花车预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.paradeTime}正式出发，约30分钟。`
+          : `提前${paradePreMin}分钟到玩具总动员区域占位，互动概率最高。${profile.paradeTime}正式出发，约30分钟。时间以官方App为准。`) +
+        (paradeEnd > depMin ? `⚠️ 结束时间晚于你设定的离园时间 ${profile.departureTime}。` : "");
       anchors.push({
         time: minToTime(anchorStart),
         endTime: minToTime(paradeStart + 30),
@@ -189,14 +194,17 @@ export function buildAnchors(profile: UserProfile, parkHours: ParkHours): Itiner
     // 边缘情况4：烟花时间在入园前或离园后 → 跳过
     if (fireworksStart <= effectiveStart) {
       console.warn(`[routing] 烟花时间 ${profile.fireworksTime} 在入园前，跳过`);
-    } else if (fireworksStart >= depMin) {
+    } else if (fireworksStart > depMin) {
       console.warn(`[routing] 烟花时间 ${profile.fireworksTime} 在离园后，跳过`);
     } else if (anchorStart >= depMin) {
       console.warn(`[routing] 烟花占位时间超出离园时间，跳过`);
     } else {
-      const note = reserved
-        ? `已购套餐含烟花预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.fireworksTime}开始，约20分钟。`
-        : `提前${fireworksPreMin}分钟在城堡正前方占位，${profile.fireworksTime}开始，约20分钟。烟花后立刻去旋转木马，灯光全亮是全天最佳拍照时机。时间以官方App为准。`;
+      const fireworksEnd = fireworksStart + 20;
+      const note =
+        (reserved
+          ? `已购套餐含烟花预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.fireworksTime}开始，约20分钟。`
+          : `提前${fireworksPreMin}分钟在城堡正前方占位，${profile.fireworksTime}开始，约20分钟。烟花后立刻去旋转木马，灯光全亮是全天最佳拍照时机。时间以官方App为准。`) +
+        (fireworksEnd > depMin ? `⚠️ 结束时间晚于你设定的离园时间 ${profile.departureTime}。` : "");
       anchors.push({
         time: minToTime(anchorStart),
         endTime: minToTime(fireworksStart + 20),
@@ -395,12 +403,19 @@ function buildTimeline(
           currentMin < meal.time + 90) {
         const r = pickRestaurant(profile, meal.mealType, restaurants, usedRests);
         if (r) {
-          const wk = walkTime(currentArea, r.area, profile);
-          const ms = currentMin + wk;
+          // 餐食此前不检查锚点区间，于是会排出"烧烤 16:01 结束、巡游 15:25 开始"
+          // 这种重叠。和游乐项目一样：撞上锚点就顺延到锚点之后。
+          let mealCursor = currentMin;
+          const mealBlock = blockAt(mealCursor);
+          if (mealBlock) mealCursor = mealBlock.end;
+
+          const wk = walkTime(mealBlock?.area ?? currentArea, r.area, profile);
+          const ms = mealCursor + wk;
           const me = ms + r.duration;
-          if (me < depMin) {
+          const overlapsAnchor = blocked.some((b) => ms < b.end && me > b.start);
+          if (me < depMin && !overlapsAnchor) {
             if (wk > 0) result.push({
-              time: minToTime(currentMin), endTime: minToTime(ms),
+              time: minToTime(mealCursor), endTime: minToTime(ms),
               itemId: "walk", itemName: `步行至${r.areaName}`,
               area: r.areaName, estimatedWait: 0, walkMinutes: wk, duration: wk,
               note: `前往${r.name}，约${wk}分钟`, type: "walk",
@@ -636,9 +651,12 @@ export function buildRoute(params: {
   // 按模式筛选候选池
   let ridesPool = rides;
   if (profile.mode === "thrill") {
+    // 刺激项目优先，但排完之后继续用其余项目填满剩下的时间。
+    // 此前是把非刺激项目直接排除在候选池外：园区符合条件的刺激项目只有个位数，
+    // 排完就没东西可排了，一整天的行程断在中午——实测覆盖率只有 15%–36%。
     const thrillRides = rides.filter((r) => r.thrillScore >= 3);
-    // 边缘情况：thrill模式无刺激项目 → 降级到全部
-    ridesPool = thrillRides.length > 0 ? thrillRides : rides;
+    const others = rides.filter((r) => r.thrillScore < 3);
+    ridesPool = thrillRides.length > 0 ? [...thrillRides, ...others] : rides;
   }
   if (profile.mode === "family") {
     const familyRides = rides.filter((r) => !isHeightBlocked(r, profile));
