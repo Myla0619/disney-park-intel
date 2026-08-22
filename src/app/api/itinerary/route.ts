@@ -10,6 +10,7 @@ import { logUsage } from "@/lib/usage-log";
 import { UserProfile, RideScore, HistoricalWaitData, LiveWaitData } from "@/types";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { buildRoute, buildAnchors, getParkHours, fillGaps } from "@/lib/routing";
+import { nowMinutesInPark, todayInPark } from "@/lib/park-time";
 
 const NotesSchema = z.object({
   notes: z.array(z.object({ itemId: z.string(), note: z.string() })),
@@ -28,8 +29,9 @@ export async function POST(req: NextRequest) {
   const liveWaits = parsed.data.liveWaits as LiveWaitData[];
   const currentArea = parsed.data.currentArea;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const isToday = profile.visitDate === today;
+  // 按园区时区判断"今天"，服务端时区不参与
+  const isToday = profile.visitDate === todayInPark(profile.park);
+  const nowMin = isToday ? nowMinutesInPark(profile.park) : undefined;
   const park = getParkById(profile.park);
   const rides = getRidesByPark(profile.park);
 
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
   const parkHours = await getParkHours(profile.park, profile.visitDate, isToday);
 
   // 锚点（花车/烟花）
-  const anchors = buildAnchors(profile, parkHours);
+  const anchors = buildAnchors(profile, parkHours, nowMin);
 
   // 起始区域
   const startArea = isToday && currentArea ? currentArea : "entrance";
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     rides, scores,
     historical: historicalWaits,
     live: isToday ? liveWaits : [],
-    profile, startArea, parkHours, anchors,
+    profile, startArea, parkHours, anchors, nowMin,
   };
 
   const rawRoute = buildRoute(routeParams);

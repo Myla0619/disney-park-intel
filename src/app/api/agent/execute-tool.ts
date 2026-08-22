@@ -16,6 +16,7 @@ import { getReviews } from "@/lib/reviews";
 import { scoreRides } from "@/lib/scoring";
 import { indexReviews, searchReviews } from "@/lib/vector-store";
 import { buildRoute, buildAnchors, getParkHours, timeToMin } from "@/lib/routing";
+import { nowMinutesInPark, todayInPark } from "@/lib/park-time";
 import { SessionMemory } from "@/lib/session-memory";
 
 const PARK_ID = "shanghai";
@@ -129,8 +130,8 @@ async function searchReviewsTool(input: Record<string, any>) {
 async function planItineraryTool(input: Record<string, any>, session: SessionMemory) {
   try {
     const profile = session.baseProfile;
-    const today = new Date().toISOString().slice(0, 10);
-    const isToday = profile.visitDate === today;
+    const isToday = profile.visitDate === todayInPark(PARK_ID);
+    const nowMin = isToday ? nowMinutesInPark(PARK_ID) : undefined;
 
     const [parkHours, live, predicted] = await Promise.all([
       getParkHours(PARK_ID, profile.visitDate, isToday),
@@ -175,12 +176,12 @@ async function planItineraryTool(input: Record<string, any>, session: SessionMem
       profile,
       startArea,
       parkHours,
-      anchors: buildAnchors(profile, parkHours),
+      anchors: buildAnchors(profile, parkHours, nowMin),
+      nowMin,
     });
 
     // maxWait 是会话级软约束：超时项目从"接下来"里剔除，但不改动已排定的锚点
-    const now = new Date();
-    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const currentMin = nowMinutesInPark(PARK_ID);
     const remaining = itinerary
       .filter((i) => timeToMin(i.time) >= currentMin)
       .filter((i) => maxWait == null || i.estimatedWait <= maxWait);
