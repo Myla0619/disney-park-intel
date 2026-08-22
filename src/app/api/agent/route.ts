@@ -13,7 +13,7 @@ import {
   getSession, createSession, addMessage, buildMemoryContext, SessionMemory,
 } from "@/lib/session-memory";
 import { getRidesByPark } from "@/lib/parks-data";
-import { isAnthropicConfigured } from "@/lib/anthropic-client";
+import { isAnthropicConfigured, hasEmptyApiKeyShadow } from "@/lib/anthropic-client";
 import { runAgentLoop } from "@/lib/agent-loop";
 import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { parseBody } from "@/lib/api/respond";
@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
 
   if (!isAnthropicConfigured()) {
     return NextResponse.json(
-      { error: "服务端未配置 ANTHROPIC_API_KEY，AI 助手不可用" },
+      {
+        error: hasEmptyApiKeyShadow()
+          ? "ANTHROPIC_API_KEY 被设成了空值，它会屏蔽 OAuth 配置档与联合身份凭证。请彻底删除该变量，而不是留空"
+          : "服务端未配置 Anthropic 凭证，AI 助手不可用",
+      },
       { status: 503 }
     );
   }
