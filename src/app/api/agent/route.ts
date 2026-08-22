@@ -1,22 +1,21 @@
 /**
- * Agent 编排器
+ * Agent 编排器（SSE 流式）
  *
- * 单轮请求内的 Tool Use 循环：Claude 选工具 → 本地执行 → 结果回灌 → 直到给出
- * 最终回答或达到迭代上限。工具实现见 ./execute-tool.ts，会话状态见
- * @/lib/session-memory。
+ * 一轮对话里可能连着调三四个工具再作答，非流式下用户要盯着转圈等十几秒，
+ * 长回答还容易触到平台的请求超时。这里以 Server-Sent Events 逐段下发：
+ * 文本增量实时显示，工具调用过程也对用户可见。
+ *
+ * 循环本身在 @/lib/agent-loop 里，与 HTTP 解耦以便单测；工具实现见 ./execute-tool。
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { DISNEY_TOOLS } from "./tools";
-import { executeTool } from "./execute-tool";
 import {
   getSession, createSession, addMessage, buildMemoryContext, SessionMemory,
 } from "@/lib/session-memory";
-import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { getRidesByPark } from "@/lib/parks-data";
-import { getAnthropicClient, isAnthropicConfigured } from "@/lib/anthropic-client";
-import { AGENT_MODEL, AGENT_MAX_ITERATIONS } from "@/lib/models";
+import { isAnthropicConfigured } from "@/lib/anthropic-client";
+import { runAgentLoop } from "@/lib/agent-loop";
+import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { parseBody } from "@/lib/api/respond";
 import { AgentBodySchema } from "@/lib/api/schemas";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/api/with-rate-limit";
@@ -51,83 +50,44 @@ export async function POST(req: NextRequest) {
 
   await addMessage(sessionId, "user", message);
 
-  const messages: Anthropic.MessageParam[] = [
-    ...session.conversationHistory.slice(-10).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-    { role: "user", content: message },
-  ];
+  const encoder = new TextEncoder();
+  const activeSession = session;
+  const systemPrompt = buildSystemPrompt(activeSession);
 
-  let finalResponse = "";
-  let iterations = 0;
-  const toolCalls: string[] = [];
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: unknown) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 
-  try {
-    while (iterations < AGENT_MAX_ITERATIONS) {
-      iterations++;
+      try {
+        for await (const event of runAgentLoop(message, activeSession, systemPrompt)) {
+          send(event);
 
-      const response = await getAnthropicClient().messages.create({
-        model: AGENT_MODEL,
-        max_tokens: 16000,
-        thinking: { type: "adaptive" },
-        system: buildSystemPrompt(session),
-        tools: DISNEY_TOOLS,
-        messages,
-      });
-
-      if (response.stop_reason === "tool_use") {
-        const toolUseBlocks = response.content.filter(
-          (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-        );
-
-        // 并行工具调用必须把全部 tool_result 放在同一条 user 消息里回传，
-        // 拆成多条会让模型逐渐不再并行调用。
-        const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
-          toolUseBlocks.map(async (block) => {
-            toolCalls.push(block.name);
-            const result = await executeTool(block.name, block.input as any, session!);
-            return {
-              type: "tool_result" as const,
-              tool_use_id: block.id,
-              content: JSON.stringify(result),
-              is_error: "error" in result,
-            };
-          })
-        );
-
-        messages.push({ role: "assistant", content: response.content });
-        messages.push({ role: "user", content: toolResults });
-        continue;
+          if (event.type === "done") {
+            // 落库放在流结束后：中途断连时不应把半截回答写进会话历史
+            await addMessage(sessionId, "assistant", event.response);
+            await inferAndUpdatePreferences(message, sessionId);
+          }
+        }
+      } catch (err) {
+        console.error("[agent] 流式输出中断:", err);
+        send({ type: "error", message: "AI 助手暂时不可用，请稍后再试" });
+      } finally {
+        controller.close();
       }
+    },
+  });
 
-      finalResponse =
-        response.content
-          .filter((b): b is Anthropic.TextBlock => b.type === "text")
-          .map((b) => b.text)
-          .join("") || "抱歉，我没能处理这个请求，换个说法再试试？";
-      break;
-    }
-
-    // 迭代耗尽仍未收敛：明确告诉用户，而不是静默返回空串
-    if (!finalResponse) {
-      finalResponse = "这个问题涉及的查询有点多，我没能在限定步骤内查完。可以把问题拆细一点再问我吗？";
-    }
-  } catch (err: any) {
-    console.error("[agent] Claude 调用失败:", err);
-    return NextResponse.json(
-      { error: "AI 助手暂时不可用，请稍后再试" },
-      { status: 502 }
-    );
-  }
-
-  await addMessage(sessionId, "assistant", finalResponse);
-  await inferAndUpdatePreferences(message, sessionId);
-
-  return NextResponse.json(
-    { response: finalResponse, sessionId, iterations, toolCalls },
-    { headers: limited.headers }
-  );
+  return new Response(stream, {
+    headers: {
+      ...limited.headers,
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      // 反向代理默认会缓冲响应体，缓冲了就等于没有流式
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 // ─── 系统提示词 ──────────────────────────────────────────────────────────────
