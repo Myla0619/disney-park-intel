@@ -1,0 +1,41 @@
+name: Collect wait times
+
+# 上海时间 08:00–22:00 每小时采一次（cron 为 UTC，CST = UTC+8）。
+# 闭园时段不采：全是 null，只会让仓库变大。
+on:
+  schedule:
+    - cron: "0 0-14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-wait-times
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 采集快照
+        run: node scripts/collect_wait_snapshots.mjs
+
+      - name: 提交
+        run: |
+          if git diff --quiet -- data/; then
+            echo "本次没有新数据，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # [skip ci] 避免数据提交触发完整 CI；vercel.json 里也忽略了纯数据变更的重新部署
+          git commit -m "chore(data): 采集排队快照 $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          git push

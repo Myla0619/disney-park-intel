@@ -8,6 +8,8 @@
 
 import { getParkById } from "./parks-data";
 import { rideIdFromThemeparks, rideIdFromQueueTimes } from "./provider-ids";
+import { predictAll } from "./wait-prediction";
+import { loadSnapshots } from "./snapshot-store";
 import { LiveWaitData, HistoricalWaitData } from "@/types";
 
 const THEMEPARKS_BASE = "https://api.themeparks.wiki/v1";
@@ -33,6 +35,9 @@ type CacheEntry<T> = { data: T; ts: number };
 // 缓存 key 必须包含园区（预测模式还要含日期），否则多园区请求互相串数据。
 const liveCache = new Map<string, CacheEntry<LiveWaitData[]>>();
 const predictedCache = new Map<string, CacheEntry<HistoricalWaitData[]>>();
+
+/** 记录上一次预测数据的来源，供缓存命中时如实回报。 */
+let predictedSource = "queue-times.com";
 
 function readCache<T>(cache: Map<string, CacheEntry<T>>, key: string, ttl: number): T | null {
   const hit = cache.get(key);
@@ -119,7 +124,15 @@ export async function getPredictedWaitTimes(
 
   const cacheKey = `${parkId}:${visitDate}`;
   const cached = readCache(predictedCache, cacheKey, PREDICTED_TTL_MS);
-  if (cached) return { data: cached, cached: true, fallback: false, source: "queue-times.com" };
+  if (cached) return { data: cached, cached: true, fallback: false, source: predictedSource };
+
+  // 首选真实历史加权模型；采集数据不足时才退回当前快照外推
+  const fromHistory = predictAll(loadSnapshots(), visitDate);
+  if (fromHistory.length) {
+    predictedCache.set(cacheKey, { data: fromHistory, ts: Date.now() });
+    predictedSource = "historical-model";
+    return { data: fromHistory, cached: false, fallback: false, source: "historical-model" };
+  }
 
   try {
     const res = await fetch(`${QUEUE_TIMES_BASE}/${park.queueTimesId}/queue_times.json`);
@@ -128,6 +141,7 @@ export async function getPredictedWaitTimes(
 
     const data = mapQueueTimesPayload(parkId, json, visitDate);
     predictedCache.set(cacheKey, { data, ts: Date.now() });
+    predictedSource = "queue-times.com";
     return { data, cached: false, fallback: false, source: "queue-times.com" };
   } catch (err: any) {
     return {
