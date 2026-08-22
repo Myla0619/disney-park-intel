@@ -1,13 +1,14 @@
 /**
- * 会话记忆管理
- * 在多轮对话中追踪用户偏好变化，无需重新填写 Onboarding
- * 简历亮点：Session-scoped context memory for conversational preference tracking
+ * 会话记忆
+ *
+ * 在多轮对话中累积用户透露的偏好（最长可接受排队、不想玩的项目、同行人员、
+ * 当前位置），下一轮直接进系统提示词，用户不必重填 Onboarding。
  */
 
 import { UserProfile } from "@/types";
 
 export type PreferenceUpdate = {
-  type: "thrill_limit"    // "我不想排队超过X分钟"
+  type: "max_wait"        // "我不想排队超过X分钟"
        | "avoid_ride"     // "我不想玩XX"
        | "must_ride"      // "我一定要玩XX"
        | "location"       // "我现在在XX"
@@ -36,7 +37,9 @@ export type SessionMemory = {
   };
 };
 
-// ─── 内存存储（生产环境替换为 Upstash Redis）────────────────────────────────
+// ─── 存储后端 ─────────────────────────────────────────────────────────────
+// 进程内 Map：Serverless 上每个实例各存一份，冷启动即丢失。
+// 生产部署应设置 UPSTASH_REDIS_REST_URL，见 src/lib/session-store.ts。
 const sessions = new Map<string, SessionMemory>();
 
 export function createSession(sessionId: string, profile: UserProfile): SessionMemory {
@@ -66,7 +69,7 @@ export function updateSession(sessionId: string, update: PreferenceUpdate): Sess
 
   // 推断偏好
   switch (update.type) {
-    case "thrill_limit":
+    case "max_wait":
       session.inferredPreferences.maxWaitMinutes = Number(update.value);
       break;
     case "avoid_ride":
@@ -105,22 +108,6 @@ export function addMessage(sessionId: string, role: "user" | "assistant", conten
     session.conversationHistory = session.conversationHistory.slice(-20);
   }
   sessions.set(sessionId, session);
-}
-
-// ─── 把 session 偏好合并回 UserProfile ───────────────────────────────────────
-export function mergeSessionToProfile(session: SessionMemory): UserProfile & {
-  _avoidRides: string[];
-  _mustRides: string[];
-  _maxWaitMinutes?: number;
-  _currentArea?: string;
-} {
-  return {
-    ...session.baseProfile,
-    _avoidRides: session.inferredPreferences.avoidRides,
-    _mustRides: session.inferredPreferences.mustRides,
-    _maxWaitMinutes: session.inferredPreferences.maxWaitMinutes,
-    _currentArea: session.currentArea,
-  };
 }
 
 // ─── 从对话中提取偏好更新（传给 Claude 解析）────────────────────────────────
