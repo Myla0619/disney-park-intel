@@ -72,7 +72,7 @@ export async function searchNotes(
 ): Promise<{ id: string; title: string; author: string; url: string; likes: number }[]> {
   const items = await runActor(
     SEARCH_ACTOR,
-    { keywords, maxItems: maxItemsPerKeyword, sortType: "popularity_descending", noteType: "all" },
+    { keywords, maxItems: maxItemsPerKeyword, sortType: "hotest", noteType: "all" },
     token
   );
 

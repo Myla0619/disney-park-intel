@@ -2,8 +2,7 @@
 /**
  * 抓取小红书笔记，生成 data/reviews/<targetId>.json 语料。
  *
- * 两段式：搜索 actor 拿笔记列表（含带 xsec_token 的链接）→ 详情 actor 拿正文。
- * 搜索结果只有标题，而评论语料需要的是正文。
+ * 单段：所用 actor 的搜索结果已包含正文 desc 与互动数据，无需再跑详情 actor。
  *
  * 抓取按次计费，因此这是离线脚本，不在请求路径里跑；结果提交进仓库后，
  * 线上无需 APIFY_TOKEN 即可提供真实评论（见 src/lib/review-store.ts）。
@@ -24,8 +23,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = path.join(ROOT, "data", "reviews");
 const APIFY_BASE = "https://api.apify.com/v2/acts";
 
-const SEARCH_ACTOR = process.env.APIFY_XHS_SEARCH_ACTOR ?? "easyapi~rednote-xiaohongshu-search-scraper";
-const DETAIL_ACTOR = process.env.APIFY_XHS_DETAIL_ACTOR ?? "zen-studio~rednote-note-detail-scraper";
+// 单段抓取：该 actor 的搜索结果已含正文 desc，不必再跑一次详情 actor。
+// 选它还因为计价差两个数量级——$0.00001/条，另一个候选是 $0.00499/条且单次最少 100 条。
+const SEARCH_ACTOR = process.env.APIFY_XHS_SEARCH_ACTOR ?? "zen-studio~rednote-search-scraper";
 
 /**
  * 读取 .env.local（该文件已在 .gitignore 中）。
@@ -46,6 +46,8 @@ function loadEnvLocal() {
   }
 }
 loadEnvLocal();
+
+class ActorLimitError extends Error {}
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -97,6 +99,13 @@ async function runActor(actor, input, token) {
   }
   const items = await res.json();
   if (!Array.isArray(items)) throw new Error(`actor ${actor} 未返回数组`);
+
+  // actor 用完自身免费额度时不会报错，而是返回一条占位项。不识别的话，
+  // 后续每个目标都表现为"搜索返回 1 条、保留 0 条"，看起来像搜不到内容，
+  // 实际是撞了硬性上限——必须立刻中止，而不是继续空跑并计费。
+  const limit = items.find((i) => i && i.limit_reached);
+  if (limit) throw new ActorLimitError(limit.message ?? `actor ${actor} 免费额度已用尽`);
+
   return items;
 }
 
@@ -143,7 +152,12 @@ const tagsOf = (t) =>
     .filter(([, kws]) => kws.some((k) => t.toLowerCase().includes(k.toLowerCase())))
     .map(([tag]) => tag);
 
-/** 小红书没有星级，用点赞量分档近似——在语料里如实记为近似值。 */
+/**
+ * 小红书没有星级评分。这里用点赞量分档，得到的是「热度」而非「满意度」——
+ * 一条吐槽项目难玩的笔记同样可能几万赞。实测 280 条语料的均值约 4.5，
+ * 这个数字不代表口碑好，只代表抓到的都是热门笔记。
+ * UI 若要展示评分，应说明这是热度代理指标。
+ */
 const ratingFromLikes = (likes) => (likes > 1000 ? 5 : likes > 200 ? 4 : 3);
 
 async function collectTarget({ targetId, targetType, keywords }, token) {
@@ -155,54 +169,56 @@ async function collectTarget({ targetId, targetType, keywords }, token) {
     return null;
   }
 
-  const found = await runActor(
+  const notes = await runActor(
     SEARCH_ACTOR,
-    { keywords: queries, maxItems: PER_KEYWORD, sortType: "popularity_descending", noteType: "all" },
+    {
+      keywords: queries,
+      maxResults: PER_KEYWORD,
+      sortType: "popularity_descending",
+      noteType: "all",
+      timeFilter: "all",
+    },
     token
   );
-
-  const links = [];
-  const seen = new Set();
-  for (const row of found) {
-    const link = row?.link;
-    if (!link || seen.has(link)) continue;
-    seen.add(link);
-    links.push(link);
-  }
-  console.log(`  搜索到 ${links.length} 条不重复笔记`);
-  if (!links.length) return null;
-
-  const details = await runActor(DETAIL_ACTOR, { noteUrls: links }, token);
-  console.log(`  取回 ${details.length} 条正文`);
+  console.log(`  搜索返回 ${notes.length} 条笔记`);
 
   const scrapedAt = new Date().toISOString();
   const reviews = [];
-  for (const n of details) {
-    const text = `${String(n?.title ?? "").trim()} ${String(n?.description ?? "").trim()}`.trim();
+  const seen = new Set();
+
+  for (const n of notes) {
+    // 多个关键词会命中同一篇笔记，按 id 去重
+    const id = String(n?.id ?? "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+
+    const text = `${String(n?.title ?? "").trim()} ${String(n?.desc ?? "").trim()}`.trim();
     if (text.length < 10) continue; // 正文过短的笔记对检索没有价值
 
-    const likes = toCount(n.liked_count);
+    const eng = n?.engagement ?? {};
+    const likes = toCount(eng.liked_count);
+
     reviews.push({
       source: "xiaohongshu",
-      author: String(n.nickname ?? "小红书用户"),
+      author: String(n?.author?.nickname ?? "小红书用户"),
       rating: ratingFromLikes(likes),
       text: text.slice(0, 500),
-      date: toIso(n.time ?? n.timestamp ?? n.last_update_time) || scrapedAt,
+      date: toIso(n?.timestamp ?? n?.last_update_time ?? n?.update_time) || scrapedAt,
       tags: tagsOf(text),
       sentiment: sentiment(text),
-      url: String(n.url ?? ""),
+      url: String(n?.url ?? ""),
       scrapedAt,
       engagement: {
         likes,
-        comments: toCount(n.comments_count),
-        collects: toCount(n.collected_count),
+        comments: toCount(eng.comments_count),
+        collects: toCount(eng.collected_count),
       },
     });
   }
 
-  // 按互动量降序，让最有代表性的笔记排在前面
+  // 按互动量降序，最有代表性的笔记排在前面
   reviews.sort((a, b) => (b.engagement.likes ?? 0) - (a.engagement.likes ?? 0));
-  console.log(`  保留 ${reviews.length} 条有效评论`);
+  console.log(`  保留 ${reviews.length} 条有效评论（去重后）`);
 
   return { targetId, targetType, scrapedAt, keywords, reviews };
 }
@@ -243,6 +259,13 @@ async function main() {
       ok++;
       totalReviews += entry.reviews.length;
     } catch (err) {
+      if (err instanceof ActorLimitError) {
+        // 额度耗尽是全局状态，继续跑只会白白消耗启动费
+        console.error(`\n中止：${err.message}`);
+        console.error(`已完成 ${ok} 个目标，剩余 ${targets.length - ok - failed} 个未采集。`);
+        console.error("可换用其他 actor（APIFY_XHS_SEARCH_ACTOR 环境变量）或升级 Apify 套餐后续跑。");
+        break;
+      }
       // 单个目标失败不应中断整批
       console.error(`  [${target.targetId}] 失败: ${err.message}`);
       failed++;
