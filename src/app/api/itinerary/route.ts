@@ -7,6 +7,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { getAnthropicClient } from "@/lib/anthropic-client";
 import { ITINERARY_MODEL } from "@/lib/models";
 import { logUsage } from "@/lib/usage-log";
+import { isAnthropicConfigured } from "@/lib/anthropic-client";
 import { UserProfile, RideScore, HistoricalWaitData, LiveWaitData } from "@/types";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { buildRoute, buildAnchors, getParkHours, fillGaps } from "@/lib/routing";
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
   const historicalWaits = parsed.data.historicalWaits as HistoricalWaitData[];
   const liveWaits = parsed.data.liveWaits as LiveWaitData[];
   const currentArea = parsed.data.currentArea;
+  const polishNotes = parsed.data.polishNotes;
 
   // 按园区时区判断"今天"，服务端时区不参与
   const isToday = profile.visitDate === todayInPark(profile.park);
@@ -57,6 +59,14 @@ export async function POST(req: NextRequest) {
 
   if (localRoute.length === 0) {
     return NextResponse.json({ itinerary: [], isToday, parkHours }, { headers: limited.headers });
+  }
+
+  // 不需要润色时直接返回确定性结果，不产生任何模型调用
+  if (!polishNotes || !isAnthropicConfigured()) {
+    return NextResponse.json(
+      { itinerary: localRoute, isToday, parkHours, polished: false },
+      { headers: limited.headers }
+    );
   }
 
   // Claude 润色备注（不改时间顺序）
