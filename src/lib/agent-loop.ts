@@ -14,6 +14,7 @@ import { executeTool } from "@/app/api/agent/execute-tool";
 import { SessionMemory } from "./session-memory";
 import { getAnthropicClient } from "./anthropic-client";
 import { AGENT_MODEL, AGENT_MAX_ITERATIONS } from "./models";
+import { logUsage } from "./usage-log";
 
 export type AgentEvent =
   | { type: "tool"; name: string; iteration: number }
@@ -68,6 +69,7 @@ export async function* runAgentLoop(
       }
 
       const final = await stream.finalMessage();
+      logUsage(`agent_iter${iterations}`, AGENT_MODEL, final.usage);
 
       if (final.stop_reason === "tool_use") {
         const toolUseBlocks = final.content.filter(

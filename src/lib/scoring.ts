@@ -12,6 +12,7 @@ import { getRidesByPark } from "./parks-data";
 import { isHeightBlocked, minKidHeightCm } from "./height";
 import { getAnthropicClient } from "./anthropic-client";
 import { SCORING_MODEL } from "./models";
+import { logUsage } from "./usage-log";
 
 export type ScoreRidesInput = {
   profile: UserProfile;
@@ -119,6 +120,8 @@ ${reviewContext || "暂无评论数据"}
       output_config: { format: zodOutputFormat(ScoresSchema) },
       messages: [{ role: "user", content: prompt }],
     });
+
+    logUsage("scoring", SCORING_MODEL, message.usage);
 
     const parsed = message.parsed_output;
     if (!parsed) throw new Error("结构化输出解析失败");
