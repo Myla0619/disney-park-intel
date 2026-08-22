@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseBody } from "@/lib/api/respond";
+import { ItineraryBodySchema } from "@/lib/api/schemas";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/api/with-rate-limit";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { getAnthropicClient } from "@/lib/anthropic-client";
@@ -12,13 +15,17 @@ const NotesSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const { profile, scores, historicalWaits, liveWaits, currentArea } = await req.json() as {
-    profile: UserProfile;
-    scores: RideScore[];
-    historicalWaits: HistoricalWaitData[];
-    liveWaits: LiveWaitData[];
-    currentArea?: string;
-  };
+  const limited = checkRateLimit(req, "itinerary", RATE_LIMITS.llm);
+  if (limited.response) return limited.response;
+
+  const parsed = await parseBody(req, ItineraryBodySchema);
+  if (!parsed.ok) return parsed.response;
+
+  const profile = parsed.data.profile as UserProfile;
+  const scores = parsed.data.scores as RideScore[];
+  const historicalWaits = parsed.data.historicalWaits as HistoricalWaitData[];
+  const liveWaits = parsed.data.liveWaits as LiveWaitData[];
+  const currentArea = parsed.data.currentArea;
 
   const today = new Date().toISOString().slice(0, 10);
   const isToday = profile.visitDate === today;
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
   const localRoute = fillGaps(rawRoute, profile);
 
   if (localRoute.length === 0) {
-    return NextResponse.json({ itinerary: [], isToday, parkHours });
+    return NextResponse.json({ itinerary: [], isToday, parkHours }, { headers: limited.headers });
   }
 
   // Claude 润色备注（不改时间顺序）
@@ -83,9 +90,9 @@ ${routeSummary}
       ...item,
       note: noteMap[item.itemId] ?? item.note,
     }));
-    return NextResponse.json({ itinerary:merged, isToday, parkHours });
+    return NextResponse.json({ itinerary:merged, isToday, parkHours }, { headers: limited.headers });
   } catch (err) {
     console.error("[itinerary] Claude 备注润色失败，返回未润色行程:", err);
-    return NextResponse.json({ itinerary:localRoute, isToday, parkHours, fallback:true });
+    return NextResponse.json({ itinerary:localRoute, isToday, parkHours, fallback:true }, { headers: limited.headers });
   }
 }

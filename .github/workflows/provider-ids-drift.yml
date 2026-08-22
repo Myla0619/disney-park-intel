@@ -1,0 +1,19 @@
+name: Provider ID drift
+
+# 数据源侧的改名/下线不会通知我们，只能定期主动比对。
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check:provider-ids

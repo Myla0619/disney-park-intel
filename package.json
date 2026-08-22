@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:provider-ids": "CHECK_LIVE_PROVIDERS=1 vitest run src/lib/__tests__/provider-ids.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
