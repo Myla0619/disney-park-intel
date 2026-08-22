@@ -49,14 +49,16 @@ function getWeights(profile: UserProfile): RouteWeights {
 }
 
 // ─── 有效等待时间（含优速通折扣）────────────────────────────────────────────
-function getEffectiveWait(
+export function getEffectiveWait(
   ride: Ride, profile: UserProfile,
   hist: HistoricalWaitData[], live: LiveWaitData[],
   currentMin: number
 ): number {
   const h = hist.find((w) => w.rideId === ride.id);
   const l = live.find((w) => w.rideId === ride.id);
-  let base = h?.predictedWait ?? l?.waitMinutes ?? ride.waitTime ?? 30;
+  // 实测值优先于预测值：live 是当下真实排队，hist 只是由快照外推的估计。
+  // 反过来会让"今天入园"的行程被启发式覆盖掉真实数据。
+  let base = l?.waitMinutes ?? h?.predictedWait ?? ride.waitTime ?? 30;
 
   // 边缘情况：base 异常值保护
   if (isNaN(base) || base < 0) base = 30;
@@ -73,7 +75,9 @@ function getEffectiveWait(
     bundle3Rides: profile.bundle3Rides,
   });
 
-  if (llRides.includes(ride.id)) {
+  // ride.llEligible 与套餐清单必须同时成立才给折扣：套餐清单是"这张卡覆盖哪些项目"，
+  // llEligible 是"这个项目是否支持尊享卡"，缺任一条都不该打折。
+  if (ride.llEligible && llRides.includes(ride.id)) {
     // Single Pass 时间窗口检查
     // 如果用户有 Single Pass 且有时间窗口限制，检查当前时间是否在窗口内
     const spWindow = (profile as any).singlePassWindows?.[ride.id];

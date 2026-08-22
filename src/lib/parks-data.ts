@@ -1,4 +1,5 @@
 import { Park, Ride, PhotoSpot, ShopSpot, Restaurant } from "@/types";
+import { LL_ELIGIBLE_RIDES } from "./ll-packages";
 
 // ─── 步行时间矩阵（上海迪士尼，分钟，成人正常步速 80m/min）──────────────
 // 数据基于园区实际路线距离估算，行动不便×2.0，带幼童×1.6，带小学生×1.3
@@ -121,7 +122,7 @@ export const PARKS: Park[] = [
 
 // ─── 完整项目列表（数据来源：上海迪士尼官网尊享卡页面 + 攻略验证）─────────
 // 身高限制来源：https://www.shanghaidisneyresort.com/annual-pass/diamond-annual-pass/
-export const RIDES: Ride[] = [
+const RAW_RIDES: Ride[] = [
   // ── 疯狂动物城（最新园区，2023年开放）──────────────────────────────────────
   {
     id:"zootopia-ride", name:"疯狂动物城：热力追踪",
@@ -330,6 +331,22 @@ export const RIDES: Ride[] = [
 ];
 
 // ─── 拍照打卡点（15个，含具体位置和步行信息）────────────────────────────────
+/**
+ * 尊享卡资格由 LL_ELIGIBLE_RIDES 单一决定。
+ *
+ * 此前 Ride.llEligible 与 LL_ELIGIBLE_RIDES 是两份手工维护的清单，实际已经分叉：
+ * roaring-rapids / peter-pan / dumbo 在官方清单里却被标为不可购卡（导致 UI 说
+ * 不能买、路径规划却照样给 85% 折扣），frozen 反之。以官方清单为准派生该字段，
+ * 两者不再可能不一致。
+ *
+ * 注：frozen（冰雪奇缘·极境之旅）因此变为不可购卡——官网尊享卡页面未列出该项目，
+ * 若后续官方将其纳入，改 LL_ELIGIBLE_RIDES 一处即可。
+ */
+export const RIDES: Ride[] = RAW_RIDES.map((ride) => ({
+  ...ride,
+  llEligible: LL_ELIGIBLE_RIDES.includes(ride.id),
+}));
+
 export const PHOTO_SPOTS: PhotoSpot[] = [
   {
     id:"castle-front", name:"奇幻童话城堡正面",
