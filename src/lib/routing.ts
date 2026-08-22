@@ -58,7 +58,10 @@ export function getEffectiveWait(
   const l = live.find((w) => w.rideId === ride.id);
   // 实测值优先于预测值：live 是当下真实排队，hist 只是由快照外推的估计。
   // 反过来会让"今天入园"的行程被启发式覆盖掉真实数据。
-  let base = l?.waitMinutes ?? h?.predictedWait ?? ride.waitTime ?? 30;
+  // 演出与巡游没有常规排队，缺数据时的默认值应是"提前占位"的时间，
+  // 套用游乐项目的 30 分钟排队默认值会让行程凭空多出大段虚构的等待
+  const noDataDefault = ride.type === "show" ? 15 : 30;
+  let base = l?.waitMinutes ?? h?.predictedWait ?? ride.waitTime ?? noDataDefault;
 
   // 边缘情况：base 异常值保护
   if (isNaN(base) || base < 0) base = 30;
@@ -296,8 +299,12 @@ function buildRideNote(
 ): string {
   const parts: string[] = [];
 
+  // 演出与巡游是定场次，说"排队"会误导——那段时间是提前到场占位
+  const isShow = ride.type === "show";
+
   if (ll === "single")  parts.push(`单项尊享卡入场，节省约${Math.round(wait * 5)}分钟排队`);
   else if (ll === "package") parts.push(`套餐尊享卡入场，节省约${Math.round(wait * 4)}分钟`);
+  else if (isShow)      parts.push(`建议提前${wait}分钟到场占位`);
   else if (wait >= 60)  parts.push(`预计排队${wait}分钟，可考虑购买尊享卡`);
   else                  parts.push(`预计等待${wait}分钟`);
 
@@ -365,7 +372,8 @@ function buildTimeline(
   profile: UserProfile,
   startArea: string,
   parkHours: ParkHours,
-  nowMin?: number
+  nowMin?: number,
+  userSelectedLL = false
 ): ItineraryItem[] {
   const result: ItineraryItem[] = [...anchors];
   const restaurants = getRestaurants(profile.park);
@@ -398,10 +406,65 @@ function buildTimeline(
   const usedMeals   = new Set<string>();
   const usedRests   = new Set<string>();
   const usedItems   = new Set<string>();
-  let lastLLMin     = -999;
+  // 所有已排定的快通项目时刻。间隔约束是双向的：预占位的项目排在时间轴靠后，
+  // 主循环里的项目可能排在它之前，只记"上一个"会漏判。
+  const llTimes: number[] = [];
+  const violatesLLInterval = (at: number) => llTimes.some((t) => Math.abs(at - t) < 90);
   let currentArea   = startArea;
   let currentMin    = startMin;
   let itemsAdded    = 0;
+
+  /**
+   * 自购尊享卡项目预占位。
+   *
+   * 这类项目受 Multi Pass 的 90 分钟间隔约束，若混在普通候选里按成本排序，
+   * 第一项排进去之后，后面几项都会在几分钟内撞上间隔规则被丢弃——用户花几百元
+   * 买的三项套餐实际只兑现一项。
+   *
+   * 因此把它们当作软锚点：沿时间轴按 90 分钟间隔先占好位，其余项目再填空档。
+   */
+  const reservedLL: { item: CandidateItem; start: number; end: number }[] = [];
+  // 只对用户逐项自选的套餐预占位。固定套餐（6 项/9 项等）是打包赠送的项目集合，
+  // 不是逐项指定的付费选择，按普通候选处理即可。
+  if (!llUnlimited && userSelectedLL) {
+    const purchased = candidates.filter((c) => c.llType === "package");
+    let slot = startMin;
+    for (const item of purchased) {
+      const start = slot + walkTime(startArea, item.area, profile);
+      const end = start + item.wait + item.duration;
+      if (end > depMin) break;
+      if (blocked.some((b) => start < b.end && end > b.start)) {
+        // 与巡游烟花冲突就顺延到锚点之后
+        const hit = blocked.find((b) => start < b.end && end > b.start)!;
+        slot = hit.end;
+        const s2 = slot;
+        const e2 = s2 + item.wait + item.duration;
+        if (e2 > depMin) break;
+        reservedLL.push({ item, start: s2, end: e2 });
+        slot = s2 + 90;
+        continue;
+      }
+      reservedLL.push({ item, start, end });
+      slot = start + 90;
+    }
+  }
+
+  for (const r of reservedLL) {
+    result.push({
+      time: minToTime(r.start), endTime: minToTime(r.end),
+      itemId: r.item.id, itemName: r.item.name, area: r.item.area,
+      estimatedWait: r.item.wait, walkMinutes: 0, duration: r.item.duration,
+      note: r.item.note, type: r.item.type,
+      llType: r.item.llType, singleRiderTip: r.item.singleRider,
+    });
+    usedItems.add(r.item.id);
+    itemsAdded++;
+    llTimes.push(r.start);
+    // 已占位的时段对普通项目关闭，避免时间重叠
+    blocked.push({ start: r.start - 5, end: r.end + 5, area: r.item.area });
+  }
+  blocked.sort((x, y) => x.start - y.start);
+
 
   for (const item of candidates) {
     if (itemsAdded >= maxItems) break;
@@ -484,7 +547,7 @@ function buildTimeline(
     if (itemEnd > depMin) break;
 
     // Multi Pass 90 分钟间隔（严格 >= 90）；无限次套餐不适用
-    if (!llUnlimited && item.llType === "package" && (arrAt - lastLLMin) < 90) continue;
+    if (!llUnlimited && item.llType === "package" && violatesLLInterval(arrAt)) continue;
 
     if (wk > 0) result.push({
       time: minToTime(currentMin), endTime: minToTime(arrAt),
@@ -501,7 +564,7 @@ function buildTimeline(
       llType: item.llType, singleRiderTip: item.singleRider,
     });
 
-    if (!llUnlimited && item.llType === "package") lastLLMin = arrAt;
+    if (!llUnlimited && item.llType === "package") llTimes.push(arrAt);
     currentArea = item.area;
     currentMin  = itemEnd;
     usedItems.add(item.id);
@@ -682,12 +745,41 @@ export function buildRoute(params: {
     }
   }
 
-  // 三层候选池：must-do → worth-it → if-time
-  const mustDo  = buildCandidates(ridesPool, scores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "must-do");
-  const worthIt = buildCandidates(ridesPool, scores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "worth-it");
-  const ifTime  = buildCandidates(ridesPool, scores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "if-time");
+  // 用户自选的尊享卡项目提升为 must-do：这几项是他真金白银单独指定的，
+  // 不能因为成本排序靠后就不排。此前买了三项套餐只排进一项——评分提示词里
+  // 也没有告知模型用户买了哪几项，模型无从优先。
+  const purchasedLLRides = getUserLLRides({
+    llPackage: profile.llPackage,
+    singlePassRides: profile.singlePassRides,
+    bundle3Rides: profile.bundle3Rides,
+  });
+  const isUserSelectedLL =
+    profile.llPackage === "single" || profile.llPackage === "bundle3";
 
-  let allCandidates = [...mustDo, ...worthIt, ...ifTime];
+  const effectiveScores: RideScore[] = isUserSelectedLL && purchasedLLRides.length
+    ? scores.map((s) =>
+        purchasedLLRides.includes(s.rideId) && s.priority !== "skip"
+          ? { ...s, priority: "must-do" as const, recommended: true }
+          : s
+      )
+    : scores;
+
+  // 三层候选池：must-do → worth-it → if-time
+  const mustDo  = buildCandidates(ridesPool, effectiveScores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "must-do");
+  const worthIt = buildCandidates(ridesPool, effectiveScores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "worth-it");
+  const ifTime  = buildCandidates(ridesPool, effectiveScores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "if-time");
+
+  // 自购尊享卡的项目排在候选队列最前面。仅提升到 must-do 不够：must-do 层本身
+  // 就排不完，靠成本排序仍会被挤掉——用户单独付钱指定的项目必须先落位。
+  const tiered = [...mustDo, ...worthIt, ...ifTime];
+  const purchasedFirst = isUserSelectedLL && purchasedLLRides.length
+    ? [
+        ...tiered.filter((c) => purchasedLLRides.includes(c.id)),
+        ...tiered.filter((c) => !purchasedLLRides.includes(c.id)),
+      ]
+    : tiered;
+
+  let allCandidates = purchasedFirst;
 
   // photo + shopping 模式插入 POI
   if (profile.focusPhoto) {
@@ -724,6 +816,6 @@ export function buildRoute(params: {
     allCandidates = interleaved;
   }
 
-  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin);
+  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin, isUserSelectedLL);
   return fillGaps(raw, profile);
 }
