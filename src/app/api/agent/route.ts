@@ -17,10 +17,17 @@ import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { getRidesByPark } from "@/lib/parks-data";
 import { getAnthropicClient, isAnthropicConfigured } from "@/lib/anthropic-client";
 import { AGENT_MODEL, AGENT_MAX_ITERATIONS } from "@/lib/models";
+import { parseBody } from "@/lib/api/respond";
+import { AgentBodySchema } from "@/lib/api/schemas";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/api/with-rate-limit";
+import { UserProfile } from "@/types";
 
 const PARK_ID = "shanghai";
 
 export async function POST(req: NextRequest) {
+  const limited = checkRateLimit(req, "agent", RATE_LIMITS.agent);
+  if (limited.response) return limited.response;
+
   if (!isAnthropicConfigured()) {
     return NextResponse.json(
       { error: "服务端未配置 ANTHROPIC_API_KEY，AI 助手不可用" },
@@ -28,10 +35,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { message, sessionId, profile } = await req.json();
-  if (!message || !sessionId) {
-    return NextResponse.json({ error: "message 与 sessionId 必填" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, AgentBodySchema);
+  if (!parsed.ok) return parsed.response;
+  const { message, sessionId } = parsed.data;
+  const profile = parsed.data.profile as UserProfile | undefined;
 
   let session = getSession(sessionId);
   if (!session && profile) session = createSession(sessionId, profile);
@@ -117,12 +124,10 @@ export async function POST(req: NextRequest) {
   addMessage(sessionId, "assistant", finalResponse);
   inferAndUpdatePreferences(message, sessionId);
 
-  return NextResponse.json({
-    response: finalResponse,
-    sessionId,
-    iterations,
-    toolCalls,
-  });
+  return NextResponse.json(
+    { response: finalResponse, sessionId, iterations, toolCalls },
+    { headers: limited.headers }
+  );
 }
 
 // ─── 系统提示词 ──────────────────────────────────────────────────────────────

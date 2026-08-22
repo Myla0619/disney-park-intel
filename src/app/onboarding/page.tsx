@@ -407,7 +407,7 @@ export default function OnboardingPage() {
                             {r.photoWorthy && <span className="text-xs bg-pink-500/20 text-pink-300 px-1.5 py-0.5 rounded">📸</span>}
                           </div>
                           <div className="text-xs text-white/40 mt-0.5">{r.areaName} · {r.cuisine} · {r.priceRange}</div>
-                          {r.reviews[0] && <p className="mt-1 text-xs text-white/40 line-clamp-1">"{r.reviews[0].text.slice(0,55)}…"</p>}
+                          {r.reviews[0] && <p className="mt-1 text-xs text-white/40 line-clamp-1">&ldquo;{r.reviews[0].text.slice(0,55)}…&rdquo;</p>}
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           <span className="text-amber-400 text-sm font-bold">⭐{r.rating}</span>

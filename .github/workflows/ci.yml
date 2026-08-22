@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: 单元测试
+        run: npm test
+
+      - name: 生产构建
+        run: npm run build
+        env:
+          # 构建期不应调用 Claude；给个占位值确保没有模块在导入时就要求真 key
+          ANTHROPIC_API_KEY: placeholder-for-build
+
+  provider-ids:
+    # 两个等待时间数据源随时可能重命名或下线项目，映射表一旦漂移，实时数据会静默
+    # 退化成静态值。每天跑一次真实接口比对，漂移时直接让这个 job 红掉。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: 校验外部数据源 ID 映射
+        run: npm run check:provider-ids
