@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { VectorStore, indexReviews, searchReviews } from "../vector-store";
+import { VectorStore, indexReviews, searchReviews, tokenize } from "../vector-store";
 import { Review } from "@/types";
 
 const review = (text: string, author = "用户"): Review => ({
@@ -62,5 +62,58 @@ describe("按项目分片的评论检索", () => {
 
   it("未索引过的项目返回空数组", () => {
     expect(searchReviews("从未索引过的项目", "任意查询")).toEqual([]);
+  });
+});
+
+describe("中文分词", () => {
+  it("CJK 切成字符二元组", () => {
+    expect(tokenize("适合孩子")).toEqual(["适合", "合孩", "孩子"]);
+  });
+
+  it("单字 CJK 词保留，否则单字查询检索不到", () => {
+    expect(tokenize("贵")).toEqual(["贵"]);
+  });
+
+  it("拉丁词整体保留，不切二元组", () => {
+    expect(tokenize("amazing ride")).toEqual(["amazing", "ride"]);
+  });
+
+  it("中英混排按类型切段后分别处理", () => {
+    expect(tokenize("97cm就可以坐")).toEqual(["97cm", "就可", "可以", "以坐"]);
+  });
+
+  it("标点与空白不产生 token", () => {
+    expect(tokenize("！！！   ，。")).toEqual([]);
+  });
+});
+
+describe("真实中文评论上的检索（无空格）", () => {
+  // 回归测试：改写前分词按空白切，中文评论整条变成一个 token，
+  // 所有查询得分恒为 0，检索退化成按索引顺序返回。
+  const docs = [
+    { text: "创极速光轮真的是来上海迪士尼必玩！速度超快，建议一开门就冲" },
+    { text: "带孩子来玩，小孩不够高进不去，好可惜。建议提前看好身高要求" },
+    { text: "七个小矮人是我们家孩子最喜欢的！97cm就可以坐，排队大概45分钟" },
+  ];
+
+  it("查询「适合孩子吗」命中讲孩子的两条，而不是全部得 0 分", () => {
+    const store = new VectorStore<{ text: string }>();
+    store.index(docs);
+    const out = store.search("适合孩子吗", 3);
+    expect(out[0].score).toBeGreaterThan(0);
+    expect(out[0].text).toContain("孩子");
+    expect(out[2].score).toBe(0); // 不相关的那条仍应为 0
+  });
+
+  it("查询「身高限制」命中提到身高的那条", () => {
+    const store = new VectorStore<{ text: string }>();
+    store.index(docs);
+    expect(store.search("身高限制", 1)[0].text).toContain("身高");
+  });
+
+  it("查询「排队多久」命中提到排队时长的那条", () => {
+    const store = new VectorStore<{ text: string }>();
+    store.index(docs);
+    expect(store.search("排队多久", 1)[0].text).toContain("排队");
   });
 });
