@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/lib/store";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
+import { resequenceItinerary } from "@/lib/routing";
 import { RideCard } from "@/components/rides/RideCard";
 import AgentChat from "@/components/AgentChat";
 import { Ride, RideScore, Review, LiveWaitData, HistoricalWaitData, ItineraryItem } from "@/types";
@@ -143,7 +144,7 @@ export default function DashboardPage() {
   }, []);
 
   const handleDelete = () => {
-    setItinerary((prev) => prev.filter((_, i) => i !== longPressIndex));
+    setItinerary((prev) => resequenceItinerary(prev.filter((_, i) => i !== longPressIndex)));
     setShowSwapSheet(false);
   };
 
@@ -151,7 +152,8 @@ export default function DashboardPage() {
     setItinerary((prev) => {
       const arr = [...prev];
       if (longPressIndex > 0) [arr[longPressIndex-1], arr[longPressIndex]] = [arr[longPressIndex], arr[longPressIndex-1]];
-      return arr;
+      // 交换位置后必须重排时间，否则会出现"22:00 的下一项是 11:00"
+      return resequenceItinerary(arr);
     });
     setShowSwapSheet(false);
   };
@@ -160,7 +162,7 @@ export default function DashboardPage() {
     setItinerary((prev) => {
       const arr = [...prev];
       if (longPressIndex < arr.length-1) [arr[longPressIndex], arr[longPressIndex+1]] = [arr[longPressIndex+1], arr[longPressIndex]];
-      return arr;
+      return resequenceItinerary(arr);
     });
     setShowSwapSheet(false);
   };

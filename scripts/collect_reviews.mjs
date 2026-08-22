@@ -27,6 +27,26 @@ const APIFY_BASE = "https://api.apify.com/v2/acts";
 const SEARCH_ACTOR = process.env.APIFY_XHS_SEARCH_ACTOR ?? "easyapi~rednote-xiaohongshu-search-scraper";
 const DETAIL_ACTOR = process.env.APIFY_XHS_DETAIL_ACTOR ?? "zen-studio~rednote-note-detail-scraper";
 
+/**
+ * 读取 .env.local（该文件已在 .gitignore 中）。
+ * 不引 dotenv：这个脚本要能用裸 node 跑，少一个依赖少一分心智负担。
+ */
+function loadEnvLocal() {
+  const file = path.join(ROOT, ".env.local");
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, "utf-8").split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq === -1) continue;
+    const key = t.slice(0, eq).trim();
+    const value = t.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    // 已有的环境变量优先，方便临时覆盖
+    if (value && !process.env[key]) process.env[key] = value;
+  }
+}
+loadEnvLocal();
+
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
   const i = args.indexOf(name);
