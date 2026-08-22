@@ -9,6 +9,16 @@ type Message = {
   content: string;
   timestamp: Date;
   isLoading?: boolean;
+  /** 正在调用的工具，流式过程中显示给用户 */
+  activeTool?: string;
+};
+
+/** 工具名 → 面向用户的说法 */
+const TOOL_LABELS: Record<string, string> = {
+  get_wait_times: "查询等待时间",
+  search_reviews: "检索用户评论",
+  plan_itinerary: "重新规划行程",
+  get_spot_info: "查询地点详情",
 };
 
 const QUICK_PROMPTS = [
@@ -53,19 +63,76 @@ export default function AgentChat() {
     try {
       const res = await fetch("/api/agent", {
         method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({ message:msg, sessionId, profile }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, sessionId, profile }),
       });
-      const data = await res.json();
 
-      setMessages((prev) => [
-        ...prev.filter((m) => !m.isLoading),
-        { role:"assistant", content:data.response ?? "抱歉，请重试。", timestamp:new Date() },
-      ]);
+      // 限流、未配置 key 等情况仍返回 JSON，如实把原因告诉用户
+      if (!res.ok || !res.body) {
+        const detail = await res.json().catch(() => null);
+        setMessages((prev) => [
+          ...prev.filter((m) => !m.isLoading),
+          {
+            role: "assistant",
+            content: detail?.error ?? "请求失败，请稍后重试。",
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
+
+      // 占位气泡就地变成流式气泡，逐段填入内容
+      setMessages((prev) =>
+        prev.map((m) => (m.isLoading ? { ...m, isLoading: false, content: "" } : m))
+      );
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let text = "";
+
+      const patchLast = (patch: Partial<Message>) =>
+        setMessages((prev) =>
+          prev.map((m, i) => (i === prev.length - 1 ? { ...m, ...patch } : m))
+        );
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE 以空行分隔事件；最后一段可能不完整，留在 buffer 里等下一个 chunk
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() ?? "";
+
+        for (const chunk of chunks) {
+          const line = chunk.trim();
+          if (!line.startsWith("data:")) continue;
+
+          let event: any;
+          try {
+            event = JSON.parse(line.slice(5).trim());
+          } catch {
+            continue;
+          }
+
+          if (event.type === "delta") {
+            text += event.text;
+            patchLast({ content: text, activeTool: undefined });
+          } else if (event.type === "tool") {
+            patchLast({ activeTool: TOOL_LABELS[event.name] ?? event.name });
+          } else if (event.type === "error") {
+            patchLast({ content: event.message, activeTool: undefined });
+          } else if (event.type === "done") {
+            patchLast({ content: event.response || text, activeTool: undefined });
+          }
+        }
+      }
     } catch {
       setMessages((prev) => [
         ...prev.filter((m) => !m.isLoading),
-        { role:"assistant", content:"网络错误，请检查连接后重试。", timestamp:new Date() },
+        { role: "assistant", content: "网络错误，请检查连接后重试。", timestamp: new Date() },
       ]);
     } finally {
       setLoading(false);
@@ -108,10 +175,20 @@ export default function AgentChat() {
               {msg.isLoading ? (
                 <div className="flex gap-1 items-center py-1">
                   <Loader2 className="w-3.5 h-3.5 text-white/40 animate-spin" />
-                  <span className="text-white/40 text-sm">正在查询数据…</span>
+                  <span className="text-white/40 text-sm">正在思考…</span>
                 </div>
               ) : (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                <>
+                  {msg.content && (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                  {msg.activeTool && (
+                    <div className="flex gap-1.5 items-center py-1">
+                      <Loader2 className="w-3.5 h-3.5 text-blue-400/70 animate-spin" />
+                      <span className="text-white/50 text-sm">正在{msg.activeTool}…</span>
+                    </div>
+                  )}
+                </>
               )}
               <div className={`text-xs mt-1 ${msg.role === "user" ? "text-blue-200" : "text-white/30"}`}>
                 {msg.timestamp.toLocaleTimeString("zh-CN", { hour:"2-digit", minute:"2-digit" })}
