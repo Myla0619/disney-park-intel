@@ -298,6 +298,9 @@ def get_itinerary(profile_data: dict, current_area: str = "entrance") -> tuple[l
         "historicalWaits": [],
         "liveWaits": [],
         "currentArea": current_area,
+        # 只校验排程约束，不需要模型润色备注：逐个场景调模型会让整轮评测
+        # 变成半小时 + 数美元，而备注文案与约束无关
+        "polishNotes": False,
     }
 
     # 行程接口限流为 10 次/分。跑满 100 个场景必然触顶，遇 429 按 Retry-After 退避。

@@ -90,6 +90,12 @@ export const ItineraryBodySchema = z.object({
   historicalWaits: z.array(HistoricalWaitSchema).default([]),
   liveWaits: z.array(LiveWaitSchema).default([]),
   currentArea: z.string().optional(),
+  /**
+   * 是否让 Claude 润色每项备注。默认开启；置 false 时只跑确定性的路径规划。
+   * 约束评测要跑 100 个场景，逐个调模型既慢又花钱，而它校验的是排程约束，
+   * 与备注文案无关。
+   */
+  polishNotes: z.boolean().default(true),
 });
 
 export const AgentBodySchema = z.object({
