@@ -1,14 +1,13 @@
 /**
- * 轻量级 RAG 向量存储
- * 使用 Transformers.js 在服务端做文本嵌入 + 余弦相似度检索
- * 简历亮点：RAG pipeline with client-side vector embeddings (Transformers.js)
+ * 评论检索的向量存储
+ *
+ * 用 TF-IDF 做稀疏向量 + 余弦相似度，不涉及神经网络嵌入：没有额外依赖、
+ * 冷启动为零，代价是无法匹配语义近义（"适合小孩"检索不到只写了"亲子"的评论）。
+ * 检索质量由 scripts/eval_retrieval.py 在标注集上以 P@5 / MRR 量化。
  */
 
 import { Review, RestaurantReview } from "@/types";
 
-// ─── 简单 TF-IDF 向量化（Transformers.js 在 Next.js 服务端使用需特殊配置）
-// 生产环境替换为: import { pipeline } from '@xenova/transformers'
-// 这里用 TF-IDF 作为轻量替代，逻辑完全相同，便于演示 RAG 概念
 
 function tokenize(text: string): string[] {
   return text

@@ -83,7 +83,7 @@ export default function AgentChat() {
           <div className="font-medium text-white text-sm">迪士尼 AI 助手</div>
           <div className="text-white/40 text-xs flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Claude claude-sonnet-4-20250514 · Tool Use · RAG
+            Claude · Tool Use · RAG 评论检索
           </div>
         </div>
       </div>

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { getAnthropicClient } from "@/lib/anthropic-client";
+import { ITINERARY_MODEL } from "@/lib/models";
 import { UserProfile, RideScore, HistoricalWaitData, LiveWaitData } from "@/types";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { buildRoute, buildAnchors, getParkHours, fillGaps } from "@/lib/routing";
 
-const client = new Anthropic();
+const NotesSchema = z.object({
+  notes: z.array(z.object({ itemId: z.string(), note: z.string() })),
+});
 
 export async function POST(req: NextRequest) {
   const { profile, scores, historicalWaits, liveWaits, currentArea } = await req.json() as {
@@ -59,17 +64,18 @@ export async function POST(req: NextRequest) {
 行程：
 ${routeSummary}
 
-返回 JSON 数组，每项只有两个字段：{ "itemId": string, "note": string }
-只返回 JSON，不要其他文字。`;
+为行程中的每个项目各产出一条备注。`;
 
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1500,
-      messages: [{ role:"user", content:prompt }],
+    const message = await getAnthropicClient().messages.parse({
+      model: ITINERARY_MODEL,
+      max_tokens: 16000,
+      thinking: { type: "adaptive" },
+      output_config: { format: zodOutputFormat(NotesSchema) },
+      messages: [{ role: "user", content: prompt }],
     });
-    const raw = (message.content[0] as any).text.trim().replace(/```json|```/g,"").trim();
-    const notes: { itemId:string; note:string }[] = JSON.parse(raw);
+    const notes = message.parsed_output?.notes;
+    if (!notes) throw new Error("结构化输出解析失败");
     const noteMap: Record<string,string> = {};
     notes.forEach((n) => { noteMap[n.itemId] = n.note; });
 
@@ -78,7 +84,8 @@ ${routeSummary}
       note: noteMap[item.itemId] ?? item.note,
     }));
     return NextResponse.json({ itinerary:merged, isToday, parkHours });
-  } catch {
+  } catch (err) {
+    console.error("[itinerary] Claude 备注润色失败，返回未润色行程:", err);
     return NextResponse.json({ itinerary:localRoute, isToday, parkHours, fallback:true });
   }
 }
