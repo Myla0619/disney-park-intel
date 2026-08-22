@@ -8,18 +8,18 @@
 
 import { updateSession } from "./session-memory";
 
-export function inferAndUpdatePreferences(message: string, sessionId: string) {
+export async function inferAndUpdatePreferences(message: string, sessionId: string): Promise<void> {
   const waitMatch = message.match(/不.*排.*?(\d+)\s*分钟|最多.*?(\d+)\s*分钟|超过.*?(\d+)\s*分钟/);
   if (waitMatch) {
     const mins = parseInt(waitMatch[1] ?? waitMatch[2] ?? waitMatch[3], 10);
     if (!Number.isNaN(mins)) {
-      updateSession(sessionId, { type: "max_wait", value: mins, timestamp: Date.now() });
+      await updateSession(sessionId, { type: "max_wait", value: mins, timestamp: Date.now() });
     }
   }
 
   const groupSignals = ["怕高", "恐高", "女朋友", "女友", "老人", "爸妈", "父母", "宝宝", "婴儿", "幼儿", "怕水", "不想湿"];
   if (groupSignals.some((s) => message.includes(s))) {
-    updateSession(sessionId, { type: "group_change", value: message, timestamp: Date.now() });
+    await updateSession(sessionId, { type: "group_change", value: message, timestamp: Date.now() });
   }
 
   const areas: [string, string][] = [
@@ -31,7 +31,7 @@ export function inferAndUpdatePreferences(message: string, sessionId: string) {
   if (saysLocation) {
     for (const [name, id] of areas) {
       if (message.includes(name)) {
-        updateSession(sessionId, { type: "location", value: id, timestamp: Date.now() });
+        await updateSession(sessionId, { type: "location", value: id, timestamp: Date.now() });
         break;
       }
     }

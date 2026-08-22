@@ -11,7 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { DISNEY_TOOLS } from "./tools";
 import { executeTool } from "./execute-tool";
 import {
-  getSession, createSession, addMessage, buildMemoryContext,
+  getSession, createSession, addMessage, buildMemoryContext, SessionMemory,
 } from "@/lib/session-memory";
 import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { getRidesByPark } from "@/lib/parks-data";
@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
   const { message, sessionId } = parsed.data;
   const profile = parsed.data.profile as UserProfile | undefined;
 
-  let session = getSession(sessionId);
-  if (!session && profile) session = createSession(sessionId, profile);
+  let session = await getSession(sessionId);
+  if (!session && profile) session = await createSession(sessionId, profile);
   if (!session) {
     return NextResponse.json(
       { error: "会话不存在，请在请求中带上 profile 以创建会话" },
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  addMessage(sessionId, "user", message);
+  await addMessage(sessionId, "user", message);
 
   const messages: Anthropic.MessageParam[] = [
     ...session.conversationHistory.slice(-10).map((m) => ({
@@ -121,8 +121,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  addMessage(sessionId, "assistant", finalResponse);
-  inferAndUpdatePreferences(message, sessionId);
+  await addMessage(sessionId, "assistant", finalResponse);
+  await inferAndUpdatePreferences(message, sessionId);
 
   return NextResponse.json(
     { response: finalResponse, sessionId, iterations, toolCalls },
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 }
 
 // ─── 系统提示词 ──────────────────────────────────────────────────────────────
-function buildSystemPrompt(session: NonNullable<ReturnType<typeof getSession>>): string {
+function buildSystemPrompt(session: SessionMemory): string {
   const p = session.baseProfile;
   const rideList = getRidesByPark(PARK_ID)
     .map(
