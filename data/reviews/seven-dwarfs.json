@@ -1,0 +1,350 @@
+{
+  "targetId": "seven-dwarfs",
+  "targetType": "ride",
+  "scrapedAt": "2026-08-22T14:15:35.063Z",
+  "keywords": [
+    "七个小矮人矿山车",
+    "迪士尼矿山车",
+    "白雪公主矿山车",
+    "七矮人攻略",
+    "迪士尼亲子过山车"
+  ],
+  "reviews": [
+    {
+      "source": "xiaohongshu",
+      "author": "斯派克",
+      "rating": 5,
+      "text": "小红书果然没有骗我！！ 卡着点上了21:30的小矮人矿山车 那一瞬间终于理解了人生就是活几个瞬间这句话😭 世界灿烂盛大 欢迎回家 #迪士尼",
+      "date": "2026-06-20T11:50:45.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a367e94000000001101ad7c?xsec_token=YBvZJLVHVqnpdvMV7t4z6F76d0zwgL7twY-A8dwIzBzQo%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 228014,
+        "comments": 1904,
+        "collects": 19754
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "上海迪士尼度假区官方攻略",
+      "rating": 5,
+      "text": "第一视角解锁 七个小矮人矿山车 坐稳了！带你第一视角体验乐园里超受欢迎的必打卡项目——七个小矮人矿山车！加入我们，一起在《白雪公主和七个小矮人》的钻石矿",
+      "date": "2026-05-19T02:10:43.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a0bc6a2000000003700dacc?xsec_token=YBSt-XcdP4NzJlyJlJO1Hfn7IzvAhPR_Edxk1c8A2TdQw%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 24226,
+        "comments": 261,
+        "collects": 4300
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "佳小捷",
+      "rating": 5,
+      "text": "✅去迪士尼这一篇就够了❗️全攻略❗️ 🗣前期规划 🎫【门票选择】🎫 1⃣抖音直播飞猪和迪士尼APP都可以，节假日会补差价 2⃣可以选择酒店套票，酒店一般",
+      "date": "2024-04-20T08:11:23.000Z",
+      "tags": [],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/662378ab0000000003020973?xsec_token=YByRUBEwxVxSDyjNfc0zkBPD_Ucrmbuim0hNsKueHfGWU%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 21621,
+        "comments": 338,
+        "collects": 25453
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "上海去哪儿",
+      "rating": 5,
+      "text": "小红书没骗我😭8点20的小矮人矿山车美哭了 #上海迪士尼  #点燃你的新春烟花  #小矮人矿山车  #过山车第一视角  #世界上最快乐的地方  #吹着空调坐过山车",
+      "date": "2025-12-18T17:04:42.000Z",
+      "tags": [
+        "photo-worthy"
+      ],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6944342a000000001e023fcc?xsec_token=YBnBLJ7HJV9BysvgO1WzgXr2Ut5N5_WYccOOe2BJL87hs%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 20905,
+        "comments": 376,
+        "collects": 2893
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "八月哈根达斯",
+      "rating": 5,
+      "text": "七个小矮人矿山车第二种结局 第一次遇到这种情况，上迪团队反应迅速、专业，最后全车每位游客获赠一个全园通用的单项尊享卡，仅限当天使用哦[微笑R]#上海",
+      "date": "2025-07-23T06:42:49.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6880846900000000170307c4?xsec_token=YB8EX_X-tEU3eml-Kc6ANz9coJRAvrp1pxCVwL6T_YIAQ%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 11340,
+        "comments": 478,
+        "collects": 1068
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "小鸽子大卡子",
+      "rating": 5,
+      "text": "上海迪士尼必玩的8️⃣个项目‼️ 迪士尼20多个项目，这8个含金量最高，第一次来的冲🏃 想要拍照攻略和买票攻略的人多吗，多的话我们再出一条",
+      "date": "2025-10-16T10:07:06.000Z",
+      "tags": [
+        "must-do",
+        "photo-worthy"
+      ],
+      "sentiment": "positive",
+      "url": "https://www.xiaohongshu.com/discovery/item/68dd55100000000004010848?xsec_token=YBZAtHVRjU_U4Mfr_nO8H6cuIFZvhNBQpE6UTXT1Ns-TI%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 8415,
+        "comments": 138,
+        "collects": 6051
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "🍊🍊小朋友",
+      "rating": 5,
+      "text": "上海迪士尼乐园TOP9⃣️项目 1️⃣热力追踪 2️⃣加勒比海盗 3️⃣飞越地平线 4️⃣极速光轮 5️⃣抱抱龙 6️⃣小矮人过山车 7️⃣雷鸣山漂流",
+      "date": "2025-06-27T04:49:03.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/685e22be0000000010012c52?xsec_token=YBeRIZxWQlE0W_Fnmiynb8X_dubprQZdgc86Q7f9-hQXQ%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 8043,
+        "comments": 87,
+        "collects": 4790
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "不要叫我小高",
+      "rating": 5,
+      "text": "当七个小矮人矿山车遇上夕阳 #过山车  #当童话走进现实  #迪士尼  #夕阳  #七个小矮人矿车",
+      "date": "2025-09-03T11:39:59.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/68b8290f000000001b01c3c8?xsec_token=YBwm3qr27Efyi5WnS1ywnFhjWs992q6NZxCMSTDU1xPUg%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 6101,
+        "comments": 442,
+        "collects": 509
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "胡图图cos牛爷爷夜袭壮壮妈",
+      "rating": 5,
+      "text": "上迪小矮人过山车，谁说的温和不刺激的 搜攻略上迪的小矮人过山车对人很友好，温和不刺激，然后就放心去排队了，排到一半听到各种惨叫声就后悔了[哭惹R][哭惹R",
+      "date": "2026-01-28T03:16:13.000Z",
+      "tags": [
+        "long-wait",
+        "thrill"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/69797f7d000000001a01e02b?xsec_token=YBtH9I7Fjwy7P_wcNNK1mKVD_CBVbNgAfmjbDbCJQUdiw%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 4827,
+        "comments": 1669,
+        "collects": 828
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "嘿Sasha",
+      "rating": 5,
+      "text": "巨细‼️暑假带娃玩迪士尼保姆级遛娃攻略 上海迪士尼刚回，带娃爆玩12小时 整理的全新！超详细！少排队少走路！省时省力不踩雷一日遛娃攻略来啦‼️ 1⃣️关于购票",
+      "date": "2025-09-25T11:55:44.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/68d5264d0000000013007602?xsec_token=YBzxRUbBMK-Kv27ppAfO5W02sXgfqNXLDrWm99e91Y2cg%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 4040,
+        "comments": 85,
+        "collects": 3052
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "思谕的一家",
+      "rating": 5,
+      "text": "抄作业！上海迪士尼寒假亲子一日通玩指南 是不是已经开始计划宝贝们的假日之旅去哪里合适了呢？相信上海迪士尼乐园会是很多爸爸妈妈们的选择吧！作为一个寒假期间带娃去过",
+      "date": "2025-12-24T11:50:14.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/694bc950000000001e0073a3?xsec_token=YBDk8wsVKakHpUFXhlYd3UaIr-tOOo8URAdpsBcFylXWA%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 2848,
+        "comments": 174,
+        "collects": 1864
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "爱玩的因因酱",
+      "rating": 5,
+      "text": "上海迪士尼小矮人矿山车第一视角 咱就是说，自从做了旅游自媒体之后，我啥都会了 全程玩下来不带闭眼的 还能随时切换镜头自拍🤳 好爽好爽[偷笑R] #上海",
+      "date": "2025-07-10T03:05:32.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/686f2dfc000000002001ab2d?xsec_token=YBLG1twIXOueI6iWSH_gvOWUUfvP_Sw89XkxEhMhxLSDw%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 2732,
+        "comments": 346,
+        "collects": 506
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "小小胖🍋",
+      "rating": 5,
+      "text": "上海迪士尼带娃少走路多刷项目，不氪金攻略 ⁉️暑假去哪玩？ 沙滩大海台风多，爬山妹妹太小，古镇孩子觉得无聊 对比十几个地方，最后还是决定去上海 因为这有我们的快乐",
+      "date": "2026-07-23T01:25:57.000Z",
+      "tags": [
+        "kids-friendly"
+      ],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a60aa2e000000000101dd3f?xsec_token=YBWizmN7q0rB3udpW0VA9IcPJqOaImDrtyncYjQwHrCGY%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 2219,
+        "comments": 53,
+        "collects": 1841
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "火山星奇妙的米花",
+      "rating": 5,
+      "text": "hiii disney 终于玩上了小矮人矿山车～ 好吃好玩开心!!!💕 #日常生活里的快乐瞬间  #我的日常  #我的随手拍  #发点生活边角",
+      "date": "2026-06-24T04:33:03.000Z",
+      "tags": [
+        "good-food"
+      ],
+      "sentiment": "positive",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a3b5dfe000000002101bc1b?xsec_token=YBPhQm3KHAuyrgGqhjccw6xuPy-qE-jfLrwc-2P4nlxlQ%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1759,
+        "comments": 67,
+        "collects": 393
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "Tennis'Paradise",
+      "rating": 5,
+      "text": "上海迪士尼七个小矮人矿山车第一视角 #第一视角过山车  #上海迪士尼度假区  #七个小矮人矿山车",
+      "date": "2025-09-01T10:34:16.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/68b576a8000000001d0130c1?xsec_token=YBD07IpEq6d_Qebe4YHz82cEUxrpNTDfumBnCCaKhCWBA%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1561,
+        "comments": 225,
+        "collects": 335
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "创晕全世界",
+      "rating": 5,
+      "text": "禁止随地大小便 昨天下午在七个小矮人矿山车马上要玩项目的小矮人地图前面，家长抱着孩子（还是女童）水灵灵的冲着山洞外面的人亮出生殖器开始上",
+      "date": "2026-03-22T07:03:22.000Z",
+      "tags": [
+        "kids-friendly"
+      ],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/69bf943a0000000023005187?xsec_token=YBYmMwYmMnUhU3DOnVeckazEsT1jlCrgqzGyqmE1dPUGE%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1480,
+        "comments": 940,
+        "collects": 58
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "再翘二郎腿你试试",
+      "rating": 5,
+      "text": "迪士尼七个小矮人矿山车第一排视角！还是能想到上周五在迪士尼的快乐，满脑子只有兴奋开心！都不知道自己当时乱七八糟说一堆哈哈",
+      "date": "2025-11-26T09:30:25.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6926c8b1000000001e0107bc?xsec_token=YBulFuosSZQ-aEZnnb8pINOfvq6-TO0IzTZ9ikQ_xy5M8%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1458,
+        "comments": 175,
+        "collects": 168
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "小雪带俩娃",
+      "rating": 5,
+      "text": "四刷上海迪士尼#婚后 #迪士尼 #大人的快乐 四刷上海迪士尼#婚后  #迪士尼  #大人的快乐",
+      "date": "2026-02-01T15:03:43.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/697f6b4f000000000d00ab8f?xsec_token=YBiNXeEfGPl22kKAMIdvCaXGg12n-xsv_jehpHvYaUvv8%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1380,
+        "comments": 250,
+        "collects": 162
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "微笑的Emily🐬💕🐠",
+      "rating": 5,
+      "text": "一镜到底，迪士尼七个小矮人矿山车 周围人叫的好大声啊～～～hahaha#上海迪士尼  #沉浸式体验  #过山车  #七个小矮人矿车  #亲子游",
+      "date": "2026-05-21T07:10:43.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a0eaff30000000035026ea4?xsec_token=YB7_i_K0iNpAXr4pnimeJ7fcdQybKOmYpgdXBZIWWOyTs%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1087,
+        "comments": 270,
+        "collects": 304
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "呆呆粽",
+      "rating": 5,
+      "text": "原来七个小矮人矿山车里真有白雪公主啊 #上海迪士尼  #迪士尼  #迪士尼乐园  #上海迪士尼七个小矮人矿山车  #七个小矮人矿山车  #迪士尼七个小矮人矿山",
+      "date": "2025-03-06T13:59:16.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/67c9aa34000000002901b0ca?xsec_token=YB1GgadOOiaTkcEmy3QUfKx5ihcTzmx4nJ3Orp4xjrPxw%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:35.063Z",
+      "engagement": {
+        "likes": 1078,
+        "comments": 157,
+        "collects": 95
+      }
+    }
+  ]
+}
