@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/lib/store";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { resequenceItinerary } from "@/lib/routing";
+import { todayInPark } from "@/lib/park-time";
 import LocateMeButton from "@/components/LocateMeButton";
 import { RideCard } from "@/components/rides/RideCard";
 import AgentChat from "@/components/AgentChat";
@@ -39,6 +40,7 @@ type Tab = "itinerary" | "rides" | "agent";
 export default function DashboardPage() {
   const router = useRouter();
   const profile = useProfileStore((s) => s.profile);
+  const hasHydrated = useProfileStore((s) => s.hasHydrated);
 
   const [rides,           setRides]           = useState<Ride[]>([]);
   const [liveWaits,       setLiveWaits]       = useState<LiveWaitData[]>([]);
@@ -62,11 +64,14 @@ export default function DashboardPage() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   useEffect(() => {
+    // 等 localStorage 水合完成再判断。否则首帧 profile 恒为 null，
+    // 每次打开都会被弹回 Onboarding 重填一遍
+    if (!hasHydrated) return;
     if (!profile) { router.push("/onboarding"); return; }
-    const today = new Date().toISOString().slice(0,10);
-    setIsToday(profile.visitDate === today);
+    // 按园区时区判断是否为当天，而不是设备时区
+    setIsToday(profile.visitDate === todayInPark(profile.park));
     loadAllData("entrance");
-  }, [profile]);
+  }, [profile, hasHydrated]);
 
   async function loadAllData(area: string) {
     if (!profile) return;
