@@ -102,7 +102,7 @@ export const PARKS: Park[] = [
     city: "上海，中国",
     timezone: "Asia/Shanghai",
     theparksApiId: "ddc4357c-c148-4b36-9888-07894fe75e83",
-    queueTimesId: 21,
+    queueTimesId: 30,
     defaultParadeTime: "15:45",
     defaultFireworksTime: "21:00",
     areas: [

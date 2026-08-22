@@ -1,144 +1,182 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PARKS, getParkById } from "@/lib/parks-data";
+import { getParkById } from "@/lib/parks-data";
+import { rideIdFromThemeparks, rideIdFromQueueTimes } from "@/lib/provider-ids";
 import { LiveWaitData, HistoricalWaitData } from "@/types";
 
-const BASE = "https://api.themeparks.wiki/v1";
-const QT_BASE = "https://queue-times.com/parks";
+const THEMEPARKS_BASE = "https://api.themeparks.wiki/v1";
+const QUEUE_TIMES_BASE = "https://queue-times.com/parks";
 
-let _liveCache: { data: LiveWaitData[]; ts: number } | null = null;
-let _histCache: { data: HistoricalWaitData[]; ts: number; key: string } | null = null;
+const LIVE_TTL_MS = 2 * 60 * 1000;
+const HIST_TTL_MS = 30 * 60 * 1000;
 
-// ─── 实时等待时间 ───────────────────────────────────────────────────────────
+type CacheEntry<T> = { data: T; ts: number };
+
+// 缓存 key 必须包含园区（和历史模式下的日期），否则多园区请求会互相串数据。
+const liveCache = new Map<string, CacheEntry<LiveWaitData[]>>();
+const histCache = new Map<string, CacheEntry<HistoricalWaitData[]>>();
+
+function readCache<T>(cache: Map<string, CacheEntry<T>>, key: string, ttl: number): T | null {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > ttl) {
+    cache.delete(key);
+    return null;
+  }
+  return hit.data;
+}
+
 export async function GET(req: NextRequest) {
   const parkId = req.nextUrl.searchParams.get("park") ?? "shanghai";
-  const mode = req.nextUrl.searchParams.get("mode") ?? "live"; // live | historical
+  const mode = req.nextUrl.searchParams.get("mode") ?? "live";
   const visitDate = req.nextUrl.searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
 
-  const park = PARKS.find((p) => p.id === parkId);
+  const park = getParkById(parkId);
   if (!park) return NextResponse.json({ error: "未知园区" }, { status: 400 });
 
-  if (mode === "historical") {
-    return getHistoricalData(park.queueTimesId, parkId, visitDate);
-  }
+  return mode === "historical"
+    ? getPredictedData(parkId, park.queueTimesId, visitDate)
+    : getLiveData(parkId, park.theparksApiId);
+}
 
-  // 实时数据，2分钟缓存
-  const now = Date.now();
-  if (_liveCache && now - _liveCache.ts < 2 * 60 * 1000) {
-    return NextResponse.json({ data: _liveCache.data, cached: true });
-  }
+// ─── 实时等待时间（themeparks.wiki）────────────────────────────────────────
+async function getLiveData(parkId: string, parkEntityId: string) {
+  const cached = readCache(liveCache, parkId, LIVE_TTL_MS);
+  if (cached) return NextResponse.json({ data: cached, cached: true, source: "themeparks.wiki" });
 
   try {
-    const res = await fetch(`${BASE}/entity/${park.theparksApiId}/live`, {
-      next: { revalidate: 120 },
+    const res = await fetch(`${THEMEPARKS_BASE}/entity/${parkEntityId}/live`, {
+      next: { revalidate: LIVE_TTL_MS / 1000 },
     });
-    if (!res.ok) throw new Error(`API ${res.status}`);
+    if (!res.ok) throw new Error(`themeparks.wiki responded ${res.status}`);
     const json = await res.json();
 
-    const liveData: LiveWaitData[] = (json.liveData ?? [])
-      .filter((item: any) => item.entityType === "ATTRACTION")
-      .map((item: any) => ({
-        rideId: item.id,
+    // 接口返回的 id 是 entity UUID，必须映射回内部 slug，否则下游 join 全部落空。
+    let unmapped = 0;
+    const liveData: LiveWaitData[] = [];
+    for (const item of json.liveData ?? []) {
+      if (item.entityType !== "ATTRACTION") continue;
+      const rideId = rideIdFromThemeparks(parkId, item.id);
+      if (!rideId) {
+        unmapped++;
+        continue;
+      }
+      liveData.push({
+        rideId,
         waitMinutes: item.queue?.STANDBY?.waitTime ?? null,
         status: normalizeStatus(item.status),
         lastUpdated: item.lastUpdated ?? new Date().toISOString(),
-      }));
+      });
+    }
 
-    _liveCache = { data: liveData, ts: now };
-    return NextResponse.json({ data: liveData, cached: false, park: park.name });
+    liveCache.set(parkId, { data: liveData, ts: Date.now() });
+    return NextResponse.json({
+      data: liveData,
+      cached: false,
+      park: park_name(parkId),
+      source: "themeparks.wiki",
+      unmappedEntities: unmapped,
+    });
   } catch (err: any) {
     return NextResponse.json({
-      data: getMockWaitTimes(parkId),
+      data: getMockWaitTimes(),
       fallback: true,
       error: err.message,
     });
   }
 }
 
-// ─── 历史加权预测（Queue-Times.com） ───────────────────────────────────────
-async function getHistoricalData(qtParkId: number | undefined, parkId: string, visitDate: string) {
+// ─── 预测等待时间（Queue-Times 当前快照 × 日期系数）─────────────────────────
+// 注意：这是基于「当前快照」的启发式，不是真正的历史回归。真实历史模型见
+// scripts/collect_wait_snapshots.py 采集的数据与 src/lib/wait-prediction.ts。
+async function getPredictedData(parkId: string, qtParkId: number | undefined, visitDate: string) {
   if (!qtParkId) {
-    return NextResponse.json({ data: getMockHistorical(parkId), fallback: true });
+    return NextResponse.json({ data: getMockHistorical(), fallback: true });
   }
 
-  const cacheKey = `${parkId}-${visitDate}`;
-  const now = Date.now();
-  if (_histCache && _histCache.key === cacheKey && now - _histCache.ts < 30 * 60 * 1000) {
-    return NextResponse.json({ data: _histCache.data, cached: true });
-  }
+  const cacheKey = `${parkId}:${visitDate}`;
+  const cached = readCache(histCache, cacheKey, HIST_TTL_MS);
+  if (cached) return NextResponse.json({ data: cached, cached: true, source: "queue-times.com" });
 
   try {
-    // Queue-Times 历史数据接口
-    const res = await fetch(`${QT_BASE}/${qtParkId}/queue_times.json`);
-    if (!res.ok) throw new Error(`Queue-Times ${res.status}`);
+    const res = await fetch(`${QUEUE_TIMES_BASE}/${qtParkId}/queue_times.json`);
+    if (!res.ok) throw new Error(`Queue-Times responded ${res.status}`);
     const json = await res.json();
 
-    const target = new Date(visitDate);
-    const dayOfWeek = target.getDay(); // 0=周日
-    const isHoliday = checkChineseHoliday(visitDate);
+    const dayOfWeek = new Date(visitDate).getDay();
+    const isHoliday = isChineseHoliday(visitDate);
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const factor = isHoliday ? 1.4 : isWeekend ? 1.2 : 1.0;
+    const factorLabel = isHoliday ? "，节假日系数 ×1.4" : isWeekend ? "，周末系数 ×1.2" : "";
 
-    // 按项目计算加权预测
-    const allRides = (json.lands ?? []).flatMap((l: any) => l.rides ?? []);
-    const predicted: HistoricalWaitData[] = allRides.map((ride: any) => {
-      const baseWait = ride.wait_time ?? 30;
-      // 节假日系数
-      const holidayFactor = isHoliday ? 1.4 : [0, 6].includes(dayOfWeek) ? 1.2 : 1.0;
-      const predicted = Math.round(baseWait * holidayFactor);
+    const allRides = [
+      ...(json.lands ?? []).flatMap((l: any) => l.rides ?? []),
+      ...(json.rides ?? []),
+    ];
 
-      return {
-        rideId: ride.id?.toString(),
-        predictedWait: predicted,
-        confidence: "medium" as const,
-        basis: `基于近期数据${isHoliday ? "，节假日系数×1.4" : [0,6].includes(dayOfWeek) ? "，周末系数×1.2" : ""}`,
-      };
-    });
+    const predicted: HistoricalWaitData[] = [];
+    for (const ride of allRides) {
+      const rideId = rideIdFromQueueTimes(parkId, ride.id);
+      if (!rideId) continue;
+      predicted.push({
+        rideId,
+        predictedWait: Math.round((ride.wait_time ?? 30) * factor),
+        confidence: "low",
+        basis: `当前排队快照${factorLabel}`,
+      });
+    }
 
-    _histCache = { data: predicted, ts: now, key: cacheKey };
-    return NextResponse.json({ data: predicted, cached: false });
+    histCache.set(cacheKey, { data: predicted, ts: Date.now() });
+    return NextResponse.json({ data: predicted, cached: false, source: "queue-times.com" });
   } catch (err: any) {
-    return NextResponse.json({ data: getMockHistorical(parkId), fallback: true, error: err.message });
+    return NextResponse.json({ data: getMockHistorical(), fallback: true, error: err.message });
   }
 }
 
-// ─── 中国节假日判断（主要节日） ────────────────────────────────────────────
-function checkChineseHoliday(dateStr: string): boolean {
+function park_name(parkId: string) {
+  return getParkById(parkId)?.name;
+}
+
+// ─── 中国法定节假日（主要节日，按公历日期）────────────────────────────────
+function isChineseHoliday(dateStr: string): boolean {
   const holidays = [
-    "01-01", // 元旦
-    "05-01", "05-02", "05-03", // 劳动节
-    "10-01", "10-02", "10-03", "10-04", "10-05", "10-06", "10-07", // 国庆
+    "01-01",
+    "05-01", "05-02", "05-03",
+    "10-01", "10-02", "10-03", "10-04", "10-05", "10-06", "10-07",
   ];
-  const mmdd = dateStr.slice(5, 10);
-  return holidays.includes(mmdd);
+  return holidays.includes(dateStr.slice(5, 10));
 }
 
 function normalizeStatus(s: string): LiveWaitData["status"] {
   const map: Record<string, LiveWaitData["status"]> = {
-    OPERATING: "operating", DOWN: "down", CLOSED: "closed", REFURBISHMENT: "refurbishment",
+    OPERATING: "operating",
+    DOWN: "down",
+    CLOSED: "closed",
+    REFURBISHMENT: "refurbishment",
   };
   return map[s] ?? "operating";
 }
 
-function getMockWaitTimes(parkId: string): LiveWaitData[] {
-  return [
-    { rideId: "tron", waitMinutes: 85, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "roaring-rapids", waitMinutes: 40, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "seven-dwarfs", waitMinutes: 55, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "soaring", waitMinutes: 60, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "pirates", waitMinutes: 25, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "peter-pan", waitMinutes: 45, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "buzz-lightyear", waitMinutes: 20, status: "operating", lastUpdated: new Date().toISOString() },
-    { rideId: "stunt-show", waitMinutes: null, status: "operating", lastUpdated: new Date().toISOString() },
-  ];
+// ─── 数据源不可用时的降级值（rideId 必须是内部 slug）───────────────────────
+function getMockWaitTimes(): LiveWaitData[] {
+  const now = new Date().toISOString();
+  const waits: Record<string, number | null> = {
+    tron: 85, "roaring-rapids": 40, "seven-dwarfs": 55, soaring: 60,
+    pirates: 25, "peter-pan": 45, "buzz-lightyear": 20, "stunt-show": null,
+  };
+  return Object.entries(waits).map(([rideId, waitMinutes]) => ({
+    rideId, waitMinutes, status: "operating" as const, lastUpdated: now,
+  }));
 }
 
-function getMockHistorical(parkId: string): HistoricalWaitData[] {
+function getMockHistorical(): HistoricalWaitData[] {
   return [
-    { rideId: "tron", predictedWait: 75, confidence: "high", basis: "近4周同星期均值" },
-    { rideId: "soaring", predictedWait: 55, confidence: "high", basis: "近4周同星期均值" },
-    { rideId: "seven-dwarfs", predictedWait: 45, confidence: "medium", basis: "近1周均值" },
-    { rideId: "pirates", predictedWait: 20, confidence: "medium", basis: "近1周均值" },
-    { rideId: "peter-pan", predictedWait: 35, confidence: "medium", basis: "近1周均值" },
-    { rideId: "roaring-rapids", predictedWait: 30, confidence: "low", basis: "历史基准" },
-    { rideId: "buzz-lightyear", predictedWait: 15, confidence: "medium", basis: "近1周均值" },
-    { rideId: "stunt-show", predictedWait: 0, confidence: "high", basis: "固定场次" },
+    { rideId: "tron", predictedWait: 75, confidence: "low", basis: "降级默认值" },
+    { rideId: "soaring", predictedWait: 55, confidence: "low", basis: "降级默认值" },
+    { rideId: "seven-dwarfs", predictedWait: 45, confidence: "low", basis: "降级默认值" },
+    { rideId: "pirates", predictedWait: 20, confidence: "low", basis: "降级默认值" },
+    { rideId: "peter-pan", predictedWait: 35, confidence: "low", basis: "降级默认值" },
+    { rideId: "roaring-rapids", predictedWait: 30, confidence: "low", basis: "降级默认值" },
+    { rideId: "buzz-lightyear", predictedWait: 15, confidence: "low", basis: "降级默认值" },
+    { rideId: "stunt-show", predictedWait: 0, confidence: "low", basis: "固定场次" },
   ];
 }
