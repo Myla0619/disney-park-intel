@@ -174,11 +174,26 @@ Parameter Accuracy / No-Tool Precision / Hallucination Rate）。
 
 ```bash
 npm install
-cp .env.local.example .env.local   # 填入 ANTHROPIC_API_KEY
+cp .env.local.example .env.local
 npm run dev
 ```
 
-不配置 API key 也能运行：项目评分降级为本地规则，AI 助手返回 503 并在前端如实提示。
+### Anthropic 凭证（三选一）
+
+SDK 的解析顺序是 `ANTHROPIC_API_KEY` → `ANTHROPIC_AUTH_TOKEN` → OAuth 配置档 →
+Workload Identity Federation → 磁盘默认配置档，先命中者胜。
+
+| 场景 | 方式 | 是否产生长期密钥 |
+|---|---|---|
+| 本机开发 | `brew install anthropics/tap/ant && ant auth login` | 否，浏览器登录后凭证存于 `~/.config/anthropic/` |
+| CI / 服务器 / 容器 | Workload Identity Federation | 否，由 OIDC 签发的短期令牌换取 |
+| 其他 | `.env.local` 中设 `ANTHROPIC_API_KEY` | 是 |
+
+**陷阱**：`ANTHROPIC_API_KEY` 优先级最高，且**留空也算数**——空值会以空密钥发起认证，
+把本可用的配置档和联合身份凭证整个屏蔽掉。不用它就删掉整行，不要留成空值。
+应用会识别这种情况并在 503 响应里指出来。
+
+不配置任何凭证也能运行：项目评分降级为本地规则，AI 助手返回 503 并在前端如实提示。
 
 ### 采集真实小红书语料（可选）
 
