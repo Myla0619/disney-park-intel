@@ -1,5 +1,6 @@
 import { Park, Ride, PhotoSpot, ShopSpot, Restaurant } from "@/types";
 import { LL_ELIGIBLE_RIDES } from "./ll-packages";
+import { SHANGHAI_SHOPS } from "./shops-data";
 
 // ─── 步行时间矩阵（上海迪士尼，分钟，成人正常步速 80m/min）──────────────
 // 数据基于园区实际路线距离估算，行动不便×2.0，带幼童×1.6，带小学生×1.3
@@ -524,67 +525,10 @@ export const PHOTO_SPOTS: PhotoSpot[] = [
 ];
 
 // ─── 购物点（完整）──────────────────────────────────────────────────────────
-export const SHOP_SPOTS: ShopSpot[] = [
-  {
-    id:"m-street-shop", name:"M大街购物廊（旗舰店）",
-    parkId:"shanghai", area:"mickey", areaName:"米奇大街",
-    theme:"迪士尼全品类旗舰+玲娜贝儿/星黛露专区", hasLimitedEdition:true,
-    bestTimeToVisit:"opening", duration:30,
-    tags:["旗舰","全品类","达菲","玲娜贝儿","星黛露","限定"],
-    tips:"全园商品最全，玲娜贝儿/星黛露等「川沙妲己」周边都在这里。限定款每周五上新，达菲系列需参与抽签。开园直冲保证货最全。",
-  },
-  {
-    id:"dream-chest", name:"梦幻宝盒（城堡精品店）",
-    parkId:"shanghai", area:"fantasy", areaName:"梦幻世界",
-    theme:"公主/城堡主题精品", hasLimitedEdition:true,
-    bestTimeToVisit:"anytime", duration:20,
-    tags:["公主","城堡","精品","换装","孩子"],
-    tips:"公主裙和王冠超热门，孩子可以当场换装游园。城堡内位置好，买了装备直接在城堡前拍照。",
-  },
-  {
-    id:"treasure-shop", name:"宝藏湾海盗纪念品店",
-    parkId:"shanghai", area:"treasure", areaName:"宝藏湾",
-    theme:"海盗主题周边（区域独家）", hasLimitedEdition:true,
-    bestTimeToVisit:"anytime", duration:20,
-    tags:["海盗","主题","限定","区域独家","望远镜","船长帽"],
-    tips:"海盗主题限定款全园唯一。望远镜、船长帽、海盗证书是最热门商品。不需要特意来，玩完加勒比海盗出来顺带逛。",
-  },
-  {
-    id:"tron-shop", name:"明日科技馆（TRON周边）",
-    parkId:"shanghai", area:"tomorrow", areaName:"明日世界",
-    theme:"TRON/科幻/漫威主题", hasLimitedEdition:true,
-    bestTimeToVisit:"anytime", duration:15,
-    tags:["TRON","科幻","发光","漫威","限定"],
-    tips:"TRON发光手环夜间在园区内发光效果拔群，是最受欢迎商品。漫威周边也在这里。出TRON顺带入手。",
-  },
-  {
-    id:"zootopia-shop", name:"疯狂动物城周边店",
-    parkId:"shanghai", area:"zootopia", areaName:"疯狂动物城",
-    theme:"疯狂动物城（区域独家限定）", hasLimitedEdition:true,
-    bestTimeToVisit:"opening", duration:20,
-    tags:["动物城","朱迪","尼克","新品","限定","区域独家"],
-    tips:"新园区独家周边，朱迪/尼克毛绒玩具和爪爪冰棒周边最抢手。开园直接来最保险，下午可能售罄。",
-  },
-  {
-    id:"toytown-shop", name:"玩具总动员纪念品店",
-    parkId:"shanghai", area:"toytown", areaName:"迪士尼·皮克斯玩具总动员",
-    theme:"玩具总动员/皮克斯主题", hasLimitedEdition:false,
-    bestTimeToVisit:"anytime", duration:15,
-    tags:["玩具总动员","胡迪","巴斯光年","皮克斯"],
-    tips:"胡迪和巴斯光年毛绒玩具，适合亲子纪念品。玩完园区内项目顺带逛。",
-  },
-  {
-    id:"fantasy-boutique", name:"幻想世界精品屋",
-    parkId:"shanghai", area:"fantasy", areaName:"梦幻世界",
-    theme:"公主/经典迪士尼周边", hasLimitedEdition:false,
-    bestTimeToVisit:"anytime", duration:20,
-    tags:["公主","经典","儿童","互动魔杖"],
-    tips:"互动魔杖在园区内多个魔法点可以施展魔法，孩子体验感很强。公主系列周边齐全。",
-  },
-];
+// 商店数据来自官网，由 scripts/generate_shops.mjs 生成，见 src/lib/shops-data.ts。
+// 此前这里是手写的 7 家，其中若干店名在官方清单中并不存在。
+export const SHOP_SPOTS: ShopSpot[] = SHANGHAI_SHOPS;
 
-// ─── 餐厅（完整版，数据来源：官方网站+知乎攻略+携程游记）──────────────────
-// 餐厅名来源：https://www.ciie.org/.../QTS/Hotspots/20190823/18007.html（官方）
 export const RESTAURANTS: Restaurant[] = [
   // ── 高端预约餐厅 ────────────────────────────────────────────────────────────
   {

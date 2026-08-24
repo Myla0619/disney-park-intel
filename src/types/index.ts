@@ -103,6 +103,10 @@ export type ShopSpot = {
   area: string;
   areaName: string;
   theme: string;
+  /** 官方列出的商品品类 */
+  categories: string[];
+  /** 店面规模，由官方品类数推导：品类越多可逛内容越多 */
+  scale: "flagship" | "major" | "small" | "kiosk";
   hasLimitedEdition: boolean;
   bestTimeToVisit: "opening" | "anytime" | "before-closing";
   duration: number;
