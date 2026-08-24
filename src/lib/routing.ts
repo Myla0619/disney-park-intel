@@ -24,20 +24,11 @@ import {
 } from "./parks-data";
 import { getUserLLRides, hasReservedSpot, getPackageById } from "./ll-packages";
 import { isHeightBlocked } from "./height";
+import { timeToMin, minToTime } from "./routing-time";
+import { scorePhotoSpot, scoreShop } from "./poi-scoring";
 
 // ─── 시간 도구 ────────────────────────────────────────────────────────────────
-export function timeToMin(t: string): number {
-  if (!t || !t.includes(":")) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
-export function minToTime(m: number): string {
-  const clamped = Math.max(0, Math.min(m, 1439)); // 00:00 - 23:59
-  const h = Math.floor(clamped / 60);
-  const min = clamped % 60;
-  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
+export { timeToMin, minToTime } from "./routing-time";
 
 // ─── 权重配置 ─────────────────────────────────────────────────────────────────
 function getWeights(profile: UserProfile): RouteWeights {
@@ -781,39 +772,43 @@ export function buildRoute(params: {
 
   let allCandidates = purchasedFirst;
 
-  // photo + shopping 模式插入 POI
+  // ─── 拍照点与商店 ───────────────────────────────────────────────────────
+  // 此前这两类地点 costVal 恒为 0，按数组顺序与游乐项目机械交替插入，
+  // 数据里的最佳时段信息完全失效。现在按 poi-scoring 给出的成本值参与统一排序。
+  //
+  // 评分需要"排到几点"，但排程尚未发生——用该地点在候选序列中的大致位置估算
+  // 落位时刻：把全天可用时间按候选数均分。这是估算，但足以让"城堡机位排到烟花
+  // 时段""旗舰店排在开园附近"这类时段约束真正生效。
+  const closeMin = timeToMin(parkHours.close);
+  const slotSpan = Math.max(1, (depMin - startMin) / Math.max(1, allCandidates.length + 1));
+  const estimatedTimeAt = (index: number) => startMin + slotSpan * (index + 1);
+
   if (profile.focusPhoto) {
-    const photoItems: CandidateItem[] = photoSpots.map((s) => ({
-      id: s.id, name: s.name, area: s.area, type: "photo" as const,
-      wait: 0, duration: s.duration,
-      note: s.tips, llType: null, singleRider: false,
-      costVal: 0,
-    }));
-    const interleaved: CandidateItem[] = [];
-    const maxLen = Math.max(allCandidates.length, photoItems.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < allCandidates.length) interleaved.push(allCandidates[i]);
-      if (i < photoItems.length)    interleaved.push(photoItems[i]);
-    }
-    allCandidates = interleaved;
+    const photoItems: CandidateItem[] = photoSpots.map((spot, i) => {
+      const scored = scorePhotoSpot(spot, profile, estimatedTimeAt(i));
+      return {
+        id: spot.id, name: spot.name, area: spot.area, type: "photo" as const,
+        wait: 0, duration: spot.duration,
+        note: scored.reasons.length ? `${scored.reasons.join("、")}。${spot.tips}` : spot.tips,
+        llType: null, singleRider: false,
+        costVal: scored.costVal,
+      };
+    });
+    allCandidates = [...allCandidates, ...photoItems].sort((a, b) => a.costVal - b.costVal);
   }
 
   if (profile.focusShopping) {
-    const shopItems: CandidateItem[] = shopSpots
-      .sort((a, b) => a.bestTimeToVisit === "opening" ? -1 : 1)
-      .map((s) => ({
-        id: s.id, name: s.name, area: s.area, type: "shop" as const,
-        wait: 0, duration: s.duration,
-        note: s.tips, llType: null, singleRider: false,
-        costVal: 0,
-      }));
-    const interleaved: CandidateItem[] = [];
-    const maxLen = Math.max(allCandidates.length, shopItems.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < allCandidates.length) interleaved.push(allCandidates[i]);
-      if (i < shopItems.length)     interleaved.push(shopItems[i]);
-    }
-    allCandidates = interleaved;
+    const shopItems: CandidateItem[] = shopSpots.map((shop, i) => {
+      const scored = scoreShop(shop, profile, estimatedTimeAt(i), openMin, closeMin);
+      return {
+        id: shop.id, name: shop.name, area: shop.area, type: "shop" as const,
+        wait: 0, duration: shop.duration,
+        note: scored.reasons.length ? `${scored.reasons.join("、")}。${shop.tips}` : shop.tips,
+        llType: null, singleRider: false,
+        costVal: scored.costVal,
+      };
+    });
+    allCandidates = [...allCandidates, ...shopItems].sort((a, b) => a.costVal - b.costVal);
   }
 
   const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin, isUserSelectedLL);
