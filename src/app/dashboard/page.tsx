@@ -7,6 +7,7 @@ import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { resequenceItinerary } from "@/lib/routing";
 import { todayInPark } from "@/lib/park-time";
 import LocateMeButton from "@/components/LocateMeButton";
+import { useWishlistStore } from "@/lib/wishlist-store";
 import { RideCard } from "@/components/rides/RideCard";
 import AgentChat from "@/components/AgentChat";
 import { Ride, RideScore, Review, LiveWaitData, HistoricalWaitData, ItineraryItem } from "@/types";
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const profile = useProfileStore((s) => s.profile);
   const hasHydrated = useProfileStore((s) => s.hasHydrated);
+  const wishlist = useWishlistStore((s) => s.ids);
 
   const [rides,           setRides]           = useState<Ride[]>([]);
   const [liveWaits,       setLiveWaits]       = useState<LiveWaitData[]>([]);
@@ -71,7 +73,8 @@ export default function DashboardPage() {
     // 按园区时区判断是否为当天，而不是设备时区
     setIsToday(profile.visitDate === todayInPark(profile.park));
     loadAllData("entrance");
-  }, [profile, hasHydrated]);
+    // wishlist 变化要重新规划：用户刚勾的项目应当立刻出现在行程里
+  }, [profile, hasHydrated, wishlist]);
 
   async function loadAllData(area: string) {
     if (!profile) return;
@@ -120,7 +123,7 @@ export default function DashboardPage() {
 
       const itinRes = await fetch("/api/itinerary", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ profile, scores:scoreList, historicalWaits:hist, liveWaits:live, currentArea:area }),
+        body:JSON.stringify({ profile, scores:scoreList, historicalWaits:hist, liveWaits:live, currentArea:area, wishlist }),
       });
       const itinData = await itinRes.json();
       setItinerary(itinData.itinerary??[]);

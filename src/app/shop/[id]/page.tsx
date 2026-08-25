@@ -2,6 +2,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { getShopSpots } from "@/lib/parks-data";
 import { ArrowLeft, MapPin, Clock, Tag } from "lucide-react";
+import WishlistButton from "@/components/WishlistButton";
 
 export default function ShopDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +23,7 @@ export default function ShopDetailPage() {
             <h1 className="font-semibold text-sm">{shop.name}</h1>
             <p className="text-white/40 text-xs">{shop.areaName}</p>
           </div>
-          <span className="text-2xl">🛍️</span>
+          <WishlistButton id={shop.id} label={shop.name} size="sm" />
         </div>
       </div>
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
