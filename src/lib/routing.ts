@@ -26,6 +26,7 @@ import { getUserLLRides, hasReservedSpot, getPackageById } from "./ll-packages";
 import { isHeightBlocked } from "./height";
 import { timeToMin, minToTime } from "./routing-time";
 import { scorePhotoSpot, scoreShop } from "./poi-scoring";
+import { mealDuration, normalizeDiningPlans, recommendedMealTime } from "./dining";
 
 // ─── 시간 도구 ────────────────────────────────────────────────────────────────
 export { timeToMin, minToTime } from "./routing-time";
@@ -238,9 +239,21 @@ function getMealSlots(
             : profile.diningPreference === "fancy"  ? 60 : 45;
   const slots: { time: number; mealType: "breakfast"|"lunch"|"dinner"|"snack"; duration: number }[] = [];
 
-  if (totalH >= 3)  slots.push({ time: 690,  mealType: "lunch",   duration: dur   }); // 11:30
-  if (totalH >= 5)  slots.push({ time: 930,  mealType: "snack",   duration: 15    }); // 15:30
-  if (totalH >= 8)  slots.push({ time: 1140, mealType: "dinner",  duration: dur   }); // 19:00
+  // 用户填了用餐安排就照他的来；只有没填时才用默认时段
+  const plans = normalizeDiningPlans(profile.diningPlans ?? []);
+  if (plans.length) {
+    for (const p of plans) {
+      slots.push({
+        time: timeToMin(p.time),
+        mealType: p.mealType,
+        duration: mealDuration(profile, p.mealType),
+      });
+    }
+  } else {
+    if (totalH >= 3)  slots.push({ time: 690,  mealType: "lunch",   duration: dur   }); // 11:30
+    if (totalH >= 5)  slots.push({ time: 930,  mealType: "snack",   duration: 15    }); // 15:30
+    if (totalH >= 8)  slots.push({ time: 1140, mealType: "dinner",  duration: dur   }); // 19:00
+  }
 
   return slots.filter((s) => s.time + s.duration < depMin && s.time > startMin);
 }
@@ -433,6 +446,38 @@ function buildTimeline(
   let currentArea   = startArea;
   let currentMin    = startMin;
   let itemsAdded    = 0;
+
+  /**
+   * 已预约的餐厅先占位。
+   *
+   * 预约是园方给定的固定时段，改不了也退不了，性质等同于巡游烟花——必须让其它
+   * 项目绕开它，而不是当作可浮动的"用餐时段"参与竞争。此前完全不区分，
+   * 订了 12:30 的皇家宴会厅仍按写死的 11:30 安排，预约等于白订。
+   */
+  const reservations = normalizeDiningPlans(profile.diningPlans ?? []).filter((p) => p.isReservation);
+  for (const plan of reservations) {
+    const r = restaurants.find((x) => x.id === plan.restaurantId);
+    if (!r) continue;
+    const start = timeToMin(plan.time);
+    const end = start + mealDuration(profile, plan.mealType);
+    if (start < startMin || end > depMin) continue;
+
+    result.push({
+      time: minToTime(start), endTime: minToTime(end),
+      itemId: r.id, itemName: r.name, area: r.areaName,
+      estimatedWait: 0, walkMinutes: 0, duration: end - start,
+      note: `已预约 ${plan.time}，请提前 10 分钟到店。${r.tips}`,
+      type: "meal", isAnchor: true,
+      requiresReservation: true,
+    });
+    usedRests.add(r.id);
+    usedMeals.add(plan.mealType);
+    // 预约时段对其它项目关闭，前后各留 10 分钟走位与候位
+    blocked.push({ start: start - 10, end: end + 10, area: r.area });
+    itemsAdded++;
+  }
+  blocked.sort((x, y) => x.start - y.start);
+
 
   /**
    * 自购尊享卡项目预占位。

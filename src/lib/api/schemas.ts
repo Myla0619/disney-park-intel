@@ -49,6 +49,17 @@ export const UserProfileSchema = z.object({
   focusPhoto: z.boolean().default(false),
   focusShopping: z.boolean().default(false),
   selectedRestaurants: z.array(z.string()).default([]),
+  diningPlans: z
+    .array(
+      z.object({
+        restaurantId: z.string().min(1),
+        mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+        time: HHMM,
+        isReservation: z.boolean().default(false),
+      })
+    )
+    .max(6)
+    .default([]),
 });
 
 export const RideScoreSchema = z.object({
