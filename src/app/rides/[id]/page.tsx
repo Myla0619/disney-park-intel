@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getRideById } from "@/lib/parks-data";
 import { useProfileStore } from "@/lib/store";
+import WishlistButton from "@/components/WishlistButton";
 import { Review, Ride } from "@/types";
 import {
   ArrowLeft, Star, Clock, Zap, AlertCircle, Heart,
@@ -76,7 +77,7 @@ export default function RideDetailPage() {
             <h1 className="font-semibold text-sm truncate">{ride.name}</h1>
             <p className="text-white/40 text-xs">{ride.area}</p>
           </div>
-          <span className="text-2xl">{TYPE_EMOJI[ride.type] ?? "🎡"}</span>
+          <WishlistButton id={ride.id} label={ride.name} size="sm" />
         </div>
       </div>
 

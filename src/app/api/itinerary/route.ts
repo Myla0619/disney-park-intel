@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   const liveWaits = parsed.data.liveWaits as LiveWaitData[];
   const currentArea = parsed.data.currentArea;
   const polishNotes = parsed.data.polishNotes;
+  const wishlist = parsed.data.wishlist;
 
   // 按园区时区判断"今天"，服务端时区不参与
   const isToday = profile.visitDate === todayInPark(profile.park);
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
     rides, scores,
     historical: historicalWaits,
     live: isToday ? liveWaits : [],
-    profile, startArea, parkHours, anchors, nowMin,
+    profile, startArea, parkHours, anchors, nowMin, wishlist,
   };
 
   const rawRoute = buildRoute(routeParams);

@@ -1,6 +1,7 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { getPhotoSpots } from "@/lib/parks-data";
+import WishlistButton from "@/components/WishlistButton";
 import { ArrowLeft, Clock, MapPin, Camera, ExternalLink } from "lucide-react";
 
 export default function PhotoDetailPage() {
@@ -22,11 +23,32 @@ export default function PhotoDetailPage() {
             <h1 className="font-semibold text-sm">{spot.name}</h1>
             <p className="text-white/40 text-xs">{spot.areaName}</p>
           </div>
-          <span className="text-2xl">📸</span>
+          <WishlistButton id={spot.id} label={spot.name} size="sm" />
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* 来源：游客笔记的机位标明出处，可回原帖核对 */}
+        {"source" in spot && (spot as any).source?.url && (
+          <a
+            href={(spot as any).source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs text-amber-100/90 transition-colors hover:bg-amber-500/15"
+          >
+            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+            <span>
+              该机位来自游客笔记，非官方信息。
+              {(spot as any).source.quote && (
+                <span className="mt-1 block text-amber-100/60">
+                  「{String((spot as any).source.quote).slice(0, 60)}」
+                </span>
+              )}
+              <span className="mt-1 block text-amber-300 underline">查看原帖 →</span>
+            </span>
+          </a>
+        )}
+
         {/* 类型标签 */}
         <div className="flex gap-2 flex-wrap">
           <span className="text-xs bg-pink-500/20 text-pink-300 px-2.5 py-1 rounded-full">{typeLabel}</span>

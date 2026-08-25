@@ -3,6 +3,7 @@
 import { Ride, RideScore, Review } from "@/types";
 import { Clock, Star, TrendingUp, ChevronRight, AlertCircle, Zap } from "lucide-react";
 import Link from "next/link";
+import WishlistButton from "@/components/WishlistButton";
 
 type Props = {
   ride: Ride;
@@ -125,7 +126,10 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
             )}
           </div>
 
-          <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0 mt-1" />
+          <div className="flex flex-shrink-0 flex-col items-end gap-2">
+            <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors mt-1" />
+            <WishlistButton id={ride.id} label={ride.name} size="sm" />
+          </div>
         </div>
       </div>
     </Link>
