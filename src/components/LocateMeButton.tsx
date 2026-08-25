@@ -64,14 +64,14 @@ export default function LocateMeButton({ areaNameOf, onLocated }: Props) {
 
   if (state.kind === "uncertain") {
     return (
-      <div className="mb-3 rounded-xl border border-blue-400/30 bg-blue-500/10 p-3">
+      <div className="mb-3 rounded-xl border border-magic-400/35 bg-magic-500/10 p-3">
         <p className="text-sm text-white/90">
           你可能在<span className="font-semibold">{state.areaName}</span>附近，也可能在相邻区域
         </p>
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => onLocated(state.areaId)}
-            className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white"
+            className="rounded-lg bg-magic-500 px-3 py-1.5 text-xs font-medium text-white"
           >
             就用{state.areaName}
           </button>
@@ -91,7 +91,7 @@ export default function LocateMeButton({ areaNameOf, onLocated }: Props) {
       <button
         onClick={locate}
         disabled={state.kind === "locating"}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/10 p-3 text-sm font-medium text-white transition-colors hover:bg-blue-500/20 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-magic-400/35 bg-magic-500/10 p-3 text-sm font-medium text-white transition-colors hover:bg-magic-500/20 disabled:opacity-60"
       >
         {state.kind === "locating" ? (
           <>
@@ -106,7 +106,7 @@ export default function LocateMeButton({ areaNameOf, onLocated }: Props) {
         )}
       </button>
       {state.kind === "error" && (
-        <p className="mt-1.5 text-center text-xs text-amber-300/90">{state.message}</p>
+        <p className="mt-1.5 text-center text-xs text-castle-300/90">{state.message}</p>
       )}
     </div>
   );

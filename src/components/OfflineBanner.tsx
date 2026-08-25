@@ -28,7 +28,7 @@ export default function OfflineBanner() {
   return (
     <div
       role="status"
-      className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-amber-500/95 px-3 py-1.5 text-xs font-medium text-amber-950"
+      className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-castle-500/95 px-3 py-1.5 text-xs font-medium text-night-950"
     >
       <WifiOff className="h-3.5 w-3.5" />
       当前离线，显示的是上次缓存的数据，排队时间可能已过时
