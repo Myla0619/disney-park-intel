@@ -315,8 +315,33 @@ interface CandidateItem {
   wait: number; duration: number; note: string;
   llType: "package" | "single" | null;
   singleRider: boolean;
+  /** 初始静态成本，仅用于同层内的稳定排序；实际选择用 dynamicCost 逐步重算 */
   costVal: number;
+  /** 优先级层：must-do 优先于 worth-it 优先于 if-time */
+  tier: 0 | 1 | 2;
+  /** 刺激度，参与体力消耗项 */
+  thrill: number;
+  /** 拍照点/商店：随落位时刻变化的时段契合度，需在选择时重算 */
+  poi?: { kind: "photo"; ref: PhotoSpot } | { kind: "shop"; ref: ShopSpot };
 }
+
+/** 优先级层带来的成本惩罚，保证 must-do 在同等条件下先被选中。 */
+const TIER_PENALTY = [0, 18, 36];
+
+/** 被用户标记「想去」的项目获得的成本减免，使其几乎必然入选。 */
+const WISHLIST_BONUS = 40;
+
+/** 连续安排同类项目的单次惩罚，用于让一天的内容更有变化。 */
+const SAME_TYPE_PENALTY = 3;
+
+/**
+ * 步行成本的放大系数。
+ *
+ * routeProfile 里的 walkWeight 最大也只有 0.5，一段 12 分钟的步行只贡献约 6 分
+ * 成本，而层级惩罚是 18、POI 成本区间是 5–60 —— 步行在总成本里几乎不起作用，
+ * 于是行程会为了一点点契合度提升而横跨整个园区。放大到与其它维度同量纲。
+ */
+const WALK_SCALE = 2.5;
 
 function buildCandidates(
   rides: Ride[], scores: RideScore[],
@@ -351,6 +376,8 @@ function buildCandidates(
         note: buildRideNote(r, profile, wait, ll),
         llType: ll, singleRider: r.singleRider,
         costVal,
+        tier: 0 as const,
+        thrill: r.thrillScore as number,
       };
     })
     .sort((a, b) => a.costVal - b.costVal);
@@ -364,8 +391,10 @@ function buildTimeline(
   startArea: string,
   parkHours: ParkHours,
   nowMin?: number,
-  userSelectedLL = false
+  userSelectedLL = false,
+  wishlist: Set<string> = new Set()
 ): ItineraryItem[] {
+  const weights = getWeights(profile);
   const result: ItineraryItem[] = [...anchors];
   const restaurants = getRestaurants(profile.park);
   const openMin  = timeToMin(parkHours.open);
@@ -457,8 +486,69 @@ function buildTimeline(
   blocked.sort((x, y) => x.start - y.start);
 
 
-  for (const item of candidates) {
+  /**
+   * 从当前位置与当前时刻，重新计算某个候选的成本。
+   *
+   * 此前候选的 costVal 是用**起点**算一次步行距离后固定排序的，之后无论人走到
+   * 哪里都不再重算——所以那不是贪心 TSP，是静态排序，行程会在几个区之间来回横跳
+   * （实测拍照模式步行 91 分钟，宝藏湾去两次、米奇大街去两次）。
+   *
+   * 现在每一步都按实际所在位置重算，并叠加几个维度：
+   *   步行  从当前区域出发的真实距离
+   *   等待  该项目的有效等待（含尊享卡折扣）
+   *   体力  刺激度累积，避免连续安排高强度项目
+   *   层级  must-do / worth-it / if-time 的固定惩罚，保证优先级不被距离冲垮
+   *   时段  拍照点与商店按真实落位时刻重算契合度，而非用估算时刻
+   *   标记  用户勾选「想去」的项目大幅减免，使其几乎必然入选
+   */
+  const dynamicCost = (item: CandidateItem, fromArea: string, atMin: number): number => {
+    const walk = walkTime(fromArea, item.area, profile);
+    const walkCost = weights.walkWeight * walk * WALK_SCALE;
+    let cost = weights.waitWeight * item.wait
+      + walkCost
+      + weights.energyWeight * item.thrill * 5
+      + TIER_PENALTY[item.tier];
+
+    if (item.poi) {
+      const arriveAt = atMin + walk;
+      const scored = item.poi.kind === "photo"
+        ? scorePhotoSpot(item.poi.ref, profile, arriveAt)
+        : scoreShop(item.poi.ref, profile, arriveAt, openMin, timeToMin(parkHours.close));
+      // POI 的成本完全由时段与档案契合度决定，再叠加步行
+      cost = scored.costVal + walkCost + TIER_PENALTY[item.tier];
+    }
+
+    // 丰富度：连续排同一类项目会让一天很单调（四个过山车连排、或连拍四个机位）。
+    // 与刚排过的类型相同则加惩罚，惩罚随连续次数递增。
+    if (recentTypes.length && recentTypes[recentTypes.length - 1] === item.type) {
+      const streak = recentTypes.filter((t) => t === item.type).length;
+      cost += Math.min(streak, 2) * SAME_TYPE_PENALTY;
+    }
+
+    if (wishlist.has(item.id)) cost -= WISHLIST_BONUS;
+    return cost;
+  };
+
+  /** 最近排入的项目类型，用于丰富度惩罚（只看最近三项）。 */
+  const recentTypes: ItineraryItem["type"][] = [];
+
+  const remaining = [...candidates];
+
+  while (remaining.length > 0) {
     if (itemsAdded >= maxItems) break;
+
+    // 贪心：从当前位置挑成本最低的一个，而不是按预先排好的顺序取
+    let bestIdx = 0;
+    let bestCost = Infinity;
+    for (let k = 0; k < remaining.length; k++) {
+      if (usedItems.has(remaining[k].id)) continue;
+      const c = dynamicCost(remaining[k], currentArea, currentMin);
+      if (c < bestCost) {
+        bestCost = c;
+        bestIdx = k;
+      }
+    }
+    const item = remaining.splice(bestIdx, 1)[0];
 
     // 插入餐食
     for (const meal of mealSlots) {
@@ -560,6 +650,8 @@ function buildTimeline(
     currentMin  = itemEnd;
     usedItems.add(item.id);
     itemsAdded++;
+    recentTypes.push(item.type);
+    if (recentTypes.length > 3) recentTypes.shift();
   }
 
   return result.sort((a, b) => a.time.localeCompare(b.time));
@@ -698,8 +790,11 @@ export function buildRoute(params: {
   anchors: ItineraryItem[];
   /** 园区当地"现在"的分钟数。当天规划时传入，行程从此刻起排。 */
   nowMin?: number;
+  /** 用户勾选「想去」的项目/机位/商店 id，会被大幅提权，几乎必然排入 */
+  wishlist?: string[];
 }): ItineraryItem[] {
   const { rides, scores, historical, live, profile, startArea, parkHours, anchors, nowMin } = params;
+  const wishlist = new Set(params.wishlist ?? []);
 
   const openMin  = timeToMin(parkHours.open);
   const depMin   = timeToMin(profile.departureTime);
@@ -762,7 +857,11 @@ export function buildRoute(params: {
 
   // 自购尊享卡的项目排在候选队列最前面。仅提升到 must-do 不够：must-do 层本身
   // 就排不完，靠成本排序仍会被挤掉——用户单独付钱指定的项目必须先落位。
-  const tiered = [...mustDo, ...worthIt, ...ifTime];
+  const tiered = [
+    ...mustDo.map((c) => ({ ...c, tier: 0 as const })),
+    ...worthIt.map((c) => ({ ...c, tier: 1 as const })),
+    ...ifTime.map((c) => ({ ...c, tier: 2 as const })),
+  ];
   const purchasedFirst = isUserSelectedLL && purchasedLLRides.length
     ? [
         ...tiered.filter((c) => purchasedLLRides.includes(c.id)),
@@ -792,6 +891,10 @@ export function buildRoute(params: {
         note: scored.reasons.length ? `${scored.reasons.join("、")}。${spot.tips}` : spot.tips,
         llType: null, singleRider: false,
         costVal: scored.costVal,
+        // 拍照模式下机位就是主角，与游乐项目同层竞争；否则作为点缀
+        tier: (profile.mode === "photo" ? 0 : 1) as 0 | 1,
+        thrill: 0,
+        poi: { kind: "photo" as const, ref: spot },
       };
     });
     allCandidates = [...allCandidates, ...photoItems].sort((a, b) => a.costVal - b.costVal);
@@ -806,11 +909,14 @@ export function buildRoute(params: {
         note: scored.reasons.length ? `${scored.reasons.join("、")}。${shop.tips}` : shop.tips,
         llType: null, singleRider: false,
         costVal: scored.costVal,
+        tier: (profile.mode === "shopping" ? 0 : 1) as 0 | 1,
+        thrill: 0,
+        poi: { kind: "shop" as const, ref: shop },
       };
     });
     allCandidates = [...allCandidates, ...shopItems].sort((a, b) => a.costVal - b.costVal);
   }
 
-  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin, isUserSelectedLL);
+  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin, isUserSelectedLL, wishlist);
   return fillGaps(raw, profile);
 }
