@@ -8,6 +8,8 @@ import { resequenceItinerary } from "@/lib/routing";
 import { todayInPark } from "@/lib/park-time";
 import LocateMeButton from "@/components/LocateMeButton";
 import { useWishlistStore } from "@/lib/wishlist-store";
+import { scoreRidesLocally } from "@/lib/local-scoring";
+import { usePlanStore, planFingerprint, isPlanUsable } from "@/lib/plan-store";
 import { RideCard } from "@/components/rides/RideCard";
 import AgentChat from "@/components/AgentChat";
 import { Ride, RideScore, Review, LiveWaitData, HistoricalWaitData, ItineraryItem } from "@/types";
@@ -43,6 +45,11 @@ export default function DashboardPage() {
   const profile = useProfileStore((s) => s.profile);
   const hasHydrated = useProfileStore((s) => s.hasHydrated);
   const wishlist = useWishlistStore((s) => s.ids);
+  /** 渐进式加载所处阶段，用于告诉用户当前这版行程还会不会变 */
+  const [stage, setStage] = useState<"planning" | "refining" | "polishing" | "done">("planning");
+  const cachedPlan = usePlanStore((s) => s.plan);
+  const planHydrated = usePlanStore((s) => s.hasHydrated);
+  const savePlan = usePlanStore((s) => s.save);
 
   const [rides,           setRides]           = useState<Ride[]>([]);
   const [liveWaits,       setLiveWaits]       = useState<LiveWaitData[]>([]);
@@ -68,77 +75,171 @@ export default function DashboardPage() {
   useEffect(() => {
     // 等 localStorage 水合完成再判断。否则首帧 profile 恒为 null，
     // 每次打开都会被弹回 Onboarding 重填一遍
-    if (!hasHydrated) return;
+    if (!hasHydrated || !planHydrated) return;
     if (!profile) { router.push("/onboarding"); return; }
     // 按园区时区判断是否为当天，而不是设备时区
     setIsToday(profile.visitDate === todayInPark(profile.park));
+
+    // 什么都没改就别重算：点进项目详情再返回、切标签、误触后退都会让本组件
+    // 重新挂载，此前每次都要整轮重新规划一遍
+    const fp = planFingerprint(profile, wishlist, "entrance");
+    if (isPlanUsable(cachedPlan, fp)) {
+      setItinerary(cachedPlan!.itinerary);
+      setScores(cachedPlan!.scores);
+      setParkHours(cachedPlan!.parkHours);
+      setIsToday(cachedPlan!.isToday);
+      setLastUpdated(new Date(cachedPlan!.computedAt));
+      setRides(getRidesByPark(profile.park));
+      setLoading(false);
+      setStage("done");
+      return;
+    }
+
     loadAllData("entrance");
     // wishlist 变化要重新规划：用户刚勾的项目应当立刻出现在行程里
-  }, [profile, hasHydrated, wishlist]);
+  }, [profile, hasHydrated, planHydrated, wishlist]);
 
+  /**
+   * 渐进式加载。
+   *
+   * 此前是一条全串行链：等待时间 → 24 次评论请求 → Claude 评分(20s) →
+   * Claude 润色(20s)，而且**全部跑完才渲染**，首屏要等 60 秒。人在园区里
+   * 掏出手机等一分钟是不可接受的。
+   *
+   * 现在分三段，每段完成就立刻更新界面：
+   *   1. 等待时间 + 本地规则评分 → 出一版可用行程（约 2 秒）
+   *   2. 评论批量拉取 + Claude 评分 → 重排行程
+   *   3. Claude 润色备注 → 合并进现有行程
+   * 任一后续阶段失败都不影响已经显示的行程。
+   */
   async function loadAllData(area: string) {
     if (!profile) return;
     setLoading(true);
+    setStage("planning");
+
     const rideList = getRidesByPark(profile.park);
     setRides(rideList);
-    try {
-      const today = new Date().toISOString().slice(0,10);
-      const todayMode = profile.visitDate === today;
 
+    try {
+      const todayMode = profile.visitDate === todayInPark(profile.park);
+
+      // ── 第一段：等待时间 + 本地规则评分，立刻出行程 ──────────────────
       const [wtRes, histRes] = await Promise.all([
         fetch(`/api/waittimes?park=${profile.park}`),
         fetch(`/api/waittimes?park=${profile.park}&mode=historical&date=${profile.visitDate}`),
       ]);
-      const live: LiveWaitData[]       = (await wtRes.json()).data ?? [];
+      const live: LiveWaitData[] = (await wtRes.json()).data ?? [];
       const hist: HistoricalWaitData[] = (await histRes.json()).data ?? [];
       setLiveWaits(live);
       setHistoricalWaits(hist);
 
       const enriched = rideList.map((r) => {
-        const h = hist.find((w) => w.rideId===r.id);
-        const l = live.find((w) => w.rideId===r.id);
-        return { ...r, waitTime:(todayMode?l?.waitMinutes:null)??h?.predictedWait??r.waitTime };
+        const h = hist.find((w) => w.rideId === r.id);
+        const l = live.find((w) => w.rideId === r.id);
+        return { ...r, waitTime: (todayMode ? l?.waitMinutes : null) ?? h?.predictedWait ?? r.waitTime };
       });
       setRides(enriched);
 
-      const reviewResults = await Promise.all(
-        rideList.map(async (r) => {
-          try {
-            const res = await fetch(`/api/reviews?rideId=${r.id}`);
-            const data = await res.json();
-            return { id:r.id, reviews:data.reviews??[] };
-          } catch { return { id:r.id, reviews:[] }; }
-        })
-      );
-      const reviewMap: Record<string,Review[]> = {};
-      reviewResults.forEach(({id,reviews}) => { reviewMap[id]=reviews; });
-      setAllReviews(reviewMap);
+      const quickScores = scoreRidesLocally(enriched, profile);
+      setScores(quickScores);
+
+      const planWith = async (scoreList: RideScore[], polish: boolean) => {
+        const res = await fetch("/api/itinerary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile, scores: scoreList, historicalWaits: hist, liveWaits: live,
+            currentArea: area, wishlist, polishNotes: polish,
+          }),
+        });
+        return res.json();
+      };
+
+      const quickPlan = await planWith(quickScores, false);
+      setItinerary(quickPlan.itinerary ?? []);
+      setIsToday(quickPlan.isToday ?? false);
+      setParkHours(quickPlan.parkHours ?? null);
+      setLastUpdated(new Date());
+      setLoading(false); // 已有可用行程，先让用户看到
+      setStage("refining");
+      savePlan({
+        fingerprint: planFingerprint(profile, wishlist, area),
+        itinerary: quickPlan.itinerary ?? [],
+        scores: quickScores,
+        parkHours: quickPlan.parkHours ?? null,
+        isToday: quickPlan.isToday ?? false,
+        stage: "quick",
+        computedAt: Date.now(),
+      });
+
+      // ── 第二段：评论 + Claude 评分，重排 ────────────────────────────
+      let reviewMap: Record<string, Review[]> = {};
+      try {
+        // 一次批量请求替代 24 个往返
+        const res = await fetch(`/api/reviews?rideIds=${rideList.map((r) => r.id).join(",")}`);
+        const data = await res.json();
+        for (const [id, v] of Object.entries(data.byRide ?? {})) {
+          reviewMap[id] = (v as any).reviews ?? [];
+        }
+        setAllReviews(reviewMap);
+      } catch (e) {
+        console.error("评论加载失败，沿用无评论的评分:", e);
+      }
 
       const scoreRes = await fetch("/api/recommend", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ profile, waitTimes:live, historicalWaits:hist, reviews:reviewMap }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, waitTimes: live, reviews: reviewMap }),
       });
-      const scoreList: RideScore[] = (await scoreRes.json()).scores ?? [];
-      setScores(scoreList);
+      const scoreData = await scoreRes.json();
+      const aiScores: RideScore[] = scoreData.scores ?? [];
 
-      const itinRes = await fetch("/api/itinerary", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ profile, scores:scoreList, historicalWaits:hist, liveWaits:live, currentArea:area, wishlist }),
-      });
-      const itinData = await itinRes.json();
-      setItinerary(itinData.itinerary??[]);
-      setIsToday(itinData.isToday??false);
-      setParkHours(itinData.parkHours??null);
-      setLastUpdated(new Date());
+      if (aiScores.length) {
+        setScores(aiScores);
+        const refined = await planWith(aiScores, false);
+        if (refined.itinerary?.length) {
+          setItinerary(refined.itinerary);
+          setLastUpdated(new Date());
+          savePlan({
+            fingerprint: planFingerprint(profile, wishlist, area),
+            itinerary: refined.itinerary,
+            scores: aiScores,
+            parkHours: refined.parkHours ?? null,
+            isToday: refined.isToday ?? false,
+            stage: "refined",
+            computedAt: Date.now(),
+          });
+        }
+
+        // ── 第三段：润色备注，合并进现有行程 ──────────────────────────
+        setStage("polishing");
+        try {
+          const polished = await planWith(aiScores, true);
+          if (polished.itinerary?.length) {
+            setItinerary(polished.itinerary);
+            savePlan({
+              fingerprint: planFingerprint(profile, wishlist, area),
+              itinerary: polished.itinerary,
+              scores: aiScores,
+              parkHours: polished.parkHours ?? null,
+              isToday: polished.isToday ?? false,
+              stage: "polished",
+              computedAt: Date.now(),
+            });
+          }
+        } catch (e) {
+          console.error("备注润色失败，保留未润色行程:", e);
+        }
+      }
     } catch (e) {
       console.error("加载失败:", e);
     } finally {
       setLoading(false);
       setReplanning(false);
+      setStage("done");
     }
   }
 
-  // ─── 长按逻辑 ──────────────────────────────────────────────────────────────
   const handlePressStart = useCallback((item: ItineraryItem, index: number) => {
     if (item.type === "walk" || item.isAnchor) return;
     longPressTimer.current = setTimeout(() => {
@@ -151,6 +252,8 @@ export default function DashboardPage() {
   const handlePressEnd = useCallback(() => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
   }, []);
+
+
 
   const handleDelete = () => {
     setItinerary((prev) => resequenceItinerary(prev.filter((_, i) => i !== longPressIndex)));
@@ -415,6 +518,14 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div>
+                {stage !== "done" && (
+                  <div className="mb-3 flex items-center justify-center gap-2 rounded-lg border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200/90">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    {stage === "refining"
+                      ? "已按等待时间排出初版，AI 正在结合评论重新评分…"
+                      : "正在补充每项的实用备注…"}
+                  </div>
+                )}
                 <p className="text-white/30 text-xs mb-3 text-center">长按行程卡片可删除、移动或替换项目</p>
                 <div className="relative">
                   <div className="absolute left-[58px] top-0 bottom-0 w-px bg-white/5" />

@@ -128,7 +128,9 @@ export const ReviewsQuerySchema = z
   .object({
     rideId: z.string().min(1).optional(),
     restaurantId: z.string().min(1).optional(),
+    /** 逗号分隔的批量查询。面板一次要 24 个项目的评论，逐个请求是 24 个往返。 */
+    rideIds: z.string().min(1).optional(),
   })
-  .refine((v) => Boolean(v.rideId || v.restaurantId), {
-    message: "rideId 或 restaurantId 至少提供一个",
+  .refine((v) => Boolean(v.rideId || v.restaurantId || v.rideIds), {
+    message: "rideId、restaurantId 或 rideIds 至少提供一个",
   });
