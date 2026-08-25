@@ -14,7 +14,7 @@
  * 用法：node scripts/merge_photo_spots.mjs
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,9 +38,25 @@ function dedupeKey(name) {
   return name.split(/[（(·—]/)[0].replace(/\s+/g, "").trim();
 }
 
-const extracted = JSON.parse(
-  readFileSync(path.join(ROOT, "data", "reference", "photo-spots-extracted.json"), "utf-8")
-);
+/** 合并两路提取结果：文本提取与图片视觉提取。 */
+function loadSource(file, kind) {
+  const p = path.join(ROOT, "data", "reference", file);
+  if (!existsSync(p)) return [];
+  const raw = JSON.parse(readFileSync(p, "utf-8"));
+  return (raw.spots ?? []).map((s) => ({
+    ...s,
+    extraction: kind,
+    // 文本提取带 sourceQuote，视觉提取带 evidence，统一成 evidence 字段
+    evidence: s.sourceQuote ?? s.evidence ?? "",
+  }));
+}
+
+const extracted = {
+  spots: [
+    ...loadSource("photo-spots-extracted.json", "text"),
+    ...loadSource("photo-spots-vision.json", "vision"),
+  ],
+};
 
 const parksSrc = readFileSync(path.join(ROOT, "src", "lib", "parks-data.ts"), "utf-8");
 const rideNames = [...parksSrc.matchAll(/name:"([^"]+)"/g)].map((m) => m[1]);
@@ -71,7 +87,7 @@ const spots = [...seen.values()].map((s) => ({
   parkId: "shanghai",
   area: s.area,
   areaName: AREA_NAMES[s.area],
-  nearestRide: s.fromTarget,
+  nearestRide: s.fromTarget ?? "",
   walkFromNearestRide: 0,
   // 语料未提供时段则留空，由 poi-scoring 按中性处理，不编造
   bestTimeSlots: s.bestTimeSlots,
@@ -81,7 +97,7 @@ const spots = [...seen.values()].map((s) => ({
   xhsKeyword: s.name,
   duration: 10,
   photoType: s.photoType,
-  source: { quote: s.sourceQuote, url: s.sourceUrl },
+  source: { quote: s.evidence, url: s.sourceUrl, extraction: s.extraction },
 }));
 
 const header = `/**
@@ -100,7 +116,12 @@ const header = `/**
 import { PhotoSpot } from "@/types";
 
 export type UgcPhotoSpot = PhotoSpot & {
-  source: { quote: string; url: string };
+  source: {
+    /** 支撑该条目的原文片段（文本提取）或图上可见依据（视觉提取） */
+    quote: string;
+    url: string;
+    extraction: "text" | "vision";
+  };
 };
 
 export const UGC_PHOTO_SPOTS: UgcPhotoSpot[] = ${JSON.stringify(spots, null, 2)};
@@ -110,4 +131,8 @@ writeFileSync(path.join(ROOT, "src", "lib", "photo-spots-ugc.ts"), header, "utf-
 
 console.log(`入库 ${spots.length} 条机位 → src/lib/photo-spots-ugc.ts`);
 console.log(`剔除：重复 ${dropped.duplicate} 条，实为项目或演出 ${dropped.isRideOrShow} 条`);
+console.log(
+  `来源：文本提取 ${spots.filter((s) => s.source.extraction === "text").length} 条，` +
+    `视觉提取 ${spots.filter((s) => s.source.extraction === "vision").length} 条`
+);
 console.log(`其中带时段标注的：${spots.filter((s) => s.bestTimeSlots.length).length} 条`);
