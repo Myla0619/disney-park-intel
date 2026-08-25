@@ -38,8 +38,8 @@ export default function WishlistButton({ id, label, size = "md", className = "" 
       }}
       className={`inline-flex items-center gap-1.5 rounded-lg border font-medium transition-colors ${pad} ${
         active
-          ? "border-rose-400/40 bg-rose-500/20 text-rose-200"
-          : "border-white/10 bg-white/5 text-white/60 hover:border-rose-400/30 hover:text-rose-200"
+          ? "border-transparent bg-magic-gradient text-white shadow-glow-spark"
+          : "border-white/12 bg-white/5 text-white/60 hover:border-spark-400/40 hover:text-spark-300"
       } ${className}`}
     >
       <Heart className={`${icon} ${active ? "fill-current" : ""}`} />

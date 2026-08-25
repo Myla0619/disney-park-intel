@@ -48,16 +48,16 @@ export default function DiningPlanPicker({ restaurant, profile, plan, onChange }
     });
 
   return (
-    <div className="mt-2 space-y-2 rounded-lg border border-white/10 bg-slate-900/40 p-3">
+    <div className="mt-2 space-y-2 rounded-lg border border-white/10 bg-night-950/40 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Clock className="h-3.5 w-3.5 text-amber-400" />
+        <Clock className="h-3.5 w-3.5 text-castle-400" />
         <span className="text-xs text-white/70">{MEAL_LABEL[mealType]}时间</span>
 
         <input
           type="time"
           value={time}
           onChange={(e) => emit({ time: e.target.value })}
-          className="rounded-md border border-white/15 bg-slate-800 px-2 py-1 text-sm text-white [color-scheme:dark]"
+          className="rounded-md border border-white/15 bg-night-800 px-2 py-1 text-sm text-white [color-scheme:dark]"
         />
 
         <span className="text-xs text-white/35">用时约 {duration} 分钟</span>
@@ -66,7 +66,7 @@ export default function DiningPlanPicker({ restaurant, profile, plan, onChange }
           <button
             type="button"
             onClick={() => emit({ time: recommended })}
-            className="text-xs text-blue-300 underline underline-offset-2"
+            className="text-xs text-magic-300 underline underline-offset-2"
           >
             用推荐 {recommended}
           </button>
@@ -74,7 +74,7 @@ export default function DiningPlanPicker({ restaurant, profile, plan, onChange }
       </div>
 
       {peak && (
-        <p className="flex items-start gap-1.5 text-xs text-amber-300/90">
+        <p className="flex items-start gap-1.5 text-xs text-castle-300/90">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           这个点是用餐高峰，等位时间会明显变长。推荐 {recommended}。
         </p>
@@ -86,7 +86,7 @@ export default function DiningPlanPicker({ restaurant, profile, plan, onChange }
             type="checkbox"
             checked={isReservation}
             onChange={(e) => emit({ isReservation: e.target.checked })}
-            className="mt-0.5 h-3.5 w-3.5 accent-amber-400"
+            className="mt-0.5 h-3.5 w-3.5 accent-castle-400"
           />
           <span>
             我已经订好这个时间
