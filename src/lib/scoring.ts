@@ -132,29 +132,5 @@ ${reviewContext || "暂无评论数据"}
   }
 }
 
-function generateFallbackScore(ride: Ride, profile: UserProfile): RideScore {
-  const heightBlocked = isHeightBlocked(ride, profile);
-
-  const waitScore = ride.waitTime == null ? 50 : Math.max(0, 100 - ride.waitTime);
-  const thrillMatch =
-    profile.mode === "thrill"
-      ? ride.thrillScore * 20
-      : profile.mode === "family"
-      ? ride.kidsScore * 20
-      : 60;
-
-  const overallScore = heightBlocked ? 10 : Math.round((waitScore + thrillMatch) / 2);
-
-  return {
-    rideId: ride.id,
-    overallScore,
-    waitScore,
-    sentimentScore: 70,
-    profileMatchScore: thrillMatch,
-    reasoning: heightBlocked
-      ? `身高要求 ${ride.heightRequirement}cm，团队中最矮的孩子 ${minKidHeightCm(profile)}cm，无法乘坐。`
-      : `符合你的${profile.mode === "family" ? "亲子" : profile.mode === "thrill" ? "刺激" : "休闲"}游玩偏好。`,
-    recommended: overallScore >= 60 && !heightBlocked,
-    priority: heightBlocked ? "skip" : overallScore >= 75 ? "must-do" : overallScore >= 55 ? "worth-it" : "if-time",
-  };
-}
+import { generateFallbackScore } from "./local-scoring";
+export { generateFallbackScore };
