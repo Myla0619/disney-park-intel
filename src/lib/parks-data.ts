@@ -1,6 +1,7 @@
 import { Park, Ride, PhotoSpot, ShopSpot, Restaurant } from "@/types";
 import { LL_ELIGIBLE_RIDES } from "./ll-packages";
 import { SHANGHAI_SHOPS } from "./shops-data";
+import { UGC_PHOTO_SPOTS } from "./photo-spots-ugc";
 
 // ─── 步行时间矩阵（上海迪士尼，分钟，成人正常步速 80m/min）──────────────
 // 数据基于园区实际路线距离估算，行动不便×2.0，带幼童×1.6，带小学生×1.3
@@ -718,6 +719,9 @@ export const RESTAURANTS: Restaurant[] = [
 export const getRidesByPark   = (id: string) => RIDES.filter((r) => r.parkId === id);
 export const getRideById      = (id: string) => RIDES.find((r) => r.id === id);
 export const getParkById      = (id: string) => PARKS.find((p) => p.id === id);
-export const getPhotoSpots    = (id: string) => PHOTO_SPOTS.filter((p) => p.parkId === id);
+// 人工整理的机位 + 从真实游客笔记中提取的机位。后者多数没有时段信息，
+// poi-scoring 会按中性处理，不会因缺失而被排除或误加分。
+export const getPhotoSpots    = (id: string) =>
+  [...PHOTO_SPOTS, ...UGC_PHOTO_SPOTS].filter((p) => p.parkId === id);
 export const getShopSpots     = (id: string) => SHOP_SPOTS.filter((s) => s.parkId === id);
 export const getRestaurants   = (id: string) => RESTAURANTS.filter((r) => r.parkId === id);
