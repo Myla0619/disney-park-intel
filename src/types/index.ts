@@ -40,6 +40,20 @@ export type UserProfile = {
   focusPhoto: boolean;
   focusShopping: boolean;
   selectedRestaurants: string[];
+  /** 用餐安排。为空时按推荐时段自动插入用餐。 */
+  diningPlans?: DiningPlan[];
+};
+
+export type DiningPlan = {
+  restaurantId: string;
+  mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  /** HH:MM */
+  time: string;
+  /**
+   * true = 已预约。预约是园方给定的固定时段，行程必须让路，与巡游烟花同级；
+   * false = 只是打算这个时间吃，排程可在附近浮动。
+   */
+  isReservation: boolean;
 };
 
 // ─── 优速通套餐配置 ───────────────────────────────────────────────────────────

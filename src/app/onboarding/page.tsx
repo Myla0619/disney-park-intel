@@ -3,6 +3,9 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/lib/store";
+import DiningPlanPicker from "@/components/DiningPlanPicker";
+import { DiningPlan } from "@/types";
+import { inferMealType, recommendedMealTime } from "@/lib/dining";
 import { UserProfile, KidInfo, LLPackage } from "@/types";
 import { Users, Zap, Coffee, ChevronRight, Plus, X, Camera, ShoppingBag,
          Sparkles, Footprints, Scale, Utensils, Heart, Info } from "lucide-react";
@@ -66,6 +69,7 @@ export default function OnboardingPage() {
   const [focusPhoto,    setFocusPhoto]    = useState(false);
   const [focusShopping, setFocusShopping] = useState(false);
   const [selectedRests, setSelectedRests] = useState<string[]>([]);
+  const [diningPlans, setDiningPlans] = useState<DiningPlan[]>([]);
 
   const rides = getRidesByPark(PARK_ID);
   const restaurants = getRestaurants(PARK_ID);
@@ -100,7 +104,7 @@ export default function OnboardingPage() {
       watchFireworks, fireworksTime,
       llPackage, singlePassRides:singleRides, bundle3Rides,
       diningPreference:diningPref, routeProfile,
-      focusPhoto, focusShopping, selectedRestaurants:selectedRests,
+      focusPhoto, focusShopping, selectedRestaurants:selectedRests, diningPlans,
     });
     router.push("/dashboard");
   };
@@ -396,8 +400,26 @@ export default function OnboardingPage() {
                 {restaurants.map((r) => {
                   const sel = selectedRests.includes(r.id);
                   return (
-                    <button key={r.id}
-                      onClick={() => setSelectedRests((p) => p.includes(r.id)?p.filter(x=>x!==r.id):[...p,r.id])}
+                    <div key={r.id}>
+                    <button
+                      onClick={() => {
+                        const nowSelected = !selectedRests.includes(r.id);
+                        setSelectedRests((p) => p.includes(r.id) ? p.filter(x=>x!==r.id) : [...p, r.id]);
+                        setDiningPlans((p) => {
+                          if (!nowSelected) return p.filter((x) => x.restaurantId !== r.id);
+                          // 选中即给一个推荐时间，用户可再微调——比留空让他猜要好
+                          const mealType = inferMealType(r);
+                          return [...p, {
+                            restaurantId: r.id,
+                            mealType,
+                            time: recommendedMealTime(mealType, {
+                              arrivalTime: arrival, departureTime: departure,
+                              diningPreference: diningPref, watchFireworks, fireworksTime,
+                            } as any),
+                            isReservation: false,
+                          }];
+                        });
+                      }}
                       className={`w-full p-3 rounded-xl border text-left transition-all ${sel?"border-amber-400 bg-amber-500/10":"border-white/10 bg-white/5 hover:border-white/20"}`}>
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1">
@@ -417,6 +439,24 @@ export default function OnboardingPage() {
                         </div>
                       </div>
                     </button>
+                    {sel && (
+                      <DiningPlanPicker
+                        restaurant={r}
+                        profile={{
+                          arrivalTime: arrival, departureTime: departure,
+                          diningPreference: diningPref,
+                          watchFireworks, fireworksTime,
+                        } as any}
+                        plan={diningPlans.find((d) => d.restaurantId === r.id)}
+                        onChange={(next) =>
+                          setDiningPlans((p) => [
+                            ...p.filter((x) => x.restaurantId !== r.id),
+                            next,
+                          ])
+                        }
+                      />
+                    )}
+                    </div>
                   );
                 })}
               </div>
