@@ -1,0 +1,125 @@
+# 迪士尼项目 → Agentic-RL 改造方案
+
+目标：把现在的「调用 Claude API 的工具 Agent」升级为「端到端训练的 Agentic-RL 项目」。
+路径与出行规划项目一致：**SFT 冷启动 → 在线 RL（GRPO）**，但用我们自己的园区工具环境和可验证奖励。
+
+## 定位（2026-09 定稿）
+
+- **多乐园智能规划平台（Park Intel）**：不再是单一迪士尼 Demo。themeparks.wiki（80+ 目的地）和 queue-times（130+ 乐园）用同一套实体模型，乐园列表由 `scripts/parks_config.json` 配置驱动，新增乐园只加一条配置。上海迪士尼是第一个接入实例。
+- **RL 视角**：多乐园 = 多环境。训练在 N 个乐园环境上做，留 1–2 个乐园做 held-out 泛化评估——「训练环境没见过的乐园也能规划」是比单乐园强得多的结论。
+- **基座**：Qwen3-32B（定稿）。
+- **地图/导航**：个人项目不接百度/高德，统一用 OSM（POI 坐标 + 园内路网 + 前端 Dijkstra）。百度智慧景区等 To B 方案只作为「包装成公司项目」时的面试话术。
+
+---
+
+## 一、现状 vs 目标
+
+| | 现状 | 目标 |
+|---|---|---|
+| 模型 | Claude API（claude-sonnet-4） | 自己训练的开源模型（**Qwen3-32B**，对齐原版 34B；算力不足时可降到 7B/14B 起步） |
+| Agent 能力来源 | prompt 工程 | SFT 冷启动 + GRPO 在线强化学习 |
+| 工具 | 4 个，耦合在 Next.js API route 里 | 8+ 个，独立工具环境服务（带重试/超时/沙箱） |
+| 数据 | 无训练数据 | 300 种子 → 1500+ 扩增 → 教师蒸馏 rollout → 清洗 |
+| 奖励 | 无 | 5 维结构化 reward（含规则可验证约束）+ 1 维答案质量 |
+| 评估 | 150 工具用例 + 100 约束场景（评产品） | 同一套评测复用为 base vs SFT vs SFT+RL 三方对比 |
+
+我们项目的独特优势：**迪士尼是封闭世界，约束全部可程序化校验**（身高、时间连续性、LL 90 分钟间隔、离园时间、烟花锚点）。`scripts/eval_itinerary.py` 里的 6 条校验器可以直接改写成 rule-based verifiable reward——这比出行规划项目纯靠 LLM 打分的 reward 更硬。
+
+---
+
+## 二、代码要改什么（按模块）
+
+### 1. 工具环境独立化（新增 `rl/env/`）
+
+现在工具定义在 `src/app/api/agent/tools.ts`，执行逻辑在 `src/app/api/agent/route.ts` 的 `executeTool()`，和 Next.js 耦合。要改成独立的工具环境服务（Python FastAPI，方便接训练框架）：
+
+- **抽出 4 个现有工具**：`get_wait_times` / `search_reviews` / `plan_itinerary` / `get_spot_info`，每个变成一个 HTTP endpoint。
+- **扩充到 8+ 工具**（做出"多工具多类型"）：
+  - `get_show_schedule`：花车/烟花场次
+  - `get_ll_pricing`：11 档优速通价格与含项目列表（数据已在 `src/lib/ll-packages.ts`）
+  - `walk_time`：区域间步行时间（已在 `src/lib/parks-data.ts` 的 `walkTime`）
+  - `get_weather`：天气接口（下雨影响户外项目/烟花），用和风/彩云/OpenWeather，不用百度
+  - `check_constraints`：把行程草案交给规则校验器，返回违反项（让模型学会自查）
+  - 所有工具带 `park_id` 参数（读 parks_config.json），同一套工具服务多乐园环境
+- **环境稳定性设施**（RL 训练最大隐性成本）：
+  - 重试 2–3 次、超时阈值、异常日志作为 tool response 回传给模型
+  - 外部 API（themeparks.wiki / Apify / RapidAPI）加 Key 轮询
+  - 评论等长返回做截断/摘要，防止撑爆上下文
+  - **沙箱模式（record & replay）**：把真实 API 响应录制成缓存，训练 rollout 时全部走缓存——零成本、可复现、不受 QPS 限制。这是迪士尼项目能低成本做 RL 的关键。
+
+### 2. Agent 协议改成开放格式（改 `route.ts` + 新 system prompt）
+
+现在用 Anthropic 私有的 tool_use block。训练开源小模型需要纯文本协议：
+
+- 定义 ReAct 式标签：`<think>` → `<tool_call>{json}</tool_call>` → `<tool_response>` → 循环 → `<answer>`
+- 针对 7B/14B 小模型重写 system prompt：**简洁 + 明确示例**，不是越详细越好（大小模型对 prompt 的适配完全不同）
+- 调用方护栏：最大工具调用次数（如 30 次）、上下文接近上限时强制 early-stop 总结、`<answer>` 标签未闭合的兜底补救
+
+### 3. 数据管线（新增 `rl/data/`）
+
+- **种子任务（~300 条）**：直接复用现有评测生成器——`eval_tool_accuracy.py` 的 150 条用例模板（11 个类别：显式排队/隐式排队/评论/规划/否定句/多意图/别名…）+ `eval_itinerary.py` 的 100 个约束场景，再补 50 条多约束长程任务（带孩子身高 + 优速通 + 必玩项目 + 时间窗 + 预算）。
+- **扩增到 1500+**：LLM 改写（换 persona、换约束组合、换表述风格）。
+- **蒸馏**：用教师大模型（Claude / DeepSeek-V3）在工具环境里跑完整多轮 rollout，记录全轨迹（含 think、tool_call、tool_response）。
+- **清洗**：
+  1. 格式校验（标签闭合、JSON 可解析）
+  2. 工具调用成功率过滤
+  3. **规则校验器过滤**（复用 6 条约束检查：time_continuity / height_compliance / departure / anchor_integrity / ll_interval / coverage）
+  4. LLM 打分分 pass / borderline，borderline 降权（0.5–0.8）不丢弃
+- **样本分级**：按工具调用次数打难度标签（1–3 简单 / 4–10 中等 / ≥10 困难），供课程学习使用。
+- **Query 多样性保障（防止纯 LLM 生成太单一/偏离真实需求）**：
+  1. 掺真实人类语料：小红书攻略帖的正文和评论区提问（Apify 抓取后改写成 query）是真实用户需求分布，目标占种子的 30–50%；
+  2. 扩增时用「persona 池 × 约束采样器」组合控制（家庭/情侣/学生/老人 × 身高/预算/时间窗/优速通档位），从真实分布采样而不是让 LLM 自由发挥；
+  3. embedding 聚类去重 + n-gram 去重，砍掉相似 query；
+  4. 每批人工抽检 5–10%，看是否像真人会问的话。
+
+### 3.5 排队数据采集与存储（2026-09 决定）
+
+- **历史数据两条腿**：① Thrill Data Plus 会员**一次性**下载上海迪士尼历史排队数据（付一个月会员费拿长历史）；② **自建录制**持续积累：`scripts/record_waittimes.py` + `.github/workflows/record-waittimes.yml`，GitHub Actions 每 15 分钟抓 themeparks.wiki + queue-times 双源快照。
+- **存哪**：git-scraping 模式——JSONL 直接 commit 进仓库 `data/waittimes/`（按天分文件）。零成本、零运维、天然带版本历史。排队快照每天约几百 KB，一年也就百来 MB，仓库完全扛得住。分析/训练时用脚本导入 SQLite 或 pandas。数据量大了再迁 Supabase Postgres（免费层 500MB）或 VPS + SQLite。
+- 这份录制数据同时就是 RL 沙箱 record & replay 的回放缓存，一份数据两用。
+
+### 4. Reward 设计（新增 `rl/reward/`）
+
+组合式 reward = 5 维结构化 + 1 维答案质量，答案质量占 ≥60%：
+
+| 维度 | 类型 | 来源 |
+|---|---|---|
+| 格式规范（标签闭合、JSON 合法） | 规则，有界（≤0.3） | 新写 parser |
+| 工具轨迹合理性（该调不调/乱调惩罚） | 规则 | 参考 eval_tool_accuracy 的 EM 逻辑 |
+| 工具效率（冗余调用惩罚） | 规则 | 调用次数 vs 难度标签 |
+| **硬约束校验**（身高/时间/LL间隔/锚点） | **规则，可验证** | **`eval_itinerary.py` 6 条校验器改写** |
+| 调用状态（失败感知与恢复） | 规则 | 环境日志 |
+| 答案质量（匹配度/可行性/丰富度/清晰度） | LLM-as-Judge | 多模型交叉打分 |
+
+课程式权重：前期结构化权重稍大（先学格式和工具），后期答案质量权重上调。
+防 reward hack：多目标组合 + 各子项有界 + 过程结果兼看 + KL 约束。
+
+### 5. 训练（新增 `rl/train/`）
+
+- **基座选型（2026-09 决定：32B）**：主选 **Qwen3-32B**（Apache 2.0，国内生态最好，veRL / ms-swift / LLaMA-Factory 原生支持，工具调用协议成熟，可开关思考模式）；备选 Qwen2.5-32B-Instruct（更保守稳定）、GLM-4-32B（MIT 协议）。不选 DeepSeek-R1-Distill-32B（推理强但工具调用协议弱）。
+- **SFT 冷启动**：清洗后的蒸馏轨迹，LoRA 或全参微调（LLaMA-Factory / ms-swift）
+- **在线 RL**：veRL + GRPO，工具环境以 HTTP env 形式接入；课程学习（先简单/中等样本，后困难样本）；上下文先 8K 稳步外推
+- 硬件按预算：32B LoRA SFT 租 4×A100 80G；32B GRPO rollout 需 8×A100/H800 级别（vLLM 推理 + 训练分离部署）；预算不够先用 7B 跑通全链路再换 32B
+
+### 6. 评估（改 `scripts/`）
+
+- `eval_tool_accuracy.py`：改成支持任意 OpenAI-compatible endpoint，跑 base / SFT / SFT+RL 三方对比
+- `eval_itinerary.py`：约束通过率作为客观指标
+- 新增 LLM-as-Judge 交叉打分（多个未参与训练/蒸馏的模型，A vs B 相对比较优于绝对分）
+
+### 7. 产品侧接回（改 `src/app/api/agent/route.ts`）
+
+- Anthropic client 换成 OpenAI-compatible client（vLLM 部署自己训的模型），模型地址走环境变量
+- 保留 Claude 作为 fallback，形成「自训模型主答 + 商业模型兜底」
+
+---
+
+## 三、实施顺序
+
+1. 工具环境服务化 + 沙箱缓存（没有稳定环境，后面全白搭）
+2. Agent 文本协议 + 小模型 system prompt 调优
+3. 种子 → 扩增 → 蒸馏 → 清洗管线
+4. SFT 冷启动，先看格式和工具调用是否稳定
+5. Reward 实现（先规则维度，后 LLM 维度）
+6. GRPO 在线训练 + 课程学习
+7. 三方评估对比，接回产品
