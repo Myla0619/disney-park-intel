@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "env:serve": "tsx rl/env/server.ts",
-    "env:smoke": "tsx rl/env/smoke.ts"
+    "env:smoke": "tsx rl/env/smoke.ts",
+    "agent:smoke": "tsx rl/agent/smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
