@@ -9,7 +9,7 @@
 
 | | 现状 | 目标 |
 |---|---|---|
-| 模型 | Claude API（claude-sonnet-4） | 自己训练的开源小模型（Qwen2.5-7B/14B-Instruct） |
+| 模型 | Claude API（claude-sonnet-4） | 自己训练的开源模型（**Qwen3-32B**，对齐原版 34B；算力不足时可降到 7B/14B 起步） |
 | Agent 能力来源 | prompt 工程 | SFT 冷启动 + GRPO 在线强化学习 |
 | 工具 | 4 个，耦合在 Next.js API route 里 | 8+ 个，独立工具环境服务（带重试/超时/沙箱） |
 | 数据 | 无训练数据 | 300 种子 → 1500+ 扩增 → 教师蒸馏 rollout → 清洗 |
@@ -58,6 +58,17 @@
   3. **规则校验器过滤**（复用 6 条约束检查：time_continuity / height_compliance / departure / anchor_integrity / ll_interval / coverage）
   4. LLM 打分分 pass / borderline，borderline 降权（0.5–0.8）不丢弃
 - **样本分级**：按工具调用次数打难度标签（1–3 简单 / 4–10 中等 / ≥10 困难），供课程学习使用。
+- **Query 多样性保障（防止纯 LLM 生成太单一/偏离真实需求）**：
+  1. 掺真实人类语料：小红书攻略帖的正文和评论区提问（Apify 抓取后改写成 query）是真实用户需求分布，目标占种子的 30–50%；
+  2. 扩增时用「persona 池 × 约束采样器」组合控制（家庭/情侣/学生/老人 × 身高/预算/时间窗/优速通档位），从真实分布采样而不是让 LLM 自由发挥；
+  3. embedding 聚类去重 + n-gram 去重，砍掉相似 query；
+  4. 每批人工抽检 5–10%，看是否像真人会问的话。
+
+### 3.5 排队数据采集与存储（2026-09 决定）
+
+- **历史数据两条腿**：① Thrill Data Plus 会员**一次性**下载上海迪士尼历史排队数据（付一个月会员费拿长历史）；② **自建录制**持续积累：`scripts/record_waittimes.py` + `.github/workflows/record-waittimes.yml`，GitHub Actions 每 15 分钟抓 themeparks.wiki + queue-times 双源快照。
+- **存哪**：git-scraping 模式——JSONL 直接 commit 进仓库 `data/waittimes/`（按天分文件）。零成本、零运维、天然带版本历史。排队快照每天约几百 KB，一年也就百来 MB，仓库完全扛得住。分析/训练时用脚本导入 SQLite 或 pandas。数据量大了再迁 Supabase Postgres（免费层 500MB）或 VPS + SQLite。
+- 这份录制数据同时就是 RL 沙箱 record & replay 的回放缓存，一份数据两用。
 
 ### 4. Reward 设计（新增 `rl/reward/`）
 
@@ -77,9 +88,10 @@
 
 ### 5. 训练（新增 `rl/train/`）
 
-- **SFT 冷启动**：清洗后的蒸馏轨迹，LoRA 或全参微调 Qwen2.5-7B-Instruct（LLaMA-Factory / ms-swift）
+- **基座选型（2026-09 决定：32B）**：主选 **Qwen3-32B**（Apache 2.0，国内生态最好，veRL / ms-swift / LLaMA-Factory 原生支持，工具调用协议成熟，可开关思考模式）；备选 Qwen2.5-32B-Instruct（更保守稳定）、GLM-4-32B（MIT 协议）。不选 DeepSeek-R1-Distill-32B（推理强但工具调用协议弱）。
+- **SFT 冷启动**：清洗后的蒸馏轨迹，LoRA 或全参微调（LLaMA-Factory / ms-swift）
 - **在线 RL**：veRL + GRPO，工具环境以 HTTP env 形式接入；课程学习（先简单/中等样本，后困难样本）；上下文先 8K 稳步外推
-- 硬件按预算：7B LoRA 可 2×4090 起步；全参 + RL 租 4×A100
+- 硬件按预算：32B LoRA SFT 租 4×A100 80G；32B GRPO rollout 需 8×A100/H800 级别（vLLM 推理 + 训练分离部署）；预算不够先用 7B 跑通全链路再换 32B
 
 ### 6. 评估（改 `scripts/`）
 
