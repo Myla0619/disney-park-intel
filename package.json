@@ -12,7 +12,9 @@
     "agent:smoke": "tsx rl/agent/smoke.ts",
     "data:seeds": "tsx rl/data/gen_seeds.ts",
     "data:smoke": "tsx rl/data/smoke.ts",
-    "reward:smoke": "tsx rl/reward/smoke.ts"
+    "reward:smoke": "tsx rl/reward/smoke.ts",
+    "eval:smoke": "tsx rl/eval/smoke.ts",
+    "eval:run": "tsx rl/eval/run_eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
