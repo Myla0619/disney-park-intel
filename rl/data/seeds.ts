@@ -198,7 +198,24 @@ export function generateSeeds(parkId: string, seed = 20260901): SeedTask[] {
     ]), maybe(r, 0.5) ? { mode: "family", kids: [{ age: 6, heightCm: 115 }] } : {}, "medium");
   }
 
-  // 11) edge_name_variant ×10：别名/描述式称呼
+  // 11) trade_off ×25：排队 × 距离 × 好玩度的显式权衡（模型必须查数据再算账）
+  for (let i = 0; i < 25; i++) {
+    const a = pick(r, hot.length ? hot : rides);
+    let b = pick(r, rides);
+    while (b.id === a.id) b = pick(r, rides);
+    const areaName = pick(r, ["宝藏湾", "明日世界", "梦幻世界", "疯狂动物城", "探险岛"]);
+    add("trade_off", pick(r, [
+      `${a.name}和${b.name}现在哪个更值得排？帮我算下排队和好玩程度`,
+      `我在${areaName}，是就近排${b.name}，还是走过去排${a.name}划算？`,
+      `${a.name}排队要是超过一小时就不值了吧？帮我看看现在情况，给个建议`,
+      `只剩3小时了，${a.name}和${b.name}只能选一个，考虑排队时间和距离帮我选`,
+      `腿快走断了，接下来两小时安排少走路的玩法`,
+      `我们是特种兵打卡，排队无所谓就要刷最多项目，怎么排最有效率`,
+      `带着老人不想走太多路，但${a.name}又想玩，怎么权衡`,
+    ]), maybe(r, 0.3) ? { mobilityNeeds: true } : {}, "medium");
+  }
+
+  // 12) edge_name_variant ×10：别名/描述式称呼
   for (let i = 0; i < 10; i++) {
     add("edge_name_variant", pick(r, [
       "那个趴着坐的摩托车过山车排多久",
