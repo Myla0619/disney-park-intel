@@ -99,6 +99,15 @@ const mkTask = (category: string, query: string, profile: SeedTask["profile"] = 
   }
   check(true, "⑨: 全部维度有界 [0,1]（防无限刷分）");
 
+  // ⑩ 消息序列重建轨迹（veRL 桥接路径）打分一致
+  const { rebuildTrajectoryFromMessages } = await import("./rebuild");
+  const rebuilt = rebuildTrajectoryFromMessages(good.messages);
+  const rRebuilt = await scoreTrajectory(rebuilt, mkTask("explicit_wait", "创极速排多久"), judge);
+  check(
+    Math.abs(rRebuilt.total - rGood.total) < 1e-9 && rebuilt.toolCallCount === good.toolCallCount,
+    `⑩: 重建轨迹与实时轨迹打分一致 (${rRebuilt.total.toFixed(2)})`
+  );
+
   console.log(failed === 0 ? "\n✅ reward smoke 全部通过" : `\n❌ ${failed} 项失败`);
   process.exit(failed === 0 ? 0 : 1);
 })();
