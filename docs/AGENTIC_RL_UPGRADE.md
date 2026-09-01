@@ -3,6 +3,13 @@
 目标：把现在的「调用 Claude API 的工具 Agent」升级为「端到端训练的 Agentic-RL 项目」。
 路径与出行规划项目一致：**SFT 冷启动 → 在线 RL（GRPO）**，但用我们自己的园区工具环境和可验证奖励。
 
+## 定位（2026-09 定稿）
+
+- **多乐园智能规划平台（Park Intel）**：不再是单一迪士尼 Demo。themeparks.wiki（80+ 目的地）和 queue-times（130+ 乐园）用同一套实体模型，乐园列表由 `scripts/parks_config.json` 配置驱动，新增乐园只加一条配置。上海迪士尼是第一个接入实例。
+- **RL 视角**：多乐园 = 多环境。训练在 N 个乐园环境上做，留 1–2 个乐园做 held-out 泛化评估——「训练环境没见过的乐园也能规划」是比单乐园强得多的结论。
+- **基座**：Qwen3-32B（定稿）。
+- **地图/导航**：个人项目不接百度/高德，统一用 OSM（POI 坐标 + 园内路网 + 前端 Dijkstra）。百度智慧景区等 To B 方案只作为「包装成公司项目」时的面试话术。
+
 ---
 
 ## 一、现状 vs 目标
@@ -31,8 +38,9 @@
   - `get_show_schedule`：花车/烟花场次
   - `get_ll_pricing`：11 档优速通价格与含项目列表（数据已在 `src/lib/ll-packages.ts`）
   - `walk_time`：区域间步行时间（已在 `src/lib/parks-data.ts` 的 `walkTime`）
-  - `get_weather`：天气接口（下雨影响户外项目/烟花）
+  - `get_weather`：天气接口（下雨影响户外项目/烟花），用和风/彩云/OpenWeather，不用百度
   - `check_constraints`：把行程草案交给规则校验器，返回违反项（让模型学会自查）
+  - 所有工具带 `park_id` 参数（读 parks_config.json），同一套工具服务多乐园环境
 - **环境稳定性设施**（RL 训练最大隐性成本）：
   - 重试 2–3 次、超时阈值、异常日志作为 tool response 回传给模型
   - 外部 API（themeparks.wiki / Apify / RapidAPI）加 Key 轮询
