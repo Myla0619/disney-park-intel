@@ -3,6 +3,7 @@
   "parks": [
     {
       "id": "shanghai-disneyland",
+      "app_id": "shanghai",
       "name": "上海迪士尼乐园",
       "themeparks_wiki_entity": "ddc4357c-c148-4b36-9888-07894fe75e83",
       "queue_times_park_id": 30,
