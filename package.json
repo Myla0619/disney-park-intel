@@ -11,7 +11,8 @@
     "env:smoke": "tsx rl/env/smoke.ts",
     "agent:smoke": "tsx rl/agent/smoke.ts",
     "data:seeds": "tsx rl/data/gen_seeds.ts",
-    "data:smoke": "tsx rl/data/smoke.ts"
+    "data:smoke": "tsx rl/data/smoke.ts",
+    "reward:smoke": "tsx rl/reward/smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",

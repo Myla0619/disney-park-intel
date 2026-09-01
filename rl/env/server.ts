@@ -17,6 +17,14 @@
 import { createServer } from "node:http";
 import { TOOL_REGISTRY, callTool, type ToolContext } from "./tools";
 import type { EnvMode } from "./util";
+import { scoreTrajectory, type CurriculumPhase } from "../reward/reward";
+import { HeuristicJudge, LLMJudge, type Judge } from "../reward/judge";
+
+// 默认启发式 Judge；配置 JUDGE_BASE_URL/JUDGE_MODEL 后切 LLM-as-Judge
+const judge: Judge =
+  process.env.JUDGE_BASE_URL && process.env.JUDGE_MODEL
+    ? new LLMJudge(process.env.JUDGE_BASE_URL, process.env.JUDGE_MODEL)
+    : new HeuristicJudge();
 
 const PORT = Number(process.env.PORT ?? 8100);
 const DEFAULT_MODE = (process.env.ENV_MODE as EnvMode) ?? "sandbox";
@@ -57,6 +65,34 @@ const server = createServer((req, res) => {
       };
       const result = await callTool(parsed.tool, parsed.args, ctx);
       return json(res, 200, result);
+    });
+    return;
+  }
+  // 奖励打分：veRL 的 python reward 函数 POST {trajectory, task, phase?} 到这里
+  if (req.method === "POST" && req.url === "/reward") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 8 * MAX_BODY) req.destroy(); // 轨迹较大，放宽到 8MB
+    });
+    req.on("end", async () => {
+      let parsed: any;
+      try {
+        parsed = JSON.parse(body);
+      } catch {
+        return json(res, 400, { ok: false, error: "请求体不是合法 JSON" });
+      }
+      if (!parsed.trajectory || !parsed.task) {
+        return json(res, 400, { ok: false, error: "缺少 trajectory / task 字段" });
+      }
+      try {
+        const breakdown = await scoreTrajectory(
+          parsed.trajectory, parsed.task, judge, (parsed.phase as CurriculumPhase) ?? "mid"
+        );
+        return json(res, 200, { ok: true, result: breakdown });
+      } catch (e: any) {
+        return json(res, 200, { ok: false, error: `reward 计算失败: ${e?.message}` });
+      }
     });
     return;
   }
