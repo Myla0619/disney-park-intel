@@ -1,0 +1,13 @@
+{
+  "_comment": "多乐园配置。新增乐园：themeparks_wiki_entity 从 GET https://api.themeparks.wiki/v1/destinations 查（destination 下的 park id）；queue_times_park_id 从 https://queue-times.com/parks.json 查。填好一条记录，录制器和后续工具环境自动接入。",
+  "parks": [
+    {
+      "id": "shanghai-disneyland",
+      "app_id": "shanghai",
+      "name": "上海迪士尼乐园",
+      "themeparks_wiki_entity": "ddc4357c-c148-4b36-9888-07894fe75e83",
+      "queue_times_park_id": 30,
+      "enabled": true
+    }
+  ]
+}
