@@ -194,19 +194,23 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "plan_itinerary",
-    description: "根据游客档案生成整日行程（TSP 路径优化 + 花车/烟花锚点 + 用餐插入）。profile 只需传需要覆盖的字段。",
+    description: "根据游客档案生成整日行程（TSP 路径优化 + 花车/烟花锚点 + 用餐插入）。profile 只需传需要覆盖的字段。route_profile 控制排队/步行的权衡：用户赶时间刷项目选 efficient（少排队多走路），怕累/带老人婴儿车选 easy（少走路可多排队），默认 balanced。",
     input_schema: {
       type: "object",
       properties: {
         park_id: { type: "string" },
         profile: { type: "object", description: "游客档案增量字段：mode/kids/arrivalTime/departureTime/llPackage/watchParade/watchFireworks 等" },
+        route_profile: { type: "string", enum: ["efficient", "balanced", "easy"], description: "权衡档位：efficient=排队优先最小化，easy=步行优先最小化" },
         start_area: { type: "string", description: "出发区域ID，默认 entrance" },
         avoid_rides: { type: "array", items: { type: "string" }, description: "排除的项目ID" },
       },
       required: ["park_id"],
     },
     handler: async (input, ctx) => {
-      const profile = buildProfile(input.profile ?? {}, input.park_id);
+      const profile = buildProfile(
+        { ...(input.profile ?? {}), ...(input.route_profile && { routeProfile: input.route_profile }) },
+        input.park_id
+      );
       const rides = getRidesByPark(input.park_id);
       if (!rides.length) return toolError(`未知乐园: ${input.park_id}`);
 
@@ -229,6 +233,7 @@ export const TOOLS: ToolDef[] = [
 
       return toolOk({
         parkHours,
+        routeProfile: profile.routeProfile,
         totalItems: itinerary.length,
         constraintsPassed: constraint.passed,
         items: itinerary.map((i) => ({

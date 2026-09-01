@@ -28,6 +28,9 @@ function check(cond: boolean, label: string, extra?: unknown) {
   const boundary = a.filter((t) => JSON.stringify(t.profile).match(/"heightCm":(97|112|121|122)\b/));
   check(boundary.length > 0, `seeds: 覆盖身高边界值 (${boundary.length}条)`);
 
+  const tradeOff = a.filter((t) => t.category === "trade_off");
+  check(tradeOff.length >= 15, `seeds: 含权衡类任务 (${tradeOff.length}条)`);
+
   const deduped = dedup(a);
   check(deduped.length <= a.length && deduped.length > a.length * 0.6, `seeds: 去重合理 (${a.length}→${deduped.length})`);
   check(dedup([a[0], { ...a[0], id: "copy" }]).length === 1, "seeds: 完全重复被去掉");
