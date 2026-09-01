@@ -19,6 +19,7 @@ import { TOOL_REGISTRY, callTool, type ToolContext } from "./tools";
 import type { EnvMode } from "./util";
 import { scoreTrajectory, type CurriculumPhase } from "../reward/reward";
 import { HeuristicJudge, LLMJudge, type Judge } from "../reward/judge";
+import { rebuildTrajectoryFromMessages } from "../reward/rebuild";
 
 // 默认启发式 Judge；配置 JUDGE_BASE_URL/JUDGE_MODEL 后切 LLM-as-Judge
 const judge: Judge =
@@ -86,8 +87,13 @@ const server = createServer((req, res) => {
         return json(res, 400, { ok: false, error: "缺少 trajectory / task 字段" });
       }
       try {
+        // veRL 桥接：只有 messages 时（或显式要求）从消息序列重建轨迹
+        let trajectory = parsed.trajectory;
+        if (trajectory._rebuild_from_messages || !trajectory.steps?.length) {
+          trajectory = rebuildTrajectoryFromMessages(trajectory.messages ?? []);
+        }
         const breakdown = await scoreTrajectory(
-          parsed.trajectory, parsed.task, judge, (parsed.phase as CurriculumPhase) ?? "mid"
+          trajectory, parsed.task, judge, (parsed.phase as CurriculumPhase) ?? "mid"
         );
         return json(res, 200, { ok: true, result: breakdown });
       } catch (e: any) {
