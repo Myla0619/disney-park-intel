@@ -55,6 +55,7 @@ const EXPECTED_TOOLS: Record<string, string[]> = {
   edge_negation: ["search_reviews", "get_wait_times"],
   edge_name_variant: ["get_wait_times", "search_reviews", "get_spot_info"],
   edge_multi_intent: [], // 特判：要求 >=2 种不同工具
+  trade_off: [],         // 特判：权衡题必须查数据再算账——要求 >=2 种不同工具（如排队+步行/规划）
   no_tool: [],           // 特判：要求 0 次调用
   human: [],             // 真实语料类别未知，轨迹维度给中性分
 };
@@ -80,8 +81,9 @@ function scoreTrajectorySanity(t: Trajectory, task: SeedTask): [number, string] 
     // 常识题不该调工具：调了就扣，直接答满分
     return called.length === 0 ? [1, "常识题未调工具，正确"] : [clamp01(1 - 0.4 * called.length), `常识题却调了 ${called.length} 次工具`];
   }
-  if (task.category === "edge_multi_intent") {
-    return distinct.size >= 2 ? [1, `多意图任务用了 ${distinct.size} 种工具`] : [0.4, "多意图任务只用了一种工具"];
+  if (task.category === "edge_multi_intent" || task.category === "trade_off") {
+    if (called.length === 0) return [0, "该查数据却直接作答（疑似编造）"];
+    return distinct.size >= 2 ? [1, `用了 ${distinct.size} 种工具做权衡/多意图`] : [0.4, "只用了一种工具，权衡依据不足"];
   }
   const expected = EXPECTED_TOOLS[task.category] ?? [];
   if (expected.length === 0) return [0.7, "类别无明确期望，给中性分"]; // human 等
