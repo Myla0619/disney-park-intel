@@ -1,0 +1,76 @@
+# 云端跑模型基线评测（不需要本地环境）
+# 使用前提：仓库 Settings → Secrets and variables → Actions → New repository secret
+#   Name: DEEPSEEK_API_KEY   Value: 你的 key
+# 然后在 Actions 页面手动 Run workflow（或让 Claude 触发）。
+# 结果：评测 JSON 提交回 data/rl/eval/，并作为 artifact 可下载。
+name: Eval baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "OpenAI 兼容端点"
+        default: "https://api.deepseek.com/v1"
+      model:
+        description: "模型名"
+        default: "deepseek-chat"
+      name:
+        description: "结果命名"
+        default: "deepseek-baseline"
+      limit:
+        description: "评测任务数（分层抽样）"
+        default: "50"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eval-baseline
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Sanity check (offline smokes)
+        run: npm run env:smoke && npm run eval:smoke
+
+      - name: Run baseline eval
+        env:
+          EVAL_BASE_URL: ${{ inputs.base_url }}
+          EVAL_MODEL: ${{ inputs.model }}
+          LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "::error::缺少 DEEPSEEK_API_KEY secret，请在仓库 Settings → Secrets → Actions 添加"
+            exit 1
+          fi
+          npx tsx rl/eval/run_eval.ts --name "${{ inputs.name }}" --limit "${{ inputs.limit }}"
+          npx tsx rl/eval/run_eval.ts --compare
+
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ inputs.name }}
+          path: data/rl/eval/
+
+      - name: Commit results
+        run: |
+          git config user.name "eval-runner"
+          git config user.email "actions@github.com"
+          git add data/rl/eval/
+          git diff --cached --quiet && exit 0
+          git commit -m "eval: ${{ inputs.name }} results (n=${{ inputs.limit }})"
+          git pull --rebase origin ${GITHUB_REF_NAME}
+          git push
