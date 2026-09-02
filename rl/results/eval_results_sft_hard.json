@@ -1,0 +1,50 @@
+{
+  "summary": {
+    "total": 44,
+    "format_ok": 2,
+    "tool_correct": 2,
+    "has_answer": 2
+  },
+  "per_category": {
+    "no_tool": {
+      "total": 3,
+      "format_ok": 2,
+      "tool_correct": 2
+    },
+    "trade_off": {
+      "total": 8,
+      "format_ok": 0,
+      "tool_correct": 0
+    },
+    "edge_name_variant": {
+      "total": 4,
+      "format_ok": 0,
+      "tool_correct": 0
+    },
+    "plan_request": {
+      "total": 10,
+      "format_ok": 0,
+      "tool_correct": 0
+    },
+    "review_specific": {
+      "total": 4,
+      "format_ok": 0,
+      "tool_correct": 0
+    },
+    "edge_multi_intent": {
+      "total": 6,
+      "format_ok": 0,
+      "tool_correct": 0
+    },
+    "spot_info": {
+      "total": 6,
+      "format_ok": 0,
+      "tool_correct": 0
+    },
+    "weather_dependent": {
+      "total": 3,
+      "format_ok": 0,
+      "tool_correct": 0
+    }
+  }
+}
