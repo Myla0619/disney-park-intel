@@ -8,12 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "env:serve": "tsx rl/env/server.ts",
-    "env:smoke": "tsx rl/env/smoke.ts",
-    "agent:smoke": "tsx rl/agent/smoke.ts",
+    "env:smoke": "PARK_SANDBOX_FIXTURES_ONLY=1 tsx rl/env/smoke.ts",
+    "agent:smoke": "PARK_SANDBOX_FIXTURES_ONLY=1 tsx rl/agent/smoke.ts",
     "data:seeds": "tsx rl/data/gen_seeds.ts",
-    "data:smoke": "tsx rl/data/smoke.ts",
-    "reward:smoke": "tsx rl/reward/smoke.ts",
-    "eval:smoke": "tsx rl/eval/smoke.ts",
+    "data:smoke": "PARK_SANDBOX_FIXTURES_ONLY=1 tsx rl/data/smoke.ts",
+    "reward:smoke": "PARK_SANDBOX_FIXTURES_ONLY=1 tsx rl/reward/smoke.ts",
+    "eval:smoke": "PARK_SANDBOX_FIXTURES_ONLY=1 tsx rl/eval/smoke.ts",
     "eval:run": "tsx rl/eval/run_eval.ts"
   },
   "dependencies": {

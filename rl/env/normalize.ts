@@ -31,8 +31,28 @@ const EN_ALIASES: Record<string, string> = {
   "voyage to the crystal grotto": "crystal-grotto",
   "alice in wonderland maze": "alice-maze",
   "camp discovery": "exploration-trail",
+  "vista trail at camp discovery": "exploration-trail",
+  "challenge trails at camp discovery": "exploration-trail",
+  "junior explorers camp": "exploration-trail",
   "explorer canoes": "canoe",
   "once upon a time adventure": "fantasy-tale",
+  // 真实 themeparks.wiki 实体名（2026-09 录制数据核对）
+  "tron lightcycle power run": "tron",
+  "tron realm": "tron",
+  "soaring over the horizon": "soaring",
+  "seven dwarfs mine train": "seven-dwarfs",
+  "pirates of the caribbean battle for the sunken treasure": "pirates",
+  "the many adventures of winnie the pooh": "winnie",
+  "rexs racer": "dragon",
+  "rex s racer": "dragon",
+  "woodys roundup": "slinky-dash",
+  "woody s roundup": "slinky-dash",
+  "slinky dog spin": "alien-pizza",
+  "fantasia carousel": "carousel",
+  "dumbo the flying elephant": "dumbo",
+  "voyage to the crystal grotto": "crystal-grotto",
+  "alice in wonderland maze": "alice-maze",
+  "zootopia hot pursuit": "zootopia-ride",
 };
 
 function norm(s: string): string {
