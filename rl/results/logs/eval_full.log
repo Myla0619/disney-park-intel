@@ -1,139 +1,0 @@
-=== GRPO adapter, FULL prompt, Wed Sep  2 17:54:24 CST 2026 ===
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Using FULL training system prompt from /root/autodl-tmp/disney-park-intel/data/rl/grpo/grpo_dataset.jsonl
-Loading model + adapter...
-Loading weights:   0%|          | 0/771 [00:00<?, ?it/s]Loading weights:   0%|          | 1/771 [00:00<04:18,  2.98it/s]Loading weights:   2%|▏         | 16/771 [00:00<00:17, 44.02it/s]Loading weights:   4%|▎         | 28/771 [00:00<00:11, 64.10it/s]Loading weights:   5%|▌         | 40/771 [00:00<00:11, 63.56it/s]Loading weights:   7%|▋         | 52/771 [00:00<00:11, 63.11it/s]Loading weights:   8%|▊         | 64/771 [00:01<00:11, 61.82it/s]Loading weights:  10%|▉         | 76/771 [00:01<00:12, 55.04it/s]Loading weights:  12%|█▏        | 89/771 [00:01<00:10, 66.79it/s]Loading weights:  13%|█▎        | 100/771 [00:01<00:09, 73.98it/s]Loading weights:  15%|█▍        | 112/771 [00:01<00:08, 82.07it/s]Loading weights:  16%|█▌        | 124/771 [00:01<00:08, 72.71it/s]Loading weights:  18%|█▊        | 136/771 [00:02<00:09, 68.75it/s]Loading weights:  19%|█▉        | 148/771 [00:02<00:09, 63.89it/s]Loading weights:  21%|██        | 161/771 [00:02<00:08, 74.92it/s]Loading weights:  22%|██▏       | 172/771 [00:02<00:07, 74.99it/s]Loading weights:  24%|██▍       | 184/771 [00:02<00:07, 80.17it/s]Loading weights:  25%|██▌       | 196/771 [00:02<00:06, 85.40it/s]Loading weights:  27%|██▋       | 206/771 [00:02<00:06, 85.45it/s]Loading weights:  28%|██▊       | 215/771 [00:03<00:06, 81.58it/s]Loading weights:  29%|██▉       | 224/771 [00:03<00:07, 69.29it/s]Loading weights:  30%|███       | 234/771 [00:03<00:07, 73.32it/s]Loading weights:  32%|███▏      | 244/771 [00:03<00:08, 65.50it/s]Loading weights:  33%|███▎      | 257/771 [00:03<00:06, 75.32it/s]Loading weights:  35%|███▍      | 268/771 [00:03<00:06, 78.95it/s]Loading weights:  36%|███▋      | 280/771 [00:04<00:06, 72.87it/s]Loading weights:  38%|███▊      | 292/771 [00:04<00:05, 80.59it/s]Loading weights:  39%|███▉      | 304/771 [00:04<00:06, 74.31it/s]Loading weights:  41%|████      | 316/771 [00:04<00:06, 66.62it/s]Loading weights:  43%|████▎     | 329/771 [00:04<00:05, 76.20it/s]Loading weights:  44%|████▍     | 340/771 [00:04<00:06, 70.25it/s]Loading weights:  46%|████▌     | 353/771 [00:05<00:05, 79.62it/s]Loading weights:  47%|████▋     | 364/771 [00:05<00:05, 77.84it/s]Loading weights:  49%|████▉     | 376/771 [00:05<00:04, 84.67it/s]Loading weights:  50%|█████     | 388/771 [00:05<00:04, 89.03it/s]Loading weights:  52%|█████▏    | 400/771 [00:05<00:04, 84.05it/s]Loading weights:  53%|█████▎    | 412/771 [00:05<00:03, 91.32it/s]Loading weights:  55%|█████▍    | 424/771 [00:05<00:04, 78.88it/s]Loading weights:  57%|█████▋    | 436/771 [00:05<00:04, 81.47it/s]Loading weights:  58%|█████▊    | 449/771 [00:06<00:03, 83.96it/s]Loading weights:  60%|█████▉    | 460/771 [00:06<00:03, 85.11it/s]Loading weights:  61%|██████    | 472/771 [00:06<00:03, 87.49it/s]Loading weights:  63%|██████▎   | 484/771 [00:06<00:03, 72.82it/s]Loading weights:  64%|██████▍   | 496/771 [00:06<00:04, 67.95it/s]Loading weights:  66%|██████▌   | 509/771 [00:06<00:03, 74.05it/s]Loading weights:  67%|██████▋   | 520/771 [00:07<00:03, 75.20it/s]Loading weights:  69%|██████▉   | 532/771 [00:07<00:03, 71.16it/s]Loading weights:  71%|███████   | 544/771 [00:07<00:03, 66.63it/s]Loading weights:  72%|███████▏  | 556/771 [00:07<00:03, 65.58it/s]Loading weights:  74%|███████▎  | 568/771 [00:07<00:03, 66.92it/s]Loading weights:  75%|███████▌  | 580/771 [00:08<00:03, 61.90it/s]Loading weights:  77%|███████▋  | 592/771 [00:08<00:02, 63.85it/s]Loading weights:  78%|███████▊  | 604/771 [00:08<00:02, 57.44it/s]Loading weights:  80%|████████  | 618/771 [00:08<00:02, 70.44it/s]Loading weights:  81%|████████▏ | 628/771 [00:08<00:02, 64.70it/s]Loading weights:  83%|████████▎ | 640/771 [00:08<00:01, 71.54it/s]Loading weights:  85%|████████▍ | 652/771 [00:09<00:01, 72.78it/s]Loading weights:  86%|████████▌ | 664/771 [00:09<00:01, 73.94it/s]Loading weights:  88%|████████▊ | 676/771 [00:09<00:01, 64.88it/s]Loading weights:  89%|████████▉ | 688/771 [00:09<00:01, 64.32it/s]Loading weights:  91%|█████████ | 700/771 [00:09<00:01, 61.29it/s]Loading weights:  92%|█████████▏| 712/771 [00:10<00:00, 66.65it/s]Loading weights:  94%|█████████▍| 724/771 [00:10<00:00, 66.48it/s]Loading weights:  95%|█████████▌| 736/771 [00:10<00:00, 69.16it/s]Loading weights:  97%|█████████▋| 748/771 [00:10<00:00, 76.05it/s]Loading weights:  99%|█████████▊| 760/771 [00:10<00:00, 76.50it/s]Loading weights: 100%|██████████| 771/771 [00:10<00:00, 71.89it/s]
-[transformers] The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
-Evaluating 50 samples...
-  [1/50] explicit_wait tool=get_wait_times ok=True
-  [2/50] explicit_wait tool=get_wait_times ok=True
-  [3/50] explicit_wait tool=get_wait_times ok=True
-  [4/50] explicit_wait tool=get_wait_times ok=True
-  [5/50] explicit_wait tool=get_wait_times ok=True
-  [6/50] explicit_wait tool=get_wait_times ok=True
-  [7/50] explicit_wait tool=get_wait_times ok=True
-  [8/50] explicit_wait tool=get_wait_times ok=True
-  [9/50] explicit_wait tool=get_wait_times ok=True
-  [10/50] explicit_wait tool=get_wait_times ok=True
-  [11/50] explicit_wait tool=get_wait_times ok=True
-  [12/50] explicit_wait tool=get_wait_times ok=True
-  [13/50] explicit_wait tool=get_wait_times ok=True
-  [14/50] explicit_wait tool=get_wait_times ok=True
-  [15/50] explicit_wait tool=get_wait_times ok=True
-  [16/50] explicit_wait tool=get_show_schedule ok=True
-  [17/50] explicit_wait tool=None ok=True
-  [18/50] explicit_wait tool=get_wait_times ok=True
-  [19/50] explicit_wait tool=get_wait_times ok=True
-  [20/50] explicit_wait tool=get_wait_times ok=True
-  [21/50] explicit_wait tool=get_wait_times ok=True
-  [22/50] explicit_wait tool=get_wait_times ok=True
-  [23/50] explicit_wait tool=get_wait_times ok=True
-  [24/50] explicit_wait tool=get_wait_times ok=True
-  [25/50] explicit_wait tool=get_wait_times ok=True
-  [26/50] explicit_wait tool=get_wait_times ok=True
-  [27/50] explicit_wait tool=get_wait_times ok=True
-  [28/50] explicit_wait tool=get_wait_times ok=True
-  [29/50] implicit_wait tool=get_wait_times ok=True
-  [30/50] implicit_wait tool=get_wait_times ok=True
-  [31/50] implicit_wait tool=get_wait_times ok=True
-  [32/50] implicit_wait tool=get_wait_times ok=True
-  [33/50] implicit_wait tool=get_wait_times ok=True
-  [34/50] review_quality tool=search_reviews ok=True
-  [35/50] review_quality tool=search_reviews ok=True
-  [36/50] review_quality tool=search_reviews ok=True
-  [37/50] review_quality tool=search_reviews ok=True
-  [38/50] review_quality tool=search_reviews ok=True
-  [39/50] review_quality tool=search_reviews ok=True
-  [40/50] review_quality tool=search_reviews ok=True
-  [41/50] review_quality tool=search_reviews ok=True
-  [42/50] review_quality tool=search_reviews ok=True
-  [43/50] review_quality tool=search_reviews ok=True
-  [44/50] review_quality tool=search_reviews ok=True
-  [45/50] review_quality tool=search_reviews ok=True
-  [46/50] review_specific tool=get_spot_info ok=True
-  [47/50] review_specific tool=get_spot_info ok=True
-  [48/50] review_specific tool=get_wait_times ok=True
-  [49/50] review_specific tool=get_spot_info ok=True
-  [50/50] review_specific tool=get_spot_info ok=True
-
-=== RESULTS ===
-Total: 50
-Format OK: 50/50 (100.0%)
-Tool Correct: 43/50 (86.0%)
-Has Answer: 1/50 (2.0%)
-  explicit_wait: format=28/28 tool_em=26/28
-  implicit_wait: format=5/5 tool_em=5/5
-  review_quality: format=12/12 tool_em=12/12
-  review_specific: format=5/5 tool_em=0/5
-
-Saved to /root/autodl-tmp/outputs/eval_results_grpo_fullprompt.json
-=== SFT adapter, FULL prompt, Wed Sep  2 17:59:46 CST 2026 ===
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Using FULL training system prompt from /root/autodl-tmp/disney-park-intel/data/rl/grpo/grpo_dataset.jsonl
-Loading model + adapter...
-Loading weights:   0%|          | 0/771 [00:00<?, ?it/s]Loading weights:   0%|          | 1/771 [00:00<02:23,  5.35it/s]Loading weights:   0%|          | 2/771 [00:00<02:06,  6.07it/s]Loading weights:   2%|▏         | 17/771 [00:00<00:15, 49.66it/s]Loading weights:   4%|▍         | 29/771 [00:00<00:10, 70.09it/s]Loading weights:   5%|▌         | 41/771 [00:00<00:09, 79.46it/s]Loading weights:   7%|▋         | 52/771 [00:00<00:09, 78.03it/s]Loading weights:   8%|▊         | 64/771 [00:01<00:09, 73.51it/s]Loading weights:  10%|▉         | 76/771 [00:01<00:09, 73.98it/s]Loading weights:  11%|█▏        | 87/771 [00:01<00:09, 75.60it/s]Loading weights:  12%|█▏        | 96/771 [00:01<00:08, 78.82it/s]Loading weights:  14%|█▎        | 105/771 [00:01<00:09, 71.70it/s]Loading weights:  15%|█▍        | 113/771 [00:01<00:09, 67.57it/s]Loading weights:  16%|█▌        | 124/771 [00:01<00:09, 66.14it/s]Loading weights:  18%|█▊        | 136/771 [00:02<00:09, 64.84it/s]Loading weights:  19%|█▉        | 148/771 [00:02<00:09, 66.50it/s]Loading weights:  21%|██        | 160/771 [00:02<00:10, 58.03it/s]Loading weights:  22%|██▏       | 172/771 [00:02<00:08, 66.60it/s]Loading weights:  24%|██▍       | 184/771 [00:02<00:08, 70.73it/s]Loading weights:  25%|██▌       | 196/771 [00:02<00:08, 70.10it/s]Loading weights:  27%|██▋       | 208/771 [00:03<00:08, 67.44it/s]Loading weights:  29%|██▊       | 220/771 [00:03<00:08, 63.62it/s]Loading weights:  30%|███       | 232/771 [00:03<00:07, 70.54it/s]Loading weights:  32%|███▏      | 244/771 [00:03<00:07, 67.22it/s]Loading weights:  33%|███▎      | 256/771 [00:03<00:07, 72.50it/s]Loading weights:  35%|███▍      | 268/771 [00:03<00:06, 76.96it/s]Loading weights:  36%|███▋      | 280/771 [00:04<00:06, 72.91it/s]Loading weights:  38%|███▊      | 292/771 [00:04<00:06, 71.33it/s]Loading weights:  39%|███▉      | 304/771 [00:04<00:06, 76.55it/s]Loading weights:  41%|████      | 316/771 [00:04<00:05, 77.77it/s]Loading weights:  43%|████▎     | 328/771 [00:04<00:06, 73.41it/s]Loading weights:  44%|████▍     | 340/771 [00:04<00:05, 72.86it/s]Loading weights:  46%|████▌     | 352/771 [00:05<00:05, 79.06it/s]Loading weights:  47%|████▋     | 364/771 [00:05<00:04, 85.00it/s]Loading weights:  49%|████▉     | 376/771 [00:05<00:04, 81.05it/s]Loading weights:  50%|█████     | 388/771 [00:05<00:04, 86.86it/s]Loading weights:  51%|█████▏    | 397/771 [00:05<00:04, 83.25it/s]Loading weights:  53%|█████▎    | 406/771 [00:05<00:04, 79.76it/s]Loading weights:  54%|█████▍    | 415/771 [00:05<00:05, 66.26it/s]Loading weights:  55%|█████▍    | 424/771 [00:06<00:05, 66.05it/s]Loading weights:  57%|█████▋    | 436/771 [00:06<00:05, 63.12it/s]Loading weights:  58%|█████▊    | 448/771 [00:06<00:05, 57.72it/s]Loading weights:  60%|█████▉    | 462/771 [00:06<00:04, 70.19it/s]Loading weights:  61%|██████    | 472/771 [00:06<00:04, 71.82it/s]Loading weights:  63%|██████▎   | 484/771 [00:06<00:03, 80.81it/s]Loading weights:  64%|██████▍   | 496/771 [00:07<00:04, 66.01it/s]Loading weights:  66%|██████▌   | 508/771 [00:07<00:03, 71.61it/s]Loading weights:  67%|██████▋   | 520/771 [00:07<00:03, 74.67it/s]Loading weights:  69%|██████▉   | 532/771 [00:07<00:03, 79.53it/s]Loading weights:  71%|███████   | 544/771 [00:07<00:02, 84.72it/s]Loading weights:  72%|███████▏  | 558/771 [00:07<00:02, 92.51it/s]Loading weights:  74%|███████▎  | 568/771 [00:07<00:02, 85.27it/s]Loading weights:  75%|███████▌  | 580/771 [00:08<00:02, 70.31it/s]Loading weights:  77%|███████▋  | 592/771 [00:08<00:02, 63.94it/s]Loading weights:  78%|███████▊  | 604/771 [00:08<00:02, 69.80it/s]Loading weights:  80%|███████▉  | 616/771 [00:08<00:02, 59.95it/s]Loading weights:  81%|████████▏ | 628/771 [00:08<00:02, 66.94it/s]Loading weights:  83%|████████▎ | 640/771 [00:09<00:02, 60.02it/s]Loading weights:  85%|████████▍ | 654/771 [00:09<00:01, 72.14it/s]Loading weights:  86%|████████▌ | 664/771 [00:09<00:01, 72.60it/s]Loading weights:  88%|████████▊ | 676/771 [00:09<00:01, 64.95it/s]Loading weights:  89%|████████▉ | 688/771 [00:09<00:01, 63.14it/s]Loading weights:  91%|█████████ | 700/771 [00:09<00:00, 73.35it/s]Loading weights:  92%|█████████▏| 712/771 [00:10<00:00, 81.31it/s]Loading weights:  94%|█████████▍| 724/771 [00:10<00:00, 79.87it/s]Loading weights:  95%|█████████▌| 736/771 [00:10<00:00, 68.89it/s]Loading weights:  97%|█████████▋| 748/771 [00:10<00:00, 69.52it/s]Loading weights:  99%|█████████▊| 760/771 [00:10<00:00, 65.76it/s]Loading weights: 100%|██████████| 771/771 [00:10<00:00, 70.83it/s]
-[transformers] The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
-Evaluating 50 samples...
-  [1/50] explicit_wait tool=get_wait_times ok=True
-  [2/50] explicit_wait tool=get_wait_times ok=True
-  [3/50] explicit_wait tool=get_wait_times ok=True
-  [4/50] explicit_wait tool=get_wait_times ok=True
-  [5/50] explicit_wait tool=get_wait_times ok=True
-  [6/50] explicit_wait tool=get_wait_times ok=True
-  [7/50] explicit_wait tool=get_wait_times ok=True
-  [8/50] explicit_wait tool=get_wait_times ok=True
-  [9/50] explicit_wait tool=get_wait_times ok=True
-  [10/50] explicit_wait tool=get_wait_times ok=True
-  [11/50] explicit_wait tool=get_wait_times ok=True
-  [12/50] explicit_wait tool=get_wait_times ok=True
-  [13/50] explicit_wait tool=get_wait_times ok=True
-  [14/50] explicit_wait tool=get_wait_times ok=True
-  [15/50] explicit_wait tool=get_wait_times ok=True
-  [16/50] explicit_wait tool=get_wait_times ok=True
-  [17/50] explicit_wait tool=get_show_schedule ok=True
-  [18/50] explicit_wait tool=get_wait_times ok=True
-  [19/50] explicit_wait tool=get_wait_times ok=True
-  [20/50] explicit_wait tool=get_wait_times ok=True
-  [21/50] explicit_wait tool=get_wait_times ok=True
-  [22/50] explicit_wait tool=get_wait_times ok=True
-  [23/50] explicit_wait tool=get_wait_times ok=True
-  [24/50] explicit_wait tool=get_wait_times ok=True
-  [25/50] explicit_wait tool=get_wait_times ok=True
-  [26/50] explicit_wait tool=get_wait_times ok=True
-  [27/50] explicit_wait tool=get_wait_times ok=True
-  [28/50] explicit_wait tool=get_wait_times ok=True
-  [29/50] implicit_wait tool=get_wait_times ok=True
-  [30/50] implicit_wait tool=get_wait_times ok=True
-  [31/50] implicit_wait tool=get_wait_times ok=True
-  [32/50] implicit_wait tool=get_wait_times ok=True
-  [33/50] implicit_wait tool=get_wait_times ok=True
-  [34/50] review_quality tool=search_reviews ok=True
-  [35/50] review_quality tool=get_wait_times ok=True
-  [36/50] review_quality tool=get_wait_times ok=True
-  [37/50] review_quality tool=search_reviews ok=True
-  [38/50] review_quality tool=search_reviews ok=True
-  [39/50] review_quality tool=search_reviews ok=True
-  [40/50] review_quality tool=search_reviews ok=True
-  [41/50] review_quality tool=search_reviews ok=True
-  [42/50] review_quality tool=search_reviews ok=True
-  [43/50] review_quality tool=search_reviews ok=True
-  [44/50] review_quality tool=search_reviews ok=True
-  [45/50] review_quality tool=search_reviews ok=True
-  [46/50] review_specific tool=get_spot_info ok=True
-  [47/50] review_specific tool=search_reviews ok=True
-  [48/50] review_specific tool=get_wait_times ok=True
-  [49/50] review_specific tool=get_spot_info ok=True
-  [50/50] review_specific tool=get_spot_info ok=True
-
-=== RESULTS ===
-Total: 50
-Format OK: 50/50 (100.0%)
-Tool Correct: 43/50 (86.0%)
-Has Answer: 0/50 (0.0%)
-  explicit_wait: format=28/28 tool_em=27/28
-  implicit_wait: format=5/5 tool_em=5/5
-  review_quality: format=12/12 tool_em=10/12
-  review_specific: format=5/5 tool_em=1/5
-
-Saved to /root/autodl-tmp/outputs/eval_results_sft_fullprompt.json
-=== ALL_EVALS_DONE Wed Sep  2 18:04:50 CST 2026 ===
