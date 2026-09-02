@@ -1,135 +1,0 @@
-=== SFT adapter, HARD held-out, Wed Sep  2 18:34:38 CST 2026 ===
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Using FULL training system prompt from /root/autodl-tmp/disney-park-intel/data/rl/grpo/grpo_dataset.jsonl
-Loading model + adapter...
-Loading weights:   0%|          | 0/771 [00:00<?, ?it/s]Loading weights:   0%|          | 1/771 [00:00<01:50,  6.95it/s]Loading weights:   0%|          | 2/771 [00:00<01:51,  6.92it/s]Loading weights:   2%|▏         | 16/771 [00:00<00:14, 52.40it/s]Loading weights:   4%|▎         | 28/771 [00:00<00:12, 58.90it/s]Loading weights:   5%|▌         | 40/771 [00:00<00:10, 72.35it/s]Loading weights:   7%|▋         | 52/771 [00:00<00:10, 71.04it/s]Loading weights:   8%|▊         | 64/771 [00:01<00:10, 69.13it/s]Loading weights:  10%|▉         | 76/771 [00:01<00:09, 75.28it/s]Loading weights:  11%|█▏        | 88/771 [00:01<00:09, 68.88it/s]Loading weights:  13%|█▎        | 100/771 [00:01<00:09, 68.60it/s]Loading weights:  15%|█▍        | 112/771 [00:01<00:08, 76.00it/s]Loading weights:  16%|█▌        | 124/771 [00:01<00:09, 70.77it/s]Loading weights:  18%|█▊        | 136/771 [00:02<00:08, 78.21it/s]Loading weights:  19%|█▉        | 148/771 [00:02<00:08, 73.70it/s]Loading weights:  21%|██        | 160/771 [00:02<00:07, 81.40it/s]Loading weights:  22%|██▏       | 172/771 [00:02<00:08, 71.93it/s]Loading weights:  24%|██▍       | 184/771 [00:02<00:08, 71.68it/s]Loading weights:  25%|██▌       | 196/771 [00:02<00:07, 80.11it/s]Loading weights:  27%|██▋       | 208/771 [00:02<00:06, 86.67it/s]Loading weights:  29%|██▊       | 220/771 [00:03<00:06, 79.00it/s]Loading weights:  30%|███       | 232/771 [00:03<00:06, 84.78it/s]Loading weights:  32%|███▏      | 244/771 [00:03<00:05, 90.54it/s]Loading weights:  33%|███▎      | 256/771 [00:03<00:06, 78.14it/s]Loading weights:  35%|███▍      | 269/771 [00:03<00:06, 79.84it/s]Loading weights:  36%|███▋      | 280/771 [00:03<00:05, 84.39it/s]Loading weights:  38%|███▊      | 292/771 [00:03<00:06, 75.97it/s]Loading weights:  39%|███▉      | 304/771 [00:04<00:06, 73.75it/s]Loading weights:  41%|████      | 316/771 [00:04<00:05, 80.18it/s]Loading weights:  43%|████▎     | 328/771 [00:04<00:05, 80.28it/s]Loading weights:  44%|████▍     | 340/771 [00:04<00:06, 68.92it/s]Loading weights:  46%|████▌     | 352/771 [00:04<00:05, 74.00it/s]Loading weights:  47%|████▋     | 364/771 [00:04<00:05, 76.30it/s]Loading weights:  49%|████▉     | 376/771 [00:05<00:05, 71.31it/s]Loading weights:  50%|█████     | 388/771 [00:05<00:05, 69.80it/s]Loading weights:  52%|█████▏    | 401/771 [00:05<00:04, 78.68it/s]Loading weights:  53%|█████▎    | 412/771 [00:05<00:04, 74.34it/s]Loading weights:  55%|█████▍    | 424/771 [00:05<00:05, 65.61it/s]Loading weights:  57%|█████▋    | 436/771 [00:05<00:04, 67.82it/s]Loading weights:  58%|█████▊    | 448/771 [00:06<00:04, 65.31it/s]Loading weights:  60%|█████▉    | 460/771 [00:06<00:04, 63.61it/s]Loading weights:  61%|██████    | 472/771 [00:06<00:04, 60.03it/s]Loading weights:  63%|██████▎   | 484/771 [00:06<00:04, 64.33it/s]Loading weights:  64%|██████▍   | 496/771 [00:06<00:03, 71.48it/s]Loading weights:  66%|██████▌   | 508/771 [00:07<00:03, 70.19it/s]Loading weights:  67%|██████▋   | 520/771 [00:07<00:03, 76.61it/s]Loading weights:  69%|██████▉   | 532/771 [00:07<00:03, 72.06it/s]Loading weights:  71%|███████   | 544/771 [00:07<00:03, 67.32it/s]Loading weights:  72%|███████▏  | 556/771 [00:07<00:03, 65.18it/s]Loading weights:  74%|███████▎  | 568/771 [00:07<00:03, 63.54it/s]Loading weights:  75%|███████▌  | 580/771 [00:08<00:03, 58.94it/s]Loading weights:  77%|███████▋  | 592/771 [00:08<00:02, 62.64it/s]Loading weights:  78%|███████▊  | 604/771 [00:08<00:02, 62.64it/s]Loading weights:  80%|███████▉  | 616/771 [00:08<00:02, 72.16it/s]Loading weights:  81%|████████▏ | 628/771 [00:08<00:02, 68.48it/s]Loading weights:  83%|████████▎ | 640/771 [00:09<00:02, 65.14it/s]Loading weights:  85%|████████▍ | 652/771 [00:09<00:01, 62.68it/s]Loading weights:  86%|████████▋ | 665/771 [00:09<00:01, 67.88it/s]Loading weights:  88%|████████▊ | 676/771 [00:09<00:01, 71.39it/s]Loading weights:  89%|████████▉ | 688/771 [00:09<00:01, 67.19it/s]Loading weights:  91%|█████████ | 700/771 [00:10<00:01, 61.89it/s]Loading weights:  92%|█████████▏| 712/771 [00:10<00:00, 65.48it/s]Loading weights:  94%|█████████▍| 724/771 [00:10<00:00, 60.66it/s]Loading weights:  96%|█████████▌| 737/771 [00:10<00:00, 71.39it/s]Loading weights:  97%|█████████▋| 748/771 [00:10<00:00, 70.44it/s]Loading weights:  99%|█████████▊| 760/771 [00:10<00:00, 69.70it/s]Loading weights: 100%|██████████| 771/771 [00:10<00:00, 70.92it/s]
-[transformers] The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
-Evaluating 44 samples...
-  [1/44] no_tool tool=None ok=True
-  [2/44] trade_off tool=None ok=False
-  [3/44] edge_name_variant tool=None ok=False
-  [4/44] plan_request tool=None ok=False
-  [5/44] review_specific tool=None ok=False
-  [6/44] no_tool tool=None ok=True
-  [7/44] edge_name_variant tool=None ok=False
-  [8/44] edge_multi_intent tool=None ok=False
-  [9/44] spot_info tool=None ok=False
-  [10/44] review_specific tool=None ok=False
-  [11/44] plan_request tool=None ok=False
-  [12/44] review_specific tool=None ok=False
-  [13/44] plan_request tool=None ok=False
-  [14/44] spot_info tool=None ok=False
-  [15/44] no_tool tool=None ok=False
-  [16/44] edge_multi_intent tool=None ok=False
-  [17/44] trade_off tool=None ok=False
-  [18/44] trade_off tool=None ok=False
-  [19/44] trade_off tool=None ok=False
-  [20/44] edge_multi_intent tool=None ok=False
-  [21/44] edge_name_variant tool=None ok=False
-  [22/44] plan_request tool=None ok=False
-  [23/44] edge_multi_intent tool=None ok=False
-  [24/44] spot_info tool=None ok=False
-  [25/44] plan_request tool=None ok=False
-  [26/44] plan_request tool=None ok=False
-  [27/44] plan_request tool=None ok=False
-  [28/44] trade_off tool=None ok=False
-  [29/44] trade_off tool=None ok=False
-  [30/44] review_specific tool=None ok=False
-  [31/44] spot_info tool=None ok=False
-  [32/44] edge_multi_intent tool=None ok=False
-  [33/44] spot_info tool=None ok=False
-  [34/44] edge_multi_intent tool=None ok=False
-  [35/44] weather_dependent tool=None ok=False
-  [36/44] edge_name_variant tool=None ok=False
-  [37/44] trade_off tool=None ok=False
-  [38/44] plan_request tool=None ok=False
-  [39/44] weather_dependent tool=None ok=False
-  [40/44] plan_request tool=None ok=False
-  [41/44] weather_dependent tool=None ok=False
-  [42/44] plan_request tool=None ok=False
-  [43/44] spot_info tool=None ok=False
-  [44/44] trade_off tool=None ok=False
-
-=== RESULTS ===
-Total: 44
-Format OK: 2/44 (4.5%)
-Tool Correct: 2/44 (4.5%)
-Has Answer: 2/44 (4.5%)
-  edge_multi_intent: format=0/6 tool_em=0/6
-  edge_name_variant: format=0/4 tool_em=0/4
-  no_tool: format=2/3 tool_em=2/3
-  plan_request: format=0/10 tool_em=0/10
-  review_specific: format=0/4 tool_em=0/4
-  spot_info: format=0/6 tool_em=0/6
-  trade_off: format=0/8 tool_em=0/8
-  weather_dependent: format=0/3 tool_em=0/3
-
-Saved to /root/autodl-tmp/outputs/eval_results_sft_hard.json
-=== GRPO adapter, HARD held-out, Wed Sep  2 18:39:34 CST 2026 ===
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Using FULL training system prompt from /root/autodl-tmp/disney-park-intel/data/rl/grpo/grpo_dataset.jsonl
-Loading model + adapter...
-Loading weights:   0%|          | 0/771 [00:00<?, ?it/s]Loading weights:   0%|          | 1/771 [00:00<04:14,  3.03it/s]Loading weights:   2%|▏         | 12/771 [00:00<00:21, 34.88it/s]Loading weights:   3%|▎         | 24/771 [00:00<00:12, 60.30it/s]Loading weights:   5%|▍         | 36/771 [00:00<00:09, 76.54it/s]Loading weights:   6%|▌         | 46/771 [00:00<00:09, 78.80it/s]Loading weights:   7%|▋         | 56/771 [00:00<00:09, 76.73it/s]Loading weights:   9%|▊         | 66/771 [00:01<00:09, 77.40it/s]Loading weights:  10%|▉         | 76/771 [00:01<00:09, 71.49it/s]Loading weights:  11%|█▏        | 88/771 [00:01<00:09, 69.48it/s]Loading weights:  13%|█▎        | 100/771 [00:01<00:10, 63.46it/s]Loading weights:  15%|█▍        | 112/771 [00:01<00:10, 60.21it/s]Loading weights:  16%|█▋        | 126/771 [00:01<00:08, 72.60it/s]Loading weights:  18%|█▊        | 136/771 [00:02<00:08, 73.12it/s]Loading weights:  19%|█▉        | 148/771 [00:02<00:08, 70.72it/s]Loading weights:  21%|██        | 160/771 [00:02<00:08, 73.98it/s]Loading weights:  22%|██▏       | 173/771 [00:02<00:08, 72.58it/s]Loading weights:  24%|██▍       | 184/771 [00:02<00:07, 73.56it/s]Loading weights:  25%|██▌       | 196/771 [00:02<00:08, 71.75it/s]Loading weights:  27%|██▋       | 208/771 [00:03<00:08, 67.77it/s]Loading weights:  29%|██▊       | 220/771 [00:03<00:07, 71.01it/s]Loading weights:  30%|███       | 232/771 [00:03<00:07, 69.25it/s]Loading weights:  32%|███▏      | 244/771 [00:03<00:07, 67.15it/s]Loading weights:  33%|███▎      | 256/771 [00:03<00:07, 64.94it/s]Loading weights:  35%|███▍      | 268/771 [00:04<00:07, 63.41it/s]Loading weights:  36%|███▋      | 280/771 [00:04<00:06, 71.98it/s]Loading weights:  38%|███▊      | 292/771 [00:04<00:06, 77.33it/s]Loading weights:  39%|███▉      | 304/771 [00:04<00:06, 74.70it/s]Loading weights:  41%|████      | 316/771 [00:04<00:05, 81.17it/s]Loading weights:  43%|████▎     | 328/771 [00:04<00:05, 87.04it/s]Loading weights:  44%|████▍     | 340/771 [00:04<00:05, 78.40it/s]Loading weights:  46%|████▌     | 352/771 [00:04<00:04, 84.33it/s]Loading weights:  47%|████▋     | 364/771 [00:05<00:05, 79.76it/s]Loading weights:  49%|████▉     | 376/771 [00:05<00:04, 86.72it/s]Loading weights:  50%|█████     | 388/771 [00:05<00:04, 92.10it/s]Loading weights:  52%|█████▏    | 400/771 [00:05<00:04, 80.22it/s]Loading weights:  53%|█████▎    | 412/771 [00:05<00:04, 85.97it/s]Loading weights:  55%|█████▍    | 424/771 [00:05<00:04, 78.12it/s]Loading weights:  57%|█████▋    | 436/771 [00:06<00:04, 71.57it/s]Loading weights:  58%|█████▊    | 448/771 [00:06<00:04, 67.23it/s]Loading weights:  60%|█████▉    | 460/771 [00:06<00:04, 76.31it/s]Loading weights:  61%|██████    | 472/771 [00:06<00:04, 72.06it/s]Loading weights:  63%|██████▎   | 484/771 [00:06<00:04, 67.64it/s]Loading weights:  64%|██████▍   | 496/771 [00:07<00:04, 59.54it/s]Loading weights:  66%|██████▌   | 508/771 [00:07<00:04, 65.26it/s]Loading weights:  67%|██████▋   | 520/771 [00:07<00:03, 63.78it/s]Loading weights:  69%|██████▉   | 532/771 [00:07<00:03, 62.49it/s]Loading weights:  71%|███████   | 544/771 [00:07<00:03, 58.44it/s]Loading weights:  72%|███████▏  | 558/771 [00:07<00:03, 70.13it/s]Loading weights:  74%|███████▍  | 569/771 [00:08<00:02, 75.72it/s]Loading weights:  75%|███████▌  | 580/771 [00:08<00:02, 79.41it/s]Loading weights:  77%|███████▋  | 592/771 [00:08<00:02, 75.64it/s]Loading weights:  78%|███████▊  | 604/771 [00:08<00:01, 83.92it/s]Loading weights:  80%|███████▉  | 616/771 [00:08<00:01, 82.58it/s]Loading weights:  81%|████████▏ | 628/771 [00:08<00:01, 79.45it/s]Loading weights:  83%|████████▎ | 640/771 [00:08<00:01, 73.26it/s]Loading weights:  85%|████████▍ | 652/771 [00:09<00:01, 82.78it/s]Loading weights:  86%|████████▌ | 664/771 [00:09<00:01, 87.22it/s]Loading weights:  88%|████████▊ | 676/771 [00:09<00:01, 74.08it/s]Loading weights:  89%|████████▉ | 688/771 [00:09<00:01, 76.21it/s]Loading weights:  91%|█████████ | 700/771 [00:09<00:00, 81.00it/s]Loading weights:  92%|█████████▏| 712/771 [00:09<00:00, 75.25it/s]Loading weights:  94%|█████████▍| 724/771 [00:09<00:00, 76.83it/s]Loading weights:  95%|█████████▌| 736/771 [00:10<00:00, 67.63it/s]Loading weights:  97%|█████████▋| 749/771 [00:10<00:00, 77.66it/s]Loading weights:  99%|█████████▊| 760/771 [00:10<00:00, 80.05it/s]Loading weights: 100%|██████████| 771/771 [00:10<00:00, 73.20it/s]
-[transformers] The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
-Evaluating 44 samples...
-  [1/44] no_tool tool=None ok=True
-  [2/44] trade_off tool=get_wait_times ok=True
-  [3/44] edge_name_variant tool=get_wait_times ok=True
-  [4/44] plan_request tool=get_show_schedule ok=True
-  [5/44] review_specific tool=search_reviews ok=True
-  [6/44] no_tool tool=None ok=True
-  [7/44] edge_name_variant tool=get_wait_times ok=True
-  [8/44] edge_multi_intent tool=get_wait_times ok=True
-  [9/44] spot_info tool=get_spot_info ok=True
-  [10/44] review_specific tool=get_spot_info ok=True
-  [11/44] plan_request tool=get_wait_times ok=True
-  [12/44] review_specific tool=get_spot_info ok=True
-  [13/44] plan_request tool=get_show_schedule ok=True
-  [14/44] spot_info tool=get_spot_info ok=True
-  [15/44] no_tool tool=get_spot_info ok=True
-  [16/44] edge_multi_intent tool=get_wait_times ok=True
-  [17/44] trade_off tool=get_wait_times ok=True
-  [18/44] trade_off tool=get_wait_times ok=True
-  [19/44] trade_off tool=get_wait_times ok=True
-  [20/44] edge_multi_intent tool=get_wait_times ok=True
-  [21/44] edge_name_variant tool=get_spot_info ok=True
-  [22/44] plan_request tool=get_show_schedule ok=True
-  [23/44] edge_multi_intent tool=None ok=False
-  [24/44] spot_info tool=get_spot_info ok=True
-  [25/44] plan_request tool=get_show_schedule ok=True
-  [26/44] plan_request tool=get_wait_times ok=True
-  [27/44] plan_request tool=get_show_schedule ok=True
-  [28/44] trade_off tool=get_wait_times ok=True
-  [29/44] trade_off tool=get_wait_times ok=True
-  [30/44] review_specific tool=get_spot_info ok=True
-  [31/44] spot_info tool=get_show_schedule ok=True
-  [32/44] edge_multi_intent tool=None ok=False
-  [33/44] spot_info tool=get_spot_info ok=True
-  [34/44] edge_multi_intent tool=get_wait_times ok=True
-  [35/44] weather_dependent tool=get_weather ok=True
-  [36/44] edge_name_variant tool=get_wait_times ok=True
-  [37/44] trade_off tool=get_wait_times ok=True
-  [38/44] plan_request tool=get_show_schedule ok=True
-  [39/44] weather_dependent tool=get_weather ok=True
-  [40/44] plan_request tool=get_show_schedule ok=True
-  [41/44] weather_dependent tool=get_weather ok=True
-  [42/44] plan_request tool=get_ll_pricing ok=True
-  [43/44] spot_info tool=get_spot_info ok=True
-  [44/44] trade_off tool=get_wait_times ok=True
-
-=== RESULTS ===
-Total: 44
-Format OK: 42/44 (95.5%)
-Tool Correct: 27/44 (61.4%)
-Has Answer: 2/44 (4.5%)
-  edge_multi_intent: format=4/6 tool_em=4/6
-  edge_name_variant: format=4/4 tool_em=4/4
-  no_tool: format=3/3 tool_em=2/3
-  plan_request: format=10/10 tool_em=0/10
-  review_specific: format=4/4 tool_em=1/4
-  spot_info: format=6/6 tool_em=5/6
-  trade_off: format=8/8 tool_em=8/8
-  weather_dependent: format=3/3 tool_em=3/3
-
-Saved to /root/autodl-tmp/outputs/eval_results_grpo_hard.json
-=== HARD_EVALS_DONE Wed Sep  2 18:45:32 CST 2026 ===
