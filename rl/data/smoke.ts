@@ -88,6 +88,31 @@ function check(cond: boolean, label: string, extra?: unknown) {
   check(s1?.difficulty === "easy" && s4?.difficulty === "hard", "clean: 难度分级 easy/hard 正确");
   check(s1!.messages.some((m) => m.role === "system") && s1!.messages.at(-1)!.content.includes("<answer>"), "clean: SFT 消息结构完整");
 
+  // ── 三级漏斗新增规则门 + 格式清洗 ───────────────────────────
+  // ⑤ 答案全英文 / 过短 → 拒收
+  const english = await mkTraj(["<answer>The average wait is 44 minutes today.</answer>"]);
+  const tooShort = await mkTraj(["<answer>好的</answer>"]);
+  // ⑥ 标签外废话 → 剥离但样本保留
+  const filler = await mkTraj([
+    '好的，我来帮你查询！<think>查</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+    "<answer>全园平均等待约44分钟。</answer>\n以上就是我提供的信息，希望对你有帮助！",
+  ]);
+  const r2 = cleanTrajectories([
+    toRecord(english, "t5", "explicit_wait"),
+    toRecord(tooShort, "t6", "explicit_wait"),
+    toRecord(filler, "t7", "explicit_wait"),
+  ]);
+  check(r2.rejected.some((x) => x.taskId === "t5" && x.reason === "answer_not_chinese"), "clean: 全英文答案被拒收");
+  check(r2.rejected.some((x) => x.taskId === "t6" && x.reason === "answer_too_short"), "clean: 过短答案被拒收");
+  const s7 = r2.samples.find((s) => s.taskId === "t7");
+  check(
+    s7 !== undefined
+      && !s7.messages.some((m) => m.role === "assistant" && (m.content.includes("希望对你有帮助") || m.content.includes("我来帮你查询")))
+      && (r2.stats.stripped_chars ?? 0) > 0,
+    "clean: 标签外废话被剥离，样本保留",
+    { stripped: r2.stats.stripped_chars }
+  );
+
   console.log(failed === 0 ? "\n✅ data smoke 全部通过" : `\n❌ ${failed} 项失败`);
   process.exit(failed === 0 ? 0 : 1);
 })();

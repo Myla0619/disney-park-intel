@@ -85,7 +85,7 @@ export type Trajectory = {
   steps: EpisodeStep[];
   answer: string | null;
   answerRepaired: boolean;
-  stoppedReason: "answer" | "max_turns" | "llm_error" | "context_budget";
+  stoppedReason: "answer" | "max_turns" | "llm_error" | "context_budget" | "timeout";
   toolCallCount: number;
   formatErrorCount: number;
   earlyStopTriggered: boolean;
@@ -95,6 +95,7 @@ export type EpisodeOpts = {
   maxTurns?: number;          // 最大模型轮数（含最终 answer 轮）
   maxToolCalls?: number;      // 最大工具调用次数
   maxContextChars?: number;   // 上下文字符预算，接近时强制总结
+  timeoutMs?: number;         // 单 episode 墙钟超时（防单样本卡死批量蒸馏进程）
   systemPrompt?: string;      // 覆盖默认生成的 system prompt
 };
 
@@ -110,6 +111,7 @@ export async function runEpisode(
   const maxTurns = opts.maxTurns ?? 30;
   const maxToolCalls = opts.maxToolCalls ?? 25;
   const maxContextChars = opts.maxContextChars ?? 60_000;
+  const deadline = Date.now() + (opts.timeoutMs ?? 600_000);
 
   const messages: ChatMessage[] = [
     { role: "system", content: opts.systemPrompt ?? buildSystemPrompt(task.parkId) },
@@ -123,6 +125,9 @@ export async function runEpisode(
   const contextSize = () => messages.reduce((s, m) => s + m.content.length, 0);
 
   for (let turn = 0; turn < maxTurns; turn++) {
+    if (Date.now() >= deadline) {
+      return finish("timeout", null, false);
+    }
     let raw: string;
     try {
       raw = await llm.chat(messages);

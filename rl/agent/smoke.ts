@@ -110,6 +110,18 @@ const P = "shanghai";
   );
   check(t6.earlyStopTriggered && t6.stoppedReason === "answer", "episode: 上下文预算触发 early-stop 提示");
 
+  // ── episode 7: 墙钟超时护栏（防单样本卡死批量蒸馏）──────────
+  const t7 = await runEpisode(
+    new ScriptedLLM(["<answer>不该到这里。</answer>"]),
+    { parkId: P, query: "test" },
+    caller,
+    { timeoutMs: 0 }
+  );
+  check(t7.stoppedReason === "timeout" && t7.answer === null, "episode: timeoutMs 墙钟超时生效");
+
+  // ── prompt: 注入当前日期 ────────────────────────────────────
+  check(buildSystemPrompt(P).includes(new Date().toISOString().slice(0, 10)), "prompt: 注入当前日期");
+
   console.log(failed === 0 ? "\n✅ agent smoke 全部通过" : `\n❌ ${failed} 项失败`);
   process.exit(failed === 0 ? 0 : 1);
 })();
