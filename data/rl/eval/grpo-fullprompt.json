@@ -1,0 +1,30 @@
+{
+  "summary": {
+    "total": 50,
+    "format_ok": 50,
+    "tool_correct": 43,
+    "has_answer": 1
+  },
+  "per_category": {
+    "explicit_wait": {
+      "total": 28,
+      "format_ok": 28,
+      "tool_correct": 26
+    },
+    "implicit_wait": {
+      "total": 5,
+      "format_ok": 5,
+      "tool_correct": 5
+    },
+    "review_quality": {
+      "total": 12,
+      "format_ok": 12,
+      "tool_correct": 12
+    },
+    "review_specific": {
+      "total": 5,
+      "format_ok": 5,
+      "tool_correct": 0
+    }
+  }
+}
