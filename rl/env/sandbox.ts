@@ -35,13 +35,17 @@ function parseJsonl(path: string): SnapshotRecord[] {
     .map((l) => JSON.parse(l) as SnapshotRecord);
 }
 
+// PARK_SANDBOX_FIXTURES_ONLY=1 忽略录制数据，只读合成夹具——
+// 冒烟测试/CI 用，保证与真实 cron 积累的数据无关、可复现。
+const FIXTURES_ONLY = process.env.PARK_SANDBOX_FIXTURES_ONLY === "1";
+
 function loadRecords(recorderParkId: string): SnapshotRecord[] {
   const cached = cache.get(recorderParkId);
   if (cached) return cached;
 
   let records: SnapshotRecord[] = [];
   const parkDir = join(DATA_DIR, recorderParkId);
-  if (existsSync(parkDir)) {
+  if (!FIXTURES_ONLY && existsSync(parkDir)) {
     const files = readdirSync(parkDir).filter((f) => f.endsWith(".jsonl")).sort();
     for (const f of files) records.push(...parseJsonl(join(parkDir, f)));
   }
