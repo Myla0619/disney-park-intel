@@ -1,0 +1,72 @@
+{
+  "name": "deepseek-baseline",
+  "model": "deepseek-chat",
+  "n": 43,
+  "date": "2026-09-01",
+  "metrics": {
+    "answered": 0.721,
+    "format_clean": 0.465,
+    "tool_em": 0.977,
+    "hallucination": 0,
+    "constraint_pass": 0.25,
+    "avg_tool_calls": 6.6,
+    "reward_mean": 0.754
+  },
+  "perCategory": {
+    "explicit_wait": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.788
+    },
+    "implicit_wait": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.91
+    },
+    "review_quality": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.824
+    },
+    "review_specific": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.492
+    },
+    "plan_request": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.722
+    },
+    "spot_info": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.763
+    },
+    "no_tool": {
+      "n": 4,
+      "tool_em": 0.75,
+      "reward_mean": 0.769
+    },
+    "edge_negation": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.819
+    },
+    "edge_multi_intent": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.68
+    },
+    "weather_dependent": {
+      "n": 3,
+      "tool_em": 1,
+      "reward_mean": 0.902
+    },
+    "edge_name_variant": {
+      "n": 4,
+      "tool_em": 1,
+      "reward_mean": 0.658
+    }
+  }
+}
