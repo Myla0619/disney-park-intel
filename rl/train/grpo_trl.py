@@ -65,7 +65,7 @@ REQUIRED_ARGS = {
 }
 
 THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL)
-TOOL_RE = re.compile(r"<tool_response>\s*(.*?)\s*</tool_response>", re.DOTALL)
+TOOL_RE = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL)
 
 clamp01 = lambda x: max(0.0, min(1.0, x))
