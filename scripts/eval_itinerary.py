@@ -12,14 +12,19 @@ Usage:
     python scripts/eval_itinerary.py --fail-only
 
 Requirements:
-    pip install requests rich
+    pip install requests
     App must be running: npm run dev
+
+    评测会跑满 100 个场景，而行程接口默认限流 10 次/分。脚本会按 Retry-After
+    自动退避，但整轮会很慢。本地评测建议先放宽限流：
+        RATE_LIMIT_LLM=1000 npm run dev
 """
 
 import requests, json, argparse, sys, time
 from dataclasses import dataclass, field
 from typing import Optional
 from datetime import date, timedelta
+from pathlib import Path
 
 BASE_URL = "http://localhost:3000"
 
@@ -108,10 +113,18 @@ def check_height_compliance(items: list, profile_data: dict) -> list:
     return errors
 
 def check_departure_compliance(items: list, profile_data: dict) -> list:
-    """No item should end after departure time."""
+    """
+    行程项目不得晚于离园时间结束。
+
+    锚点除外：巡游与烟花是园方固定场次，用户明确勾选了要看，我们无法把演出挪进
+    他填写的离园时刻里。这类情况由排程在备注里如实提示"结束时间晚于离园时间"，
+    而不是把演出丢掉——两者取其一，保留用户明确要的东西更合理。
+    """
     errors = []
     dep_min = time_to_min(profile_data["departureTime"])
     for item in items:
+        if item.get("isAnchor"):
+            continue
         end_min = time_to_min(item.get("endTime", "00:00"))
         if end_min > dep_min + 5:  # 5min tolerance
             errors.append(
@@ -145,9 +158,16 @@ def check_anchor_integrity(items: list, profile_data: dict) -> list:
                 errors.append("Missing fireworks anchor despite watchFireworks=True (no conflict detected)")
     return errors
 
-def check_ll_interval(items: list) -> list:
-    """Multi Pass rides must be >= 90 minutes apart."""
+# 无限次套餐：90 分钟间隔是 Multi Pass 的预约约束（同时只能持有一个预约），
+# 无限次卡不受此限，否则 2688 元的 VIP33 会被压成每 90 分钟一项。
+UNLIMITED_PACKAGES = {"vip33"}
+
+
+def check_ll_interval(items: list, profile_data: dict) -> list:
+    """Multi Pass 项目之间需间隔 >= 90 分钟。"""
     errors = []
+    if profile_data.get("llPackage") in UNLIMITED_PACKAGES:
+        return errors
     ll_items = [i for i in items if i.get("llType") == "package"]
     for idx in range(len(ll_items) - 1):
         curr_start = time_to_min(ll_items[idx]["time"])
@@ -202,7 +222,7 @@ def validate_itinerary(items: list, profile_data: dict, skip_checks: list = None
         "height_compliance":  lambda: check_height_compliance(items, profile_data),
         "departure":          lambda: check_departure_compliance(items, profile_data),
         "anchor_integrity":   lambda: check_anchor_integrity(items, profile_data),
-        "ll_interval":        lambda: check_ll_interval(items),
+        "ll_interval":        lambda: check_ll_interval(items, profile_data),
         "coverage":           lambda: check_coverage(items, profile_data),
     }
 
@@ -224,24 +244,89 @@ def validate_itinerary(items: list, profile_data: dict, skip_checks: list = None
 
 
 # ─── API caller ───────────────────────────────────────────────────────────────
+_RIDES_CACHE: list | None = None
+
+
+def get_rides() -> list:
+    """园区项目清单，用于构造确定性评分。"""
+    global _RIDES_CACHE
+    if _RIDES_CACHE is None:
+        resp = requests.get(f"{BASE_URL}/api/rides?park=shanghai", timeout=30)
+        resp.raise_for_status()
+        _RIDES_CACHE = resp.json().get("rides", [])
+    return _RIDES_CACHE
+
+
+def default_scores() -> list:
+    """
+    确定性评分，不调用 LLM。
+
+    此前这个脚本传 `scores: []`，而 buildCandidates 会把没有对应评分的项目
+    全部过滤掉——于是 100 个场景校验的一直是空行程，约束检查形同虚设。
+
+    按项目属性分档，让候选池同时包含 must-do / worth-it / if-time 三层，
+    覆盖路径规划里的分层逻辑；同时保证结果可复现，不受模型输出波动影响。
+    """
+    scores = []
+    for r in get_rides():
+        thrill = r.get("thrillScore", 3)
+        kids = r.get("kidsScore", 3)
+        if thrill >= 4 or kids >= 5:
+            priority = "must-do"
+        elif thrill >= 3 or kids >= 3:
+            priority = "worth-it"
+        else:
+            priority = "if-time"
+        scores.append({
+            "rideId": r["id"],
+            "overallScore": 60 + thrill * 5,
+            "waitScore": 70,
+            "sentimentScore": 70,
+            "profileMatchScore": 60 + kids * 5,
+            "reasoning": "评测用确定性评分",
+            "recommended": priority != "if-time",
+            "priority": priority,
+        })
+    return scores
+
+
 def get_itinerary(profile_data: dict, current_area: str = "entrance") -> tuple[list, str | None]:
-    """Call the itinerary API and return (items, error)."""
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/api/itinerary",
-            json={
-                "profile": profile_data,
-                "scores": [],         # Let API use mock scores
-                "historicalWaits": [],
-                "liveWaits": [],
-                "currentArea": current_area,
-            },
-            timeout=30
-        )
-        data = resp.json()
-        return data.get("itinerary", []), None
-    except Exception as e:
-        return [], str(e)
+    """调用行程接口，返回 (items, error)。"""
+    payload = {
+        "profile": profile_data,
+        "scores": default_scores(),
+        "historicalWaits": [],
+        "liveWaits": [],
+        "currentArea": current_area,
+        # 只校验排程约束，不需要模型润色备注：逐个场景调模型会让整轮评测
+        # 变成半小时 + 数美元，而备注文案与约束无关
+        "polishNotes": False,
+    }
+
+    # 行程接口限流为 10 次/分。跑满 100 个场景必然触顶，遇 429 按 Retry-After 退避。
+    for attempt in range(6):
+        try:
+            resp = requests.post(f"{BASE_URL}/api/itinerary", json=payload, timeout=60)
+        except Exception as e:
+            return [], str(e)
+
+        if resp.status_code == 429:
+            wait = int(resp.headers.get("Retry-After", "5"))
+            time.sleep(min(wait, 60))
+            continue
+
+        # 此前这里不看状态码，400 的响应体没有 itinerary 字段，
+        # .get("itinerary", []) 会静默返回空列表，把接口错误伪装成"空行程"
+        if resp.status_code != 200:
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text[:200]
+            return [], f"HTTP {resp.status_code}: {detail}"
+
+        return resp.json().get("itinerary", []), None
+
+    return [], "429: 多次退避后仍被限流，建议提高 RATE_LIMIT_LLM 后重试"
 
 
 # ─── Test scenarios ───────────────────────────────────────────────────────────
@@ -253,6 +338,9 @@ class TestScenario:
     profile_data: dict
     current_area: str = "entrance"
     skip_checks: list = field(default_factory=list)
+
+
+    expect_http_400: bool = False
     expect_empty: bool = False          # True = expect no ride items
     expect_skipped_anchors: list = field(default_factory=list)  # anchor types to NOT expect
     description: str = ""
@@ -550,12 +638,13 @@ TEST_SCENARIOS = [
 
     TestScenario("height_18", "Kid height 0 (invalid input)", "height",
         profile(mode="family", kids=[kid(5,0)]),
-        skip_checks=["height_compliance"],
-        description="Edge case: height=0 should not crash"),
+        expect_http_400=True,
+        description="身高 0 不是合法输入，接口应返回 400 并指出字段，而不是照常排程"),
 
     TestScenario("height_19", "Kid height 999 (too tall)", "height",
         profile(mode="family", kids=[kid(5,999)]),
-        description="Absurdly tall kid, no rides filtered"),
+        expect_http_400=True,
+        description="身高 999cm 不是合法输入，接口应返回 400"),
 
     TestScenario("height_20", "No-height-req rides only available", "height",
         profile(mode="family", kids=[kid(2,85)]),
@@ -766,6 +855,16 @@ def run_scenario(scenario: TestScenario, verbose: bool = False) -> TestResult:
     start = time.time()
     items, api_err = get_itinerary(scenario.profile_data, scenario.current_area)
     elapsed = (time.time() - start) * 1000
+
+    # 非法输入场景：期望的是一条明确的 400，而不是一份照常生成的行程
+    if scenario.expect_http_400:
+        if api_err and api_err.startswith("HTTP 400"):
+            return TestResult(scenario, True, [], 0, None, elapsed)
+        return TestResult(
+            scenario, False,
+            [f"Expected HTTP 400 for invalid input, got: {api_err or 'HTTP 200 with itinerary'}"],
+            len(items), api_err, elapsed
+        )
 
     if api_err:
         return TestResult(scenario, False, [f"API error: {api_err}"], 0, api_err, elapsed)

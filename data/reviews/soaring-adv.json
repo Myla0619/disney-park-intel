@@ -1,0 +1,355 @@
+{
+  "targetId": "soaring-adv",
+  "targetType": "ride",
+  "scrapedAt": "2026-08-22T14:15:58.381Z",
+  "keywords": [
+    "翱翔飞越地平线2",
+    "飞越地平线扩建",
+    "飞越地平线新版",
+    "迪士尼飞越地平线2025"
+  ],
+  "reviews": [
+    {
+      "source": "xiaohongshu",
+      "author": "gogogo出发啦",
+      "rating": 5,
+      "text": "错峰刷完迪士尼15个项目！附保姆级攻略！ ⭐️出发前准备： 1️⃣下载迪士尼度假区app 可实时查看个项目排队时间和导航！ 便于及时调整游玩行程 2️⃣必带物品",
+      "date": "2025-04-17T04:24:27.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/6800827b000000001c010753?xsec_token=YB3j1tnSUwwdBfWfYUwuL1EfsdiY77TWdZCqEkXKTYblI%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 43262,
+        "comments": 1387,
+        "collects": 43771
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "Jio",
+      "rating": 5,
+      "text": "上海迪士尼邪修不早起不氪金玩法 这个帖子用来记录各种攻略图片和问题 邪修玩法！！尽量不排队节约时间玩法！！ ‼️‼️邪修敲重点‼️‼️ 1️⃣进园路线",
+      "date": "2026-01-12T11:34:43.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/6964dc530000000021032a73?xsec_token=YBOOFTyrIqU6k7vVKtSGNBKT-SG0lw80BYIGICBY_QNeA%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 15091,
+        "comments": 119,
+        "collects": 18743
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "一抺阳光",
+      "rating": 5,
+      "text": "上海迪士尼游玩攻略！迪士尼必玩项目！ 🔥TOP1：疯狂动物城 体验《疯狂动物城》的惊险追捕！排队虽需3小时，但3D动画效果绝对值得！沉浸其中，尽享速度与激情",
+      "date": "2025-06-05T06:46:46.000Z",
+      "tags": [
+        "long-wait",
+        "must-do",
+        "thrill"
+      ],
+      "sentiment": "positive",
+      "url": "https://www.xiaohongshu.com/discovery/item/68413d560000000021018ba4?xsec_token=YBafDHtWaQPfFCdQJMnV8ZVFPCN3vIauHif1_MG_Sj2-E%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 11089,
+        "comments": 89,
+        "collects": 8151
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "迪士尼常驻大使",
+      "rating": 5,
+      "text": "告诉你个秘密，玩这个得坐第—排 #上海迪士尼  #飞跃地平线  #迪士尼常驻大使",
+      "date": "2025-08-28T09:59:12.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/68b02870000000001b0362b5?xsec_token=YBZoZz_ApERxNR-R55pesy5tASApvsKJU8XzcGFdiJSLc%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 10230,
+        "comments": 442,
+        "collects": 1136
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "Tongtong✨",
+      "rating": 5,
+      "text": "上海行--迪士尼🌈攻略 迪士尼攻略小红书已经很全啦～，那就说说几个省时省力增加体验感的小细节吧～，满满干货，字数有限，更多在评论区分享",
+      "date": "2025-05-10T03:56:45.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/681ece7d000000002100bfe5?xsec_token=YBEfNQRroryY264h5dEKq1U5qhnxOZQJ0Lzb8IbVNKSkw%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 9613,
+        "comments": 99,
+        "collects": 9174
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "luming",
+      "rating": 5,
+      "text": "迪士尼免绕路暴走路线｜一天刷完大项+演出 🕐 7:45前到！ 早享卡冲「创极速光轮」→ 直奔「飞越地平线」📌 🍰 10:00 错峰吃早餐，拍城堡空镜",
+      "date": "2025-06-05T05:46:52.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/68412f4c0000000022034a22?xsec_token=YBafDHtWaQPfFCdQJMnV8ZVOYd5-lOo7X7q5z8LPpYR3Y%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 9211,
+        "comments": 23,
+        "collects": 8960
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "🍊🍊小朋友",
+      "rating": 5,
+      "text": "上海迪士尼乐园TOP9⃣️项目 1️⃣热力追踪 2️⃣加勒比海盗 3️⃣飞越地平线 4️⃣极速光轮 5️⃣抱抱龙 6️⃣小矮人过山车 7️⃣雷鸣山漂流",
+      "date": "2025-06-27T04:49:03.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/685e22be0000000010012c52?xsec_token=YBebaRAKgoX3nOTP-0GvnmUDbC85F26VPjcNgxzc0pPYs%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 8043,
+        "comments": 87,
+        "collects": 4790
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "🍓🍊🍉🍑🍒",
+      "rating": 5,
+      "text": "迪斯尼无早享无尊享平民版 #假期去哪玩  迪斯尼无早享无尊享平民版 7点25分出发，7点40左右到唐老鸭停车场🅿️，过天桥走到入园区附近差不多",
+      "date": "2025-07-31T09:32:35.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/688b3833000000000500b883?xsec_token=YBqNN1Pd8JuPdJMZ0xq8rZjajTMEKomgY0gnAWPFmaTG4%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 7891,
+        "comments": 240,
+        "collects": 8512
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "小喂的味旅程",
+      "rating": 5,
+      "text": "上海迪士尼飞跃地平线，第一视角超上头！ 上海迪士尼乐园最热门项目之一，飞跃地平线！排队可久了，所以我录下了全过程。超级上头，让大家也感受一下吧#飞跃地平线",
+      "date": "2025-06-04T10:02:03.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/683da944000000002202d6cc?xsec_token=YBDO5YgUy4UzclXyybo1BwX4yCif5oiQ_xpJYZvw02Wdg%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 7147,
+        "comments": 692,
+        "collects": 2368
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "筱雨橙🍊橙🍊",
+      "rating": 5,
+      "text": "迪士尼怒刷18个项目全记录（无广不氪金版） 年卡到期后上周六又勇闯迪士尼了，提前好几天就看地图，抱着不玩项目只刷表演的决心，最后居然刷到了18个项目！！迪士尼瞬间又",
+      "date": "2025-06-25T08:53:19.000Z",
+      "tags": [
+        "reservation"
+      ],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/685bb8ff000000002400cace?xsec_token=YBnU_gvD25YV6tTBTAfE9ehzd-BIXBZQv2HvBfPSwD_10%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 5023,
+        "comments": 68,
+        "collects": 4398
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "LukeNoLook逛吃分享",
+      "rating": 5,
+      "text": "3刷实测！上海迪士尼高效一日游攻略 哈喽大家,好我是Luke 🎢 去上海迪士尼总是一天玩不完？排队动辄两小时，玩下来累到怀疑人生… 别担心！这次我带来了一",
+      "date": "2025-09-16T11:05:35.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/68c9447f0000000012017c5e?xsec_token=YBqF86gOKvxYqfvxgsBGjQaIQLtJ3yvvrH3YxRd9jdFCE%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 5012,
+        "comments": 36,
+        "collects": 4994
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "嘿Sasha",
+      "rating": 5,
+      "text": "巨细‼️暑假带娃玩迪士尼保姆级遛娃攻略 上海迪士尼刚回，带娃爆玩12小时 整理的全新！超详细！少排队少走路！省时省力不踩雷一日遛娃攻略来啦‼️ 1⃣️关于购票",
+      "date": "2025-09-25T11:55:44.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/68d5264d0000000013007602?xsec_token=YBvpJ8Ck-xOA56S0ddmtnlXCSItNTappAbrCyaD1Q8OWQ%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 4040,
+        "comments": 85,
+        "collects": 3052
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "小红薯610A992E",
+      "rating": 5,
+      "text": "上海迪士尼乐园小攻略 ➡️必玩项目分级推荐 ❤️刺激担当（适合年轻人）： 1. 创极速光轮（明日世界）：全球独有摩托过山车，时速超100km",
+      "date": "2025-11-01T02:22:25.000Z",
+      "tags": [
+        "must-do",
+        "thrill",
+        "good-food"
+      ],
+      "sentiment": "positive",
+      "url": "https://www.xiaohongshu.com/discovery/item/69056ee10000000005010e99?xsec_token=YBbx0woaZw0cBxvx6jHYHZy7P5zGyVhhu70VMmj__Unw8%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 3603,
+        "comments": 27,
+        "collects": 3674
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "时代少年团团长",
+      "rating": 5,
+      "text": "自体验迪士尼早享卡游玩超全攻略 早享卡玩项目流程 7:15入园。 7:20.飞跃地平线，第一排不排队。 7:45.小矮人过山车，排队了大概五分钟。（很多",
+      "date": "2025-01-12T06:17:04.000Z",
+      "tags": [
+        "long-wait"
+      ],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/67835e60000000001a01e8a8?xsec_token=YBDlOXybLOGeH_L08nIADZmw6_45Ia9H3-mfJVMgl20Bg%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 3582,
+        "comments": 130,
+        "collects": 4284
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "梧桐超爱迪士尼",
+      "rating": 5,
+      "text": "🎢✨上海迪士尼项目大盘点｜这样玩才最爽！✨ 谁懂啊！去迪士尼怕时间不够玩不全？多方比对的排行榜，赶紧🐎住！ 顺便送上门票和游玩攻略。 这份超全不踩坑攻略，照着玩直",
+      "date": "2026-01-26T08:47:30.000Z",
+      "tags": [],
+      "sentiment": "negative",
+      "url": "https://www.xiaohongshu.com/discovery/item/6977278a000000002801d00a?xsec_token=YB2OZ6mZhe8t5BeiB4JggV-HUQjH0HlH-zMzsJBjZF7UA%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 2611,
+        "comments": 25,
+        "collects": 2155
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "momo",
+      "rating": 5,
+      "text": "2025.10.8上海迪士尼有感（碎碎念[害羞R] 一起度过一个神奇的一天！！（超级开心）#上海迪士尼  #上海迪士尼攻",
+      "date": "2025-10-08T12:48:35.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/68e65da3000000000301e5b8?xsec_token=YBN6wyJ_lGCJS5RqnFkrmiwBx9n7vFqAHgkhyUnFqB8f8%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 2591,
+        "comments": 132,
+        "collects": 2444
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "风之若叶",
+      "rating": 5,
+      "text": "想在迪士尼玩项目时不看人头吗 #花车巡游  #迪士尼  #迪士尼攻略  #优速通  本人游玩迪士尼两天的攻略合集（借鉴了许多的攻略）[捂嘴笑R]#我们",
+      "date": "2026-05-19T16:47:04.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a0c940800000000060339da?xsec_token=YBb9ozNWxj12stj60JoK7rGofljMswQER38HZv1uOS2Bw%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 2107,
+        "comments": 66,
+        "collects": 2375
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "gogo",
+      "rating": 5,
+      "text": "上海迪士尼一日游玩攻略（刷满13个项目） 5.30起床22.30回酒店（特种兵游玩） 📅日期选择：看小红书上的预测 有点准的 选一个好日子体验感会upup",
+      "date": "2026-05-14T12:10:13.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/6a05bba500000000350252b3?xsec_token=YBRuXXCdJzvEwugLIXgoHWftf5q44CbCjvY_kKoV9cmho%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 1950,
+        "comments": 79,
+        "collects": 1842
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "Gcc",
+      "rating": 5,
+      "text": "迪士尼飞跃地平线攻略，不看后悔 排了那么长时间的队，大家一定要选择2号房，最好排到1-4、1-5的位置 全程无遮挡无死角 最佳体验位置 #迪士尼攻略",
+      "date": "2024-11-03T07:31:52.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/672726e8000000001b02e888?xsec_token=YB4xXOyKx4b9S7tO66kI-qe_VhTg6LlNfEGJAwRqxHSzc%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 1352,
+        "comments": 195,
+        "collects": 829
+      }
+    },
+    {
+      "source": "xiaohongshu",
+      "author": "票朵朵 票务咨询",
+      "rating": 5,
+      "text": "怒刷28次迪士尼，这8个项目一定要去玩 戳@票朵朵旅游服务咨询 扣‘111’get上海迪士尼33vip及相关活动优惠报价 ———————— 钻石年卡用户一年刷",
+      "date": "2025-04-10T11:50:42.000Z",
+      "tags": [],
+      "sentiment": "neutral",
+      "url": "https://www.xiaohongshu.com/discovery/item/67f7b092000000001c030e53?xsec_token=YBbPDOKAtraF6Lxq_FkDMM5aUJ19Xq1K8JoMN2SwAE6z4%3D&xsec_source=app_share",
+      "scrapedAt": "2026-08-22T14:15:58.381Z",
+      "engagement": {
+        "likes": 1075,
+        "comments": 7,
+        "collects": 601
+      }
+    }
+  ]
+}

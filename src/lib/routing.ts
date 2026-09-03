@@ -23,20 +23,13 @@ import {
   getPhotoSpots, getShopSpots, getRestaurants
 } from "./parks-data";
 import { getUserLLRides, hasReservedSpot, getPackageById } from "./ll-packages";
+import { isHeightBlocked } from "./height";
+import { timeToMin, minToTime } from "./routing-time";
+import { scorePhotoSpot, scoreShop } from "./poi-scoring";
+import { mealDuration, normalizeDiningPlans, recommendedMealTime } from "./dining";
 
 // ─── 시간 도구 ────────────────────────────────────────────────────────────────
-export function timeToMin(t: string): number {
-  if (!t || !t.includes(":")) return 0;
-  const [h, m] = t.split(":").map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
-export function minToTime(m: number): string {
-  const clamped = Math.max(0, Math.min(m, 1439)); // 00:00 - 23:59
-  const h = Math.floor(clamped / 60);
-  const min = clamped % 60;
-  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
+export { timeToMin, minToTime } from "./routing-time";
 
 // ─── 权重配置 ─────────────────────────────────────────────────────────────────
 function getWeights(profile: UserProfile): RouteWeights {
@@ -48,14 +41,19 @@ function getWeights(profile: UserProfile): RouteWeights {
 }
 
 // ─── 有效等待时间（含优速通折扣）────────────────────────────────────────────
-function getEffectiveWait(
+export function getEffectiveWait(
   ride: Ride, profile: UserProfile,
   hist: HistoricalWaitData[], live: LiveWaitData[],
   currentMin: number
 ): number {
   const h = hist.find((w) => w.rideId === ride.id);
   const l = live.find((w) => w.rideId === ride.id);
-  let base = h?.predictedWait ?? l?.waitMinutes ?? ride.waitTime ?? 30;
+  // 实测值优先于预测值：live 是当下真实排队，hist 只是由快照外推的估计。
+  // 反过来会让"今天入园"的行程被启发式覆盖掉真实数据。
+  // 演出与巡游没有常规排队，缺数据时的默认值应是"提前占位"的时间，
+  // 套用游乐项目的 30 分钟排队默认值会让行程凭空多出大段虚构的等待
+  const noDataDefault = ride.type === "show" ? 15 : 30;
+  let base = l?.waitMinutes ?? h?.predictedWait ?? ride.waitTime ?? noDataDefault;
 
   // 边缘情况：base 异常值保护
   if (isNaN(base) || base < 0) base = 30;
@@ -72,7 +70,9 @@ function getEffectiveWait(
     bundle3Rides: profile.bundle3Rides,
   });
 
-  if (llRides.includes(ride.id)) {
+  // ride.llEligible 与套餐清单必须同时成立才给折扣：套餐清单是"这张卡覆盖哪些项目"，
+  // llEligible 是"这个项目是否支持尊享卡"，缺任一条都不该打折。
+  if (ride.llEligible && llRides.includes(ride.id)) {
     // Single Pass 时间窗口检查
     // 如果用户有 Single Pass 且有时间窗口限制，检查当前时间是否在窗口内
     const spWindow = (profile as any).singlePassWindows?.[ride.id];
@@ -124,13 +124,22 @@ export async function getParkHours(
 }
 
 // ─── 锚点构建（含边缘情况修复）──────────────────────────────────────────────
-export function buildAnchors(profile: UserProfile, parkHours: ParkHours): ItineraryItem[] {
+/**
+ * @param nowMin 园区当地"现在"的分钟数。当天使用时传入，已经开始的场次会被跳过；
+ *               非当天规划传 undefined。
+ */
+export function buildAnchors(
+  profile: UserProfile,
+  parkHours: ParkHours,
+  nowMin?: number
+): ItineraryItem[] {
   const anchors: ItineraryItem[] = [];
   const reserved    = hasReservedSpot(profile.llPackage);
   const arrMin      = timeToMin(profile.arrivalTime);
   const depMin      = timeToMin(profile.departureTime);
   const openMin     = timeToMin(parkHours.open);
-  const effectiveStart = Math.max(arrMin, openMin);
+  // 当天使用时，"起点"是此刻而非入园时间——下午打开不该再排上午的场次
+  const effectiveStart = Math.max(arrMin, openMin, nowMin ?? 0);
 
   const paradePreMin    = reserved ? 10 : 20;
   const fireworksPreMin = reserved ? 15 : 30;
@@ -146,13 +155,18 @@ export function buildAnchors(profile: UserProfile, parkHours: ParkHours): Itiner
       console.warn(`[routing] 花车时间 ${profile.paradeTime} 在入园前，跳过`);
     }
     // 边缘情况2：花车时间在离园后 → 跳过
-    else if (paradeStart >= depMin) {
+    // 用 > 而非 >=：把离园时间设成和演出同一时刻（"看完就走"）是最常见的填法，
+    // 用 >= 会把用户明确勾选的演出静默丢掉
+    else if (paradeStart > depMin) {
       console.warn(`[routing] 花车时间 ${profile.paradeTime} 在离园后，跳过`);
     }
     else {
-      const note = reserved
-        ? `已购套餐含花车预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.paradeTime}正式出发，约30分钟。`
-        : `提前${paradePreMin}分钟到玩具总动员区域占位，互动概率最高。${profile.paradeTime}正式出发，约30分钟。时间以官方App为准。`;
+      const paradeEnd = paradeStart + 30;
+      const note =
+        (reserved
+          ? `已购套餐含花车预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.paradeTime}正式出发，约30分钟。`
+          : `提前${paradePreMin}分钟到玩具总动员区域占位，互动概率最高。${profile.paradeTime}正式出发，约30分钟。时间以官方App为准。`) +
+        (paradeEnd > depMin ? `⚠️ 结束时间晚于你设定的离园时间 ${profile.departureTime}。` : "");
       anchors.push({
         time: minToTime(anchorStart),
         endTime: minToTime(paradeStart + 30),
@@ -184,14 +198,17 @@ export function buildAnchors(profile: UserProfile, parkHours: ParkHours): Itiner
     // 边缘情况4：烟花时间在入园前或离园后 → 跳过
     if (fireworksStart <= effectiveStart) {
       console.warn(`[routing] 烟花时间 ${profile.fireworksTime} 在入园前，跳过`);
-    } else if (fireworksStart >= depMin) {
+    } else if (fireworksStart > depMin) {
       console.warn(`[routing] 烟花时间 ${profile.fireworksTime} 在离园后，跳过`);
     } else if (anchorStart >= depMin) {
       console.warn(`[routing] 烟花占位时间超出离园时间，跳过`);
     } else {
-      const note = reserved
-        ? `已购套餐含烟花预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.fireworksTime}开始，约20分钟。`
-        : `提前${fireworksPreMin}分钟在城堡正前方占位，${profile.fireworksTime}开始，约20分钟。烟花后立刻去旋转木马，灯光全亮是全天最佳拍照时机。时间以官方App为准。`;
+      const fireworksEnd = fireworksStart + 20;
+      const note =
+        (reserved
+          ? `已购套餐含烟花预留区，凭套票前往官方指定区域，请查当日集合通知。${profile.fireworksTime}开始，约20分钟。`
+          : `提前${fireworksPreMin}分钟在城堡正前方占位，${profile.fireworksTime}开始，约20分钟。烟花后立刻去旋转木马，灯光全亮是全天最佳拍照时机。时间以官方App为准。`) +
+        (fireworksEnd > depMin ? `⚠️ 结束时间晚于你设定的离园时间 ${profile.departureTime}。` : "");
       anchors.push({
         time: minToTime(anchorStart),
         endTime: minToTime(fireworksStart + 20),
@@ -222,9 +239,21 @@ function getMealSlots(
             : profile.diningPreference === "fancy"  ? 60 : 45;
   const slots: { time: number; mealType: "breakfast"|"lunch"|"dinner"|"snack"; duration: number }[] = [];
 
-  if (totalH >= 3)  slots.push({ time: 690,  mealType: "lunch",   duration: dur   }); // 11:30
-  if (totalH >= 5)  slots.push({ time: 930,  mealType: "snack",   duration: 15    }); // 15:30
-  if (totalH >= 8)  slots.push({ time: 1140, mealType: "dinner",  duration: dur   }); // 19:00
+  // 用户填了用餐安排就照他的来；只有没填时才用默认时段
+  const plans = normalizeDiningPlans(profile.diningPlans ?? []);
+  if (plans.length) {
+    for (const p of plans) {
+      slots.push({
+        time: timeToMin(p.time),
+        mealType: p.mealType,
+        duration: mealDuration(profile, p.mealType),
+      });
+    }
+  } else {
+    if (totalH >= 3)  slots.push({ time: 690,  mealType: "lunch",   duration: dur   }); // 11:30
+    if (totalH >= 5)  slots.push({ time: 930,  mealType: "snack",   duration: 15    }); // 15:30
+    if (totalH >= 8)  slots.push({ time: 1140, mealType: "dinner",  duration: dur   }); // 19:00
+  }
 
   return slots.filter((s) => s.time + s.duration < depMin && s.time > startMin);
 }
@@ -274,18 +303,18 @@ function buildRideNote(
 ): string {
   const parts: string[] = [];
 
+  // 演出与巡游是定场次，说"排队"会误导——那段时间是提前到场占位
+  const isShow = ride.type === "show";
+
   if (ll === "single")  parts.push(`单项尊享卡入场，节省约${Math.round(wait * 5)}分钟排队`);
   else if (ll === "package") parts.push(`套餐尊享卡入场，节省约${Math.round(wait * 4)}分钟`);
+  else if (isShow)      parts.push(`建议提前${wait}分钟到场占位`);
   else if (wait >= 60)  parts.push(`预计排队${wait}分钟，可考虑购买尊享卡`);
   else                  parts.push(`预计等待${wait}分钟`);
 
   if (ride.singleRider) parts.push("💡 可能开放 Single Rider 通道，到场后查 App 或问工作人员");
 
-  // 身高检查：用精确身高
-  const minKidHeight = (profile.kids ?? []).length > 0
-    ? Math.min(...(profile.kids ?? []).map((k) => k.heightCm))
-    : 999;
-  if (ride.heightRequirement && minKidHeight < ride.heightRequirement) {
+  if (isHeightBlocked(ride, profile)) {
     parts.push(`⚠️ 注意：部分孩子身高不足 ${ride.heightRequirement}cm`);
   }
 
@@ -299,8 +328,33 @@ interface CandidateItem {
   wait: number; duration: number; note: string;
   llType: "package" | "single" | null;
   singleRider: boolean;
+  /** 初始静态成本，仅用于同层内的稳定排序；实际选择用 dynamicCost 逐步重算 */
   costVal: number;
+  /** 优先级层：must-do 优先于 worth-it 优先于 if-time */
+  tier: 0 | 1 | 2;
+  /** 刺激度，参与体力消耗项 */
+  thrill: number;
+  /** 拍照点/商店：随落位时刻变化的时段契合度，需在选择时重算 */
+  poi?: { kind: "photo"; ref: PhotoSpot } | { kind: "shop"; ref: ShopSpot };
 }
+
+/** 优先级层带来的成本惩罚，保证 must-do 在同等条件下先被选中。 */
+const TIER_PENALTY = [0, 18, 36];
+
+/** 被用户标记「想去」的项目获得的成本减免，使其几乎必然入选。 */
+const WISHLIST_BONUS = 40;
+
+/** 连续安排同类项目的单次惩罚，用于让一天的内容更有变化。 */
+const SAME_TYPE_PENALTY = 3;
+
+/**
+ * 步行成本的放大系数。
+ *
+ * routeProfile 里的 walkWeight 最大也只有 0.5，一段 12 分钟的步行只贡献约 6 分
+ * 成本，而层级惩罚是 18、POI 成本区间是 5–60 —— 步行在总成本里几乎不起作用，
+ * 于是行程会为了一点点契合度提升而横跨整个园区。放大到与其它维度同量纲。
+ */
+const WALK_SCALE = 2.5;
 
 function buildCandidates(
   rides: Ride[], scores: RideScore[],
@@ -312,16 +366,11 @@ function buildCandidates(
   const weights    = getWeights(profile);
   const isGateRush = startMin <= openMin + 15;
 
-  // 身高过滤：用精确身高（KidInfo.heightCm）
-  const minKidHeight = (profile.kids ?? []).length > 0
-    ? Math.min(...(profile.kids ?? []).map((k) => k.heightCm))
-    : 999;
-
   const filtered = rides.filter((r) => {
     const s = scores.find((sc) => sc.rideId === r.id);
     if (!s || !priorityFilter(s)) return false;
-    // 边缘情况：身高刚好等于限制 = 允许（>= 即可）
-    if (r.heightRequirement && minKidHeight < r.heightRequirement) return false;
+    // 身高刚好等于限制 = 允许（isHeightBlocked 内部按 >= 判定）
+    if (isHeightBlocked(r, profile)) return false;
     return true;
   });
 
@@ -340,6 +389,8 @@ function buildCandidates(
         note: buildRideNote(r, profile, wait, ll),
         llType: ll, singleRider: r.singleRider,
         costVal,
+        tier: 0 as const,
+        thrill: r.thrillScore as number,
       };
     })
     .sort((a, b) => a.costVal - b.costVal);
@@ -351,36 +402,198 @@ function buildTimeline(
   anchors: ItineraryItem[],
   profile: UserProfile,
   startArea: string,
-  parkHours: ParkHours
+  parkHours: ParkHours,
+  nowMin?: number,
+  userSelectedLL = false,
+  wishlist: Set<string> = new Set()
 ): ItineraryItem[] {
+  const weights = getWeights(profile);
   const result: ItineraryItem[] = [...anchors];
   const restaurants = getRestaurants(profile.park);
   const openMin  = timeToMin(parkHours.open);
   const depMin   = timeToMin(profile.departureTime);
-  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin);
+  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin, nowMin ?? 0);
 
   // 边缘情况：游玩时间极短（< 60分钟）→ 只取第一个项目
   const effectiveDep = depMin;
   const totalAvail   = effectiveDep - startMin;
   const maxItems     = totalAvail < 60 ? 1 : 999;
 
-  // 锚点封锁区间
-  const blocked = anchors.map((a) => ({
-    start: timeToMin(a.time) - 5,
-    end:   timeToMin(a.endTime) + 5,
-  }));
+  // 锚点封锁区间（前后各留 5 分钟走位时间）
+  const blocked = anchors
+    .map((a) => ({
+      start: timeToMin(a.time) - 5,
+      end: timeToMin(a.endTime) + 5,
+      area: a.area,
+    }))
+    .sort((x, y) => x.start - y.start);
+
+  /** 若时刻落在某个锚点封锁区间内，返回该区间，否则返回 null。 */
+  const blockAt = (min: number) => blocked.find((b) => min >= b.start && min < b.end) ?? null;
+
+  // 90 分钟间隔是 Multi Pass 的预约约束（同一时间只能持有一个预约），
+  // 无限次套餐（VIP33）不受此限——套用会把 2688 元的无限次卡压成每 90 分钟一项。
+  const llUnlimited = getPackageById(profile.llPackage)?.unlimited ?? false;
 
   const mealSlots   = getMealSlots(profile, openMin);
   const usedMeals   = new Set<string>();
   const usedRests   = new Set<string>();
   const usedItems   = new Set<string>();
-  let lastLLMin     = -999;
+  // 所有已排定的快通项目时刻。间隔约束是双向的：预占位的项目排在时间轴靠后，
+  // 主循环里的项目可能排在它之前，只记"上一个"会漏判。
+  const llTimes: number[] = [];
+  const violatesLLInterval = (at: number) => llTimes.some((t) => Math.abs(at - t) < 90);
   let currentArea   = startArea;
   let currentMin    = startMin;
   let itemsAdded    = 0;
 
-  for (const item of candidates) {
+  /**
+   * 已预约的餐厅先占位。
+   *
+   * 预约是园方给定的固定时段，改不了也退不了，性质等同于巡游烟花——必须让其它
+   * 项目绕开它，而不是当作可浮动的"用餐时段"参与竞争。此前完全不区分，
+   * 订了 12:30 的皇家宴会厅仍按写死的 11:30 安排，预约等于白订。
+   */
+  const reservations = normalizeDiningPlans(profile.diningPlans ?? []).filter((p) => p.isReservation);
+  for (const plan of reservations) {
+    const r = restaurants.find((x) => x.id === plan.restaurantId);
+    if (!r) continue;
+    const start = timeToMin(plan.time);
+    const end = start + mealDuration(profile, plan.mealType);
+    if (start < startMin || end > depMin) continue;
+
+    result.push({
+      time: minToTime(start), endTime: minToTime(end),
+      itemId: r.id, itemName: r.name, area: r.areaName,
+      estimatedWait: 0, walkMinutes: 0, duration: end - start,
+      note: `已预约 ${plan.time}，请提前 10 分钟到店。${r.tips}`,
+      type: "meal", isAnchor: true,
+      requiresReservation: true,
+    });
+    usedRests.add(r.id);
+    usedMeals.add(plan.mealType);
+    // 预约时段对其它项目关闭，前后各留 10 分钟走位与候位
+    blocked.push({ start: start - 10, end: end + 10, area: r.area });
+    itemsAdded++;
+  }
+  blocked.sort((x, y) => x.start - y.start);
+
+
+  /**
+   * 自购尊享卡项目预占位。
+   *
+   * 这类项目受 Multi Pass 的 90 分钟间隔约束，若混在普通候选里按成本排序，
+   * 第一项排进去之后，后面几项都会在几分钟内撞上间隔规则被丢弃——用户花几百元
+   * 买的三项套餐实际只兑现一项。
+   *
+   * 因此把它们当作软锚点：沿时间轴按 90 分钟间隔先占好位，其余项目再填空档。
+   */
+  const reservedLL: { item: CandidateItem; start: number; end: number }[] = [];
+  // 只对用户逐项自选的套餐预占位。固定套餐（6 项/9 项等）是打包赠送的项目集合，
+  // 不是逐项指定的付费选择，按普通候选处理即可。
+  if (!llUnlimited && userSelectedLL) {
+    const purchased = candidates.filter((c) => c.llType === "package");
+    let slot = startMin;
+    for (const item of purchased) {
+      const start = slot + walkTime(startArea, item.area, profile);
+      const end = start + item.wait + item.duration;
+      if (end > depMin) break;
+      if (blocked.some((b) => start < b.end && end > b.start)) {
+        // 与巡游烟花冲突就顺延到锚点之后
+        const hit = blocked.find((b) => start < b.end && end > b.start)!;
+        slot = hit.end;
+        const s2 = slot;
+        const e2 = s2 + item.wait + item.duration;
+        if (e2 > depMin) break;
+        reservedLL.push({ item, start: s2, end: e2 });
+        slot = s2 + 90;
+        continue;
+      }
+      reservedLL.push({ item, start, end });
+      slot = start + 90;
+    }
+  }
+
+  for (const r of reservedLL) {
+    result.push({
+      time: minToTime(r.start), endTime: minToTime(r.end),
+      itemId: r.item.id, itemName: r.item.name, area: r.item.area,
+      estimatedWait: r.item.wait, walkMinutes: 0, duration: r.item.duration,
+      note: r.item.note, type: r.item.type,
+      llType: r.item.llType, singleRiderTip: r.item.singleRider,
+    });
+    usedItems.add(r.item.id);
+    itemsAdded++;
+    llTimes.push(r.start);
+    // 已占位的时段对普通项目关闭，避免时间重叠
+    blocked.push({ start: r.start - 5, end: r.end + 5, area: r.item.area });
+  }
+  blocked.sort((x, y) => x.start - y.start);
+
+
+  /**
+   * 从当前位置与当前时刻，重新计算某个候选的成本。
+   *
+   * 此前候选的 costVal 是用**起点**算一次步行距离后固定排序的，之后无论人走到
+   * 哪里都不再重算——所以那不是贪心 TSP，是静态排序，行程会在几个区之间来回横跳
+   * （实测拍照模式步行 91 分钟，宝藏湾去两次、米奇大街去两次）。
+   *
+   * 现在每一步都按实际所在位置重算，并叠加几个维度：
+   *   步行  从当前区域出发的真实距离
+   *   等待  该项目的有效等待（含尊享卡折扣）
+   *   体力  刺激度累积，避免连续安排高强度项目
+   *   层级  must-do / worth-it / if-time 的固定惩罚，保证优先级不被距离冲垮
+   *   时段  拍照点与商店按真实落位时刻重算契合度，而非用估算时刻
+   *   标记  用户勾选「想去」的项目大幅减免，使其几乎必然入选
+   */
+  const dynamicCost = (item: CandidateItem, fromArea: string, atMin: number): number => {
+    const walk = walkTime(fromArea, item.area, profile);
+    const walkCost = weights.walkWeight * walk * WALK_SCALE;
+    let cost = weights.waitWeight * item.wait
+      + walkCost
+      + weights.energyWeight * item.thrill * 5
+      + TIER_PENALTY[item.tier];
+
+    if (item.poi) {
+      const arriveAt = atMin + walk;
+      const scored = item.poi.kind === "photo"
+        ? scorePhotoSpot(item.poi.ref, profile, arriveAt)
+        : scoreShop(item.poi.ref, profile, arriveAt, openMin, timeToMin(parkHours.close));
+      // POI 的成本完全由时段与档案契合度决定，再叠加步行
+      cost = scored.costVal + walkCost + TIER_PENALTY[item.tier];
+    }
+
+    // 丰富度：连续排同一类项目会让一天很单调（四个过山车连排、或连拍四个机位）。
+    // 与刚排过的类型相同则加惩罚，惩罚随连续次数递增。
+    if (recentTypes.length && recentTypes[recentTypes.length - 1] === item.type) {
+      const streak = recentTypes.filter((t) => t === item.type).length;
+      cost += Math.min(streak, 2) * SAME_TYPE_PENALTY;
+    }
+
+    if (wishlist.has(item.id)) cost -= WISHLIST_BONUS;
+    return cost;
+  };
+
+  /** 最近排入的项目类型，用于丰富度惩罚（只看最近三项）。 */
+  const recentTypes: ItineraryItem["type"][] = [];
+
+  const remaining = [...candidates];
+
+  while (remaining.length > 0) {
     if (itemsAdded >= maxItems) break;
+
+    // 贪心：从当前位置挑成本最低的一个，而不是按预先排好的顺序取
+    let bestIdx = 0;
+    let bestCost = Infinity;
+    for (let k = 0; k < remaining.length; k++) {
+      if (usedItems.has(remaining[k].id)) continue;
+      const c = dynamicCost(remaining[k], currentArea, currentMin);
+      if (c < bestCost) {
+        bestCost = c;
+        bestIdx = k;
+      }
+    }
+    const item = remaining.splice(bestIdx, 1)[0];
 
     // 插入餐食
     for (const meal of mealSlots) {
@@ -389,12 +602,19 @@ function buildTimeline(
           currentMin < meal.time + 90) {
         const r = pickRestaurant(profile, meal.mealType, restaurants, usedRests);
         if (r) {
-          const wk = walkTime(currentArea, r.area, profile);
-          const ms = currentMin + wk;
+          // 餐食此前不检查锚点区间，于是会排出"烧烤 16:01 结束、巡游 15:25 开始"
+          // 这种重叠。和游乐项目一样：撞上锚点就顺延到锚点之后。
+          let mealCursor = currentMin;
+          const mealBlock = blockAt(mealCursor);
+          if (mealBlock) mealCursor = mealBlock.end;
+
+          const wk = walkTime(mealBlock?.area ?? currentArea, r.area, profile);
+          const ms = mealCursor + wk;
           const me = ms + r.duration;
-          if (me < depMin) {
+          const overlapsAnchor = blocked.some((b) => ms < b.end && me > b.start);
+          if (me < depMin && !overlapsAnchor) {
             if (wk > 0) result.push({
-              time: minToTime(currentMin), endTime: minToTime(ms),
+              time: minToTime(mealCursor), endTime: minToTime(ms),
               itemId: "walk", itemName: `步行至${r.areaName}`,
               area: r.areaName, estimatedWait: 0, walkMinutes: wk, duration: wk,
               note: `前往${r.name}，约${wk}分钟`, type: "walk",
@@ -418,17 +638,42 @@ function buildTimeline(
 
     if (usedItems.has(item.id)) continue;
 
-    const wk      = walkTime(currentArea, item.area, profile);
-    const arrAt   = currentMin + wk;
-    const itemEnd = arrAt + item.wait + item.duration;
+    // 游标正处在锚点区间内（比如刚好卡在巡游时段），先推到锚点结束再排。
+    // 锚点期间人就在锚点位置，当前区域一并更新。
+    const nowBlock = blockAt(currentMin);
+    if (nowBlock) {
+      currentMin = nowBlock.end;
+      currentArea = nowBlock.area ?? currentArea;
+    }
 
-    if (itemEnd > depMin) break;
+    let wk = walkTime(currentArea, item.area, profile);
+    let arrAt = currentMin + wk;
+    let itemEnd = arrAt + item.wait + item.duration;
 
-    // 锚点冲突检查
+    // 与锚点重叠时把该项目顺延到锚点之后重排，而不是丢弃它。
+    //
+    // 此前这里是 `continue`：游标不前进，于是后续每个候选都从锚点前的同一时刻起算、
+    // 同样重叠、同样被跳过——排程在第一个锚点处整体停摆，锚点之后的几个小时全空，
+    // 再被 fillGaps 填成一整块数百分钟的"休息补给"。
+    // 最多顺延 blocked.length 次即可跨过所有锚点，不会无限循环。
+    for (let attempt = 0; attempt <= blocked.length; attempt++) {
+      const hit = blocked.find((b) => arrAt < b.end && itemEnd > b.start);
+      if (!hit) break;
+      currentMin = hit.end;
+      currentArea = hit.area ?? currentArea;
+      wk = walkTime(currentArea, item.area, profile);
+      arrAt = currentMin + wk;
+      itemEnd = arrAt + item.wait + item.duration;
+    }
+
+    // 顺延后仍与锚点重叠（项目太长，跨越了下一个锚点）：只跳过这个项目
     if (blocked.some((b) => arrAt < b.end && itemEnd > b.start)) continue;
 
-    // Multi Pass 90分钟间隔（边缘情况：严格使用 >= 90）
-    if (item.llType === "package" && (arrAt - lastLLMin) < 90) continue;
+    // 超出离园时间：后续候选只会更晚，直接结束
+    if (itemEnd > depMin) break;
+
+    // Multi Pass 90 分钟间隔（严格 >= 90）；无限次套餐不适用
+    if (!llUnlimited && item.llType === "package" && violatesLLInterval(arrAt)) continue;
 
     if (wk > 0) result.push({
       time: minToTime(currentMin), endTime: minToTime(arrAt),
@@ -445,17 +690,22 @@ function buildTimeline(
       llType: item.llType, singleRiderTip: item.singleRider,
     });
 
-    if (item.llType === "package") lastLLMin = arrAt;
+    if (!llUnlimited && item.llType === "package") llTimes.push(arrAt);
     currentArea = item.area;
     currentMin  = itemEnd;
     usedItems.add(item.id);
     itemsAdded++;
+    recentTypes.push(item.type);
+    if (recentTypes.length > 3) recentTypes.shift();
   }
 
   return result.sort((a, b) => a.time.localeCompare(b.time));
 }
 
 // ─── 空档填满 ─────────────────────────────────────────────────────────────────
+/** 单个休息块的时长上限（分钟）。 */
+const MAX_REST_MINUTES = 45;
+
 export function fillGaps(
   itinerary: ItineraryItem[],
   profile: UserProfile,
@@ -516,12 +766,18 @@ export function fillGaps(
 
       const remainGap = gapEnd - cursor;
       if (remainGap >= 15 && inserts.length === 0) {
+        // 休息块封顶 45 分钟：真到了几小时的空档，那是排程出了问题，
+        // 用一个"4 小时休息补给"盖住只会把问题藏起来，如实标成自由活动。
+        const restDuration = Math.min(remainGap, MAX_REST_MINUTES);
+        const isOversized = remainGap > MAX_REST_MINUTES;
         inserts.push({
-          time: minToTime(cursor), endTime: minToTime(gapEnd),
-          itemId: "rest", itemName: "☕ 休息补给",
+          time: minToTime(cursor), endTime: minToTime(cursor + restDuration),
+          itemId: "rest", itemName: isOversized ? "🚶 自由活动" : "☕ 休息补给",
           area: current.area, estimatedWait: 0, walkMinutes: 0,
-          duration: remainGap,
-          note: "补充水分和体力，可在附近小吃摊买零食。",
+          duration: restDuration,
+          note: isOversized
+            ? `这段有 ${Math.round(remainGap / 60 * 10) / 10} 小时空档，可自由安排或让 AI 助手重新规划。`
+            : "补充水分和体力，可在附近小吃摊买零食。",
           type: "rest",
         });
       }
@@ -537,6 +793,36 @@ export function fillGaps(
   return result;
 }
 
+/**
+ * 手动调整顺序后重算时间轴。
+ *
+ * 用户长按拖动或删除条目时，前端此前只交换数组位置、不动 time/endTime，于是
+ * 一个 22:00 的项目被挪到 11:00 的项目前面后，列表就显示成"晚上10点的下一项是
+ * 上午11点"。这里按新顺序把开始时间重新串一遍。
+ *
+ * 每个条目保留它原本占用的时长（endTime - time，对游乐项目而言已包含排队时间），
+ * 只平移起始时刻。巡游、烟花这类锚点是外部固定场次，时间不可移动，游标直接跳到
+ * 锚点结束。
+ */
+export function resequenceItinerary(items: ItineraryItem[]): ItineraryItem[] {
+  if (!items.length) return items;
+
+  // 起点取整个行程的最早开始时刻，而不是 items[0].time——交换之后首位带的是
+  // 它原来的（可能很晚的）时间戳，用它当起点会把整个行程平移到深夜。
+  let cursor = Math.min(...items.map((i) => timeToMin(i.time)));
+
+  return items.map((item) => {
+    if (item.isAnchor) {
+      cursor = Math.max(cursor, timeToMin(item.endTime));
+      return item;
+    }
+    const length = Math.max(0, timeToMin(item.endTime) - timeToMin(item.time));
+    const next = { ...item, time: minToTime(cursor), endTime: minToTime(cursor + length) };
+    cursor += length;
+    return next;
+  });
+}
+
 // ─── 主路由入口 ───────────────────────────────────────────────────────────────
 export function buildRoute(params: {
   rides: Ride[];
@@ -547,12 +833,19 @@ export function buildRoute(params: {
   startArea: string;
   parkHours: ParkHours;
   anchors: ItineraryItem[];
+  /** 园区当地"现在"的分钟数。当天规划时传入，行程从此刻起排。 */
+  nowMin?: number;
+  /** 用户勾选「想去」的项目/机位/商店 id，会被大幅提权，几乎必然排入 */
+  wishlist?: string[];
 }): ItineraryItem[] {
-  const { rides, scores, historical, live, profile, startArea, parkHours, anchors } = params;
+  const { rides, scores, historical, live, profile, startArea, parkHours, anchors, nowMin } = params;
+  const wishlist = new Set(params.wishlist ?? []);
 
   const openMin  = timeToMin(parkHours.open);
   const depMin   = timeToMin(profile.departureTime);
-  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin);
+  // 当天规划必须从此刻开始。此前恒等于入园时间，人在园里下午打开时，
+  // 排出来的整个上午都是已经过去的时间。
+  const startMin = Math.max(timeToMin(profile.arrivalTime), openMin, nowMin ?? 0);
 
   // 边缘情况：离园时间 <= 入园时间
   if (depMin <= startMin) {
@@ -566,17 +859,15 @@ export function buildRoute(params: {
   // 按模式筛选候选池
   let ridesPool = rides;
   if (profile.mode === "thrill") {
+    // 刺激项目优先，但排完之后继续用其余项目填满剩下的时间。
+    // 此前是把非刺激项目直接排除在候选池外：园区符合条件的刺激项目只有个位数，
+    // 排完就没东西可排了，一整天的行程断在中午——实测覆盖率只有 15%–36%。
     const thrillRides = rides.filter((r) => r.thrillScore >= 3);
-    // 边缘情况：thrill模式无刺激项目 → 降级到全部
-    ridesPool = thrillRides.length > 0 ? thrillRides : rides;
+    const others = rides.filter((r) => r.thrillScore < 3);
+    ridesPool = thrillRides.length > 0 ? [...thrillRides, ...others] : rides;
   }
   if (profile.mode === "family") {
-    const minH = (profile.kids ?? []).length > 0
-      ? Math.min(...(profile.kids ?? []).map((k) => k.heightCm))
-      : 999;
-    const familyRides = rides.filter(
-      (r) => !r.heightRequirement || minH >= r.heightRequirement
-    );
+    const familyRides = rides.filter((r) => !isHeightBlocked(r, profile));
     // 边缘情况：family模式孩子太小导致候选池为空 → 放宽到 kidsScore >= 3
     if (familyRides.length === 0) {
       ridesPool = rides.filter((r) => r.kidsScore >= 3);
@@ -585,48 +876,92 @@ export function buildRoute(params: {
     }
   }
 
+  // 用户自选的尊享卡项目提升为 must-do：这几项是他真金白银单独指定的，
+  // 不能因为成本排序靠后就不排。此前买了三项套餐只排进一项——评分提示词里
+  // 也没有告知模型用户买了哪几项，模型无从优先。
+  const purchasedLLRides = getUserLLRides({
+    llPackage: profile.llPackage,
+    singlePassRides: profile.singlePassRides,
+    bundle3Rides: profile.bundle3Rides,
+  });
+  const isUserSelectedLL =
+    profile.llPackage === "single" || profile.llPackage === "bundle3";
+
+  const effectiveScores: RideScore[] = isUserSelectedLL && purchasedLLRides.length
+    ? scores.map((s) =>
+        purchasedLLRides.includes(s.rideId) && s.priority !== "skip"
+          ? { ...s, priority: "must-do" as const, recommended: true }
+          : s
+      )
+    : scores;
+
   // 三层候选池：must-do → worth-it → if-time
-  const mustDo  = buildCandidates(ridesPool, scores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "must-do");
-  const worthIt = buildCandidates(ridesPool, scores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "worth-it");
-  const ifTime  = buildCandidates(ridesPool, scores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "if-time");
+  const mustDo  = buildCandidates(ridesPool, effectiveScores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "must-do");
+  const worthIt = buildCandidates(ridesPool, effectiveScores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "worth-it");
+  const ifTime  = buildCandidates(ridesPool, effectiveScores, historical, live, profile, startArea, startMin, openMin, (s) => s.priority === "if-time");
 
-  let allCandidates = [...mustDo, ...worthIt, ...ifTime];
+  // 自购尊享卡的项目排在候选队列最前面。仅提升到 must-do 不够：must-do 层本身
+  // 就排不完，靠成本排序仍会被挤掉——用户单独付钱指定的项目必须先落位。
+  const tiered = [
+    ...mustDo.map((c) => ({ ...c, tier: 0 as const })),
+    ...worthIt.map((c) => ({ ...c, tier: 1 as const })),
+    ...ifTime.map((c) => ({ ...c, tier: 2 as const })),
+  ];
+  const purchasedFirst = isUserSelectedLL && purchasedLLRides.length
+    ? [
+        ...tiered.filter((c) => purchasedLLRides.includes(c.id)),
+        ...tiered.filter((c) => !purchasedLLRides.includes(c.id)),
+      ]
+    : tiered;
 
-  // photo + shopping 模式插入 POI
+  let allCandidates = purchasedFirst;
+
+  // ─── 拍照点与商店 ───────────────────────────────────────────────────────
+  // 此前这两类地点 costVal 恒为 0，按数组顺序与游乐项目机械交替插入，
+  // 数据里的最佳时段信息完全失效。现在按 poi-scoring 给出的成本值参与统一排序。
+  //
+  // 评分需要"排到几点"，但排程尚未发生——用该地点在候选序列中的大致位置估算
+  // 落位时刻：把全天可用时间按候选数均分。这是估算，但足以让"城堡机位排到烟花
+  // 时段""旗舰店排在开园附近"这类时段约束真正生效。
+  const closeMin = timeToMin(parkHours.close);
+  const slotSpan = Math.max(1, (depMin - startMin) / Math.max(1, allCandidates.length + 1));
+  const estimatedTimeAt = (index: number) => startMin + slotSpan * (index + 1);
+
   if (profile.focusPhoto) {
-    const photoItems: CandidateItem[] = photoSpots.map((s) => ({
-      id: s.id, name: s.name, area: s.area, type: "photo" as const,
-      wait: 0, duration: s.duration,
-      note: s.tips, llType: null, singleRider: false,
-      costVal: 0,
-    }));
-    const interleaved: CandidateItem[] = [];
-    const maxLen = Math.max(allCandidates.length, photoItems.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < allCandidates.length) interleaved.push(allCandidates[i]);
-      if (i < photoItems.length)    interleaved.push(photoItems[i]);
-    }
-    allCandidates = interleaved;
+    const photoItems: CandidateItem[] = photoSpots.map((spot, i) => {
+      const scored = scorePhotoSpot(spot, profile, estimatedTimeAt(i));
+      return {
+        id: spot.id, name: spot.name, area: spot.area, type: "photo" as const,
+        wait: 0, duration: spot.duration,
+        note: scored.reasons.length ? `${scored.reasons.join("、")}。${spot.tips}` : spot.tips,
+        llType: null, singleRider: false,
+        costVal: scored.costVal,
+        // 拍照模式下机位就是主角，与游乐项目同层竞争；否则作为点缀
+        tier: (profile.mode === "photo" ? 0 : 1) as 0 | 1,
+        thrill: 0,
+        poi: { kind: "photo" as const, ref: spot },
+      };
+    });
+    allCandidates = [...allCandidates, ...photoItems].sort((a, b) => a.costVal - b.costVal);
   }
 
   if (profile.focusShopping) {
-    const shopItems: CandidateItem[] = shopSpots
-      .sort((a, b) => a.bestTimeToVisit === "opening" ? -1 : 1)
-      .map((s) => ({
-        id: s.id, name: s.name, area: s.area, type: "shop" as const,
-        wait: 0, duration: s.duration,
-        note: s.tips, llType: null, singleRider: false,
-        costVal: 0,
-      }));
-    const interleaved: CandidateItem[] = [];
-    const maxLen = Math.max(allCandidates.length, shopItems.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < allCandidates.length) interleaved.push(allCandidates[i]);
-      if (i < shopItems.length)     interleaved.push(shopItems[i]);
-    }
-    allCandidates = interleaved;
+    const shopItems: CandidateItem[] = shopSpots.map((shop, i) => {
+      const scored = scoreShop(shop, profile, estimatedTimeAt(i), openMin, closeMin);
+      return {
+        id: shop.id, name: shop.name, area: shop.area, type: "shop" as const,
+        wait: 0, duration: shop.duration,
+        note: scored.reasons.length ? `${scored.reasons.join("、")}。${shop.tips}` : shop.tips,
+        llType: null, singleRider: false,
+        costVal: scored.costVal,
+        tier: (profile.mode === "shopping" ? 0 : 1) as 0 | 1,
+        thrill: 0,
+        poi: { kind: "shop" as const, ref: shop },
+      };
+    });
+    allCandidates = [...allCandidates, ...shopItems].sort((a, b) => a.costVal - b.costVal);
   }
 
-  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours);
+  const raw = buildTimeline(allCandidates, anchors, profile, startArea, parkHours, nowMin, isUserSelectedLL, wishlist);
   return fillGaps(raw, profile);
 }

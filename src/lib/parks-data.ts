@@ -1,7 +1,18 @@
 import { Park, Ride, PhotoSpot, ShopSpot, Restaurant } from "@/types";
+import { LL_ELIGIBLE_RIDES } from "./ll-packages";
+import { SHANGHAI_SHOPS } from "./shops-data";
+import { UGC_PHOTO_SPOTS } from "./photo-spots-ugc";
 
 // ─── 步行时间矩阵（上海迪士尼，分钟，成人正常步速 80m/min）──────────────
 // 数据基于园区实际路线距离估算，行动不便×2.0，带幼童×1.6，带小学生×1.3
+//
+// 由 scripts/check_walk_matrix.mjs 对照 themeparks.wiki 的真实坐标做几何校验，
+// CI 每次运行。校验只能证伪不能证实：低于「直线距离÷步速」的条目是硬错误
+// （走得比直线还快），偏高则可能是绕湖等真实原因，需实地核对。
+//
+// 待实地核对（几何上偏高，但园区中央有湖，绕行可能是真的）：
+//   treasure→zootopia  直线 206m，估 15 分钟（期望约 4.7）
+//   fantasy→zootopia   直线 215m，估 11 分钟（期望约 4.8）
 export const WALK_MATRIX: Record<string, Record<string, number>> = {
   entrance:  { entrance:0, mickey:2,  garden:5,  fantasy:8,  adventure:12, treasure:14, tomorrow:10, toytown:13, zootopia:16 },
   mickey:    { entrance:2, mickey:0,  garden:4,  fantasy:6,  adventure:10, treasure:12, tomorrow:8,  toytown:11, zootopia:14 },
@@ -10,8 +21,8 @@ export const WALK_MATRIX: Record<string, Record<string, number>> = {
   adventure: { entrance:12,mickey:10, garden:8,  fantasy:7,  adventure:0,  treasure:5,  tomorrow:9,  toytown:11, zootopia:13 },
   treasure:  { entrance:14,mickey:12, garden:10, fantasy:8,  adventure:5,  treasure:0,  tomorrow:11, toytown:13, zootopia:15 },
   tomorrow:  { entrance:10,mickey:8,  garden:6,  fantasy:6,  adventure:9,  treasure:11, tomorrow:0,  toytown:5,  zootopia:7  },
-  toytown:   { entrance:13,mickey:11, garden:9,  fantasy:8,  adventure:11, treasure:13, tomorrow:5,  toytown:0,  zootopia:5  },
-  zootopia:  { entrance:16,mickey:14, garden:12, fantasy:11, adventure:13, treasure:15, tomorrow:7,  toytown:5,  zootopia:0  },
+  toytown:   { entrance:13,mickey:11, garden:9,  fantasy:8,  adventure:11, treasure:13, tomorrow:5,  toytown:0,  zootopia:7  },
+  zootopia:  { entrance:16,mickey:14, garden:12, fantasy:11, adventure:13, treasure:15, tomorrow:7,  toytown:7,  zootopia:0  },
 };
 
 export function walkTime(
@@ -102,7 +113,7 @@ export const PARKS: Park[] = [
     city: "上海，中国",
     timezone: "Asia/Shanghai",
     theparksApiId: "ddc4357c-c148-4b36-9888-07894fe75e83",
-    queueTimesId: 21,
+    queueTimesId: 30,
     defaultParadeTime: "15:45",
     defaultFireworksTime: "21:00",
     areas: [
@@ -121,7 +132,7 @@ export const PARKS: Park[] = [
 
 // ─── 完整项目列表（数据来源：上海迪士尼官网尊享卡页面 + 攻略验证）─────────
 // 身高限制来源：https://www.shanghaidisneyresort.com/annual-pass/diamond-annual-pass/
-export const RIDES: Ride[] = [
+const RAW_RIDES: Ride[] = [
   // ── 疯狂动物城（最新园区，2023年开放）──────────────────────────────────────
   {
     id:"zootopia-ride", name:"疯狂动物城：热力追踪",
@@ -330,6 +341,22 @@ export const RIDES: Ride[] = [
 ];
 
 // ─── 拍照打卡点（15个，含具体位置和步行信息）────────────────────────────────
+/**
+ * 尊享卡资格由 LL_ELIGIBLE_RIDES 单一决定。
+ *
+ * 此前 Ride.llEligible 与 LL_ELIGIBLE_RIDES 是两份手工维护的清单，实际已经分叉：
+ * roaring-rapids / peter-pan / dumbo 在官方清单里却被标为不可购卡（导致 UI 说
+ * 不能买、路径规划却照样给 85% 折扣），frozen 反之。以官方清单为准派生该字段，
+ * 两者不再可能不一致。
+ *
+ * 注：frozen（冰雪奇缘·极境之旅）因此变为不可购卡——官网尊享卡页面未列出该项目，
+ * 若后续官方将其纳入，改 LL_ELIGIBLE_RIDES 一处即可。
+ */
+export const RIDES: Ride[] = RAW_RIDES.map((ride) => ({
+  ...ride,
+  llEligible: LL_ELIGIBLE_RIDES.includes(ride.id),
+}));
+
 export const PHOTO_SPOTS: PhotoSpot[] = [
   {
     id:"castle-front", name:"奇幻童话城堡正面",
@@ -499,67 +526,10 @@ export const PHOTO_SPOTS: PhotoSpot[] = [
 ];
 
 // ─── 购物点（完整）──────────────────────────────────────────────────────────
-export const SHOP_SPOTS: ShopSpot[] = [
-  {
-    id:"m-street-shop", name:"M大街购物廊（旗舰店）",
-    parkId:"shanghai", area:"mickey", areaName:"米奇大街",
-    theme:"迪士尼全品类旗舰+玲娜贝儿/星黛露专区", hasLimitedEdition:true,
-    bestTimeToVisit:"opening", duration:30,
-    tags:["旗舰","全品类","达菲","玲娜贝儿","星黛露","限定"],
-    tips:"全园商品最全，玲娜贝儿/星黛露等「川沙妲己」周边都在这里。限定款每周五上新，达菲系列需参与抽签。开园直冲保证货最全。",
-  },
-  {
-    id:"dream-chest", name:"梦幻宝盒（城堡精品店）",
-    parkId:"shanghai", area:"fantasy", areaName:"梦幻世界",
-    theme:"公主/城堡主题精品", hasLimitedEdition:true,
-    bestTimeToVisit:"anytime", duration:20,
-    tags:["公主","城堡","精品","换装","孩子"],
-    tips:"公主裙和王冠超热门，孩子可以当场换装游园。城堡内位置好，买了装备直接在城堡前拍照。",
-  },
-  {
-    id:"treasure-shop", name:"宝藏湾海盗纪念品店",
-    parkId:"shanghai", area:"treasure", areaName:"宝藏湾",
-    theme:"海盗主题周边（区域独家）", hasLimitedEdition:true,
-    bestTimeToVisit:"anytime", duration:20,
-    tags:["海盗","主题","限定","区域独家","望远镜","船长帽"],
-    tips:"海盗主题限定款全园唯一。望远镜、船长帽、海盗证书是最热门商品。不需要特意来，玩完加勒比海盗出来顺带逛。",
-  },
-  {
-    id:"tron-shop", name:"明日科技馆（TRON周边）",
-    parkId:"shanghai", area:"tomorrow", areaName:"明日世界",
-    theme:"TRON/科幻/漫威主题", hasLimitedEdition:true,
-    bestTimeToVisit:"anytime", duration:15,
-    tags:["TRON","科幻","发光","漫威","限定"],
-    tips:"TRON发光手环夜间在园区内发光效果拔群，是最受欢迎商品。漫威周边也在这里。出TRON顺带入手。",
-  },
-  {
-    id:"zootopia-shop", name:"疯狂动物城周边店",
-    parkId:"shanghai", area:"zootopia", areaName:"疯狂动物城",
-    theme:"疯狂动物城（区域独家限定）", hasLimitedEdition:true,
-    bestTimeToVisit:"opening", duration:20,
-    tags:["动物城","朱迪","尼克","新品","限定","区域独家"],
-    tips:"新园区独家周边，朱迪/尼克毛绒玩具和爪爪冰棒周边最抢手。开园直接来最保险，下午可能售罄。",
-  },
-  {
-    id:"toytown-shop", name:"玩具总动员纪念品店",
-    parkId:"shanghai", area:"toytown", areaName:"迪士尼·皮克斯玩具总动员",
-    theme:"玩具总动员/皮克斯主题", hasLimitedEdition:false,
-    bestTimeToVisit:"anytime", duration:15,
-    tags:["玩具总动员","胡迪","巴斯光年","皮克斯"],
-    tips:"胡迪和巴斯光年毛绒玩具，适合亲子纪念品。玩完园区内项目顺带逛。",
-  },
-  {
-    id:"fantasy-boutique", name:"幻想世界精品屋",
-    parkId:"shanghai", area:"fantasy", areaName:"梦幻世界",
-    theme:"公主/经典迪士尼周边", hasLimitedEdition:false,
-    bestTimeToVisit:"anytime", duration:20,
-    tags:["公主","经典","儿童","互动魔杖"],
-    tips:"互动魔杖在园区内多个魔法点可以施展魔法，孩子体验感很强。公主系列周边齐全。",
-  },
-];
+// 商店数据来自官网，由 scripts/generate_shops.mjs 生成，见 src/lib/shops-data.ts。
+// 此前这里是手写的 7 家，其中若干店名在官方清单中并不存在。
+export const SHOP_SPOTS: ShopSpot[] = SHANGHAI_SHOPS;
 
-// ─── 餐厅（完整版，数据来源：官方网站+知乎攻略+携程游记）──────────────────
-// 餐厅名来源：https://www.ciie.org/.../QTS/Hotspots/20190823/18007.html（官方）
 export const RESTAURANTS: Restaurant[] = [
   // ── 高端预约餐厅 ────────────────────────────────────────────────────────────
   {
@@ -749,6 +719,9 @@ export const RESTAURANTS: Restaurant[] = [
 export const getRidesByPark   = (id: string) => RIDES.filter((r) => r.parkId === id);
 export const getRideById      = (id: string) => RIDES.find((r) => r.id === id);
 export const getParkById      = (id: string) => PARKS.find((p) => p.id === id);
-export const getPhotoSpots    = (id: string) => PHOTO_SPOTS.filter((p) => p.parkId === id);
+// 人工整理的机位 + 从真实游客笔记中提取的机位。后者多数没有时段信息，
+// poi-scoring 会按中性处理，不会因缺失而被排除或误加分。
+export const getPhotoSpots    = (id: string) =>
+  [...PHOTO_SPOTS, ...UGC_PHOTO_SPOTS].filter((p) => p.parkId === id);
 export const getShopSpots     = (id: string) => SHOP_SPOTS.filter((s) => s.parkId === id);
 export const getRestaurants   = (id: string) => RESTAURANTS.filter((r) => r.parkId === id);

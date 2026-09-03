@@ -27,8 +27,8 @@ jobs:
 
       - name: Commit data
         run: |
-          git config user.name "waittimes-recorder"
-          git config user.email "actions@github.com"
+          git config user.name "Myla0619"
+          git config user.email "haileyliuliuliu@gmail.com"
           git add data/waittimes/
           git diff --cached --quiet && exit 0
           git commit -m "data: wait time snapshot $(date -u +%Y-%m-%dT%H:%M)"

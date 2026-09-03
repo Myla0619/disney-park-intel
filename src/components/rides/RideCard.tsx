@@ -3,6 +3,7 @@
 import { Ride, RideScore, Review } from "@/types";
 import { Clock, Star, TrendingUp, ChevronRight, AlertCircle, Zap } from "lucide-react";
 import Link from "next/link";
+import WishlistButton from "@/components/WishlistButton";
 
 type Props = {
   ride: Ride;
@@ -11,10 +12,10 @@ type Props = {
 };
 
 const PRIORITY_CONFIG = {
-  "must-do": { label: "必玩", bg: "bg-emerald-500", text: "text-white" },
-  "worth-it": { label: "值得玩", bg: "bg-blue-500", text: "text-white" },
-  "if-time": { label: "有时间玩", bg: "bg-amber-500", text: "text-white" },
-  "skip": { label: "可跳过", bg: "bg-slate-400", text: "text-white" },
+  "must-do":  { label: "必玩",     bg: "bg-gradient-to-r from-meadow-400 to-lagoon-400", text: "text-night-950" },
+  "worth-it": { label: "值得玩",   bg: "bg-magic-gradient",                              text: "text-white" },
+  "if-time":  { label: "有时间玩", bg: "bg-castle-gradient",                             text: "text-night-950" },
+  "skip":     { label: "可跳过",   bg: "bg-white/15",                                    text: "text-white/60" },
 };
 
 const THRILL_LABELS = ["", "温和", "略刺激", "中等", "刺激", "极刺激"];
@@ -29,16 +30,16 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
   const sentimentPct = reviews.length ? Math.round((posReviews / reviews.length) * 100) : null;
 
   const waitColor =
-    ride.waitTime == null ? "text-slate-400"
-    : ride.waitTime <= 20 ? "text-emerald-400"
-    : ride.waitTime <= 45 ? "text-amber-400"
-    : "text-red-400";
+    ride.waitTime == null ? "text-white/40"
+    : ride.waitTime <= 20 ? "text-meadow-400"
+    : ride.waitTime <= 45 ? "text-castle-300"
+    : "text-ember-400";
 
   const allTags = [...new Set(reviews.flatMap((r) => r.tags))].slice(0, 3);
 
   return (
     <Link href={`/rides/${ride.id}`}>
-      <div className="group bg-slate-800/50 hover:bg-slate-800 border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all duration-200 cursor-pointer">
+      <div className="group bg-night-800/55 hover:bg-night-800 border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all duration-200 cursor-pointer">
         <div className="flex items-start gap-3">
           {/* Score circle */}
           {score && (
@@ -85,7 +86,7 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
 
               {/* Rating */}
               {avgRating && (
-                <div className="flex items-center gap-1 text-xs text-amber-400">
+                <div className="flex items-center gap-1 text-xs text-castle-400">
                   <Star className="w-3 h-3 fill-amber-400" />
                   {avgRating}
                 </div>
@@ -125,7 +126,10 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
             )}
           </div>
 
-          <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0 mt-1" />
+          <div className="flex flex-shrink-0 flex-col items-end gap-2">
+            <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors mt-1" />
+            <WishlistButton id={ride.id} label={ride.name} size="sm" />
+          </div>
         </div>
       </div>
     </Link>
