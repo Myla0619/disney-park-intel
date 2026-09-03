@@ -57,7 +57,7 @@ const server = createServer((req, res) => {
       } catch {
         return json(res, 400, { ok: false, error: "请求体不是合法 JSON" });
       }
-      if (!parsed.tool || typeof parsed.tool !== "string") {
+      if (!parsed || typeof parsed !== "object" || !parsed.tool || typeof parsed.tool !== "string") {
         return json(res, 400, { ok: false, error: "缺少 tool 字段" });
       }
       const ctx: ToolContext = {
@@ -83,7 +83,7 @@ const server = createServer((req, res) => {
       } catch {
         return json(res, 400, { ok: false, error: "请求体不是合法 JSON" });
       }
-      if (!parsed.trajectory || !parsed.task) {
+      if (!parsed || typeof parsed !== "object" || !parsed.trajectory || !parsed.task) {
         return json(res, 400, { ok: false, error: "缺少 trajectory / task 字段" });
       }
       try {
@@ -105,6 +105,6 @@ const server = createServer((req, res) => {
   json(res, 404, { ok: false, error: "not found" });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, process.env.ENV_HOST ?? "127.0.0.1", () => {
   console.log(`[env] tool environment listening on :${PORT} (default mode: ${DEFAULT_MODE})`);
 });

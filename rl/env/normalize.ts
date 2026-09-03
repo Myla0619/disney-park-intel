@@ -37,22 +37,11 @@ const EN_ALIASES: Record<string, string> = {
   "explorer canoes": "canoe",
   "once upon a time adventure": "fantasy-tale",
   // 真实 themeparks.wiki 实体名（2026-09 录制数据核对）
-  "tron lightcycle power run": "tron",
   "tron realm": "tron",
-  "soaring over the horizon": "soaring",
-  "seven dwarfs mine train": "seven-dwarfs",
   "pirates of the caribbean battle for the sunken treasure": "pirates",
-  "the many adventures of winnie the pooh": "winnie",
-  "rexs racer": "dragon",
   "rex s racer": "dragon",
   "woodys roundup": "slinky-dash",
   "woody s roundup": "slinky-dash",
-  "slinky dog spin": "alien-pizza",
-  "fantasia carousel": "carousel",
-  "dumbo the flying elephant": "dumbo",
-  "voyage to the crystal grotto": "crystal-grotto",
-  "alice in wonderland maze": "alice-maze",
-  "zootopia hot pursuit": "zootopia-ride",
 };
 
 function norm(s: string): string {
@@ -72,7 +61,7 @@ export function matchRideId(apiName: string, rides: Ride[]): string | null {
     if (zhOnly && (n.includes(zhOnly) || zhOnly.includes(n))) return ride.id;
   }
   for (const [alias, id] of Object.entries(EN_ALIASES)) {
-    if (n.includes(norm(alias))) return id;
+    if (rides.some(r => r.id === id) && n.includes(norm(alias))) return id;
   }
   return null;
 }

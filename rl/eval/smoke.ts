@@ -32,13 +32,13 @@ const mk = (id: string, category: string, query: string, profile: SeedTask["prof
   ];
   const llm = new ScriptedLLM([
     // e1
-    '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai","ride_id":"tron"}}</tool_call>',
-    "<answer>创极速当前排队约75分钟，建议开园直冲。</answer>",
+    '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai","ride_id":"tron"}}</tool_call>',
+    "<think>测试</think><answer>创极速当前排队约75分钟，建议开园直冲。</answer>",
     // e2
-    "<answer>可以带未开封食品入园，玻璃瓶不行，以当日安检为准。</answer>",
+    "<think>测试</think><answer>可以带未开封食品入园，玻璃瓶不行，以当日安检为准。</answer>",
     // e3
-    '<tool_call>{"name":"plan_itinerary","arguments":{"park_id":"shanghai","profile":{"mode":"family","kids":[{"age":5,"heightCm":110}]}}}</tool_call>',
-    "<answer>已规划：09:00 入园先玩小熊维尼，10:00 疯狂动物城，12:00 午餐……</answer>",
+    '<think>测试</think><tool_call>{"name":"plan_itinerary","arguments":{"park_id":"shanghai","profile":{"mode":"family","kids":[{"age":5,"heightCm":110}]}}}</tool_call>',
+    "<think>测试</think><answer>已规划：09:00 入园先玩小熊维尼，10:00 疯狂动物城，12:00 午餐……</answer>",
   ]);
 
   const r = await evaluate(llm, tasks, "scripted-smoke", "scripted");

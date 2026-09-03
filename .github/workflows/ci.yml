@@ -32,7 +32,19 @@ jobs:
         run: npm test
 
       - name: RL evaluation protocol regression tests (CPU only)
-        run: python3 -m unittest discover -s rl/train -p 'test_*.py'
+        run: |
+          npx tsx rl/train/export_contract.ts --check
+          npx tsc --noEmit -p rl/tsconfig.check.json
+          npx tsx rl/agent/protocol-check.ts
+          npx tsx rl/agent/protocol-legacy.test.ts
+          python3 -m unittest discover -s rl/train -p 'test_*.py'
+          PARK_SANDBOX_FIXTURES_ONLY=1 npx tsx rl/env/contract-check.ts
+          npx tsx rl/env/http-check.ts
+          npm run env:smoke
+          npm run agent:smoke
+          npm run data:smoke
+          npm run reward:smoke
+          npm run eval:smoke
 
       - name: 步行时间矩阵几何校验
         run: npm run check:walk-matrix
