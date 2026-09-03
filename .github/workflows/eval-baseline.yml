@@ -67,8 +67,8 @@ jobs:
 
       - name: Commit results
         run: |
-          git config user.name "eval-runner"
-          git config user.email "actions@github.com"
+          git config user.name "Myla0619"
+          git config user.email "haileyliuliuliu@gmail.com"
           git add data/rl/eval/
           git diff --cached --quiet && exit 0
           git commit -m "eval: ${{ inputs.name }} results (n=${{ inputs.limit }})"

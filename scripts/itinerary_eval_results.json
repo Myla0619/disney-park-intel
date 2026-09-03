@@ -1,0 +1,35 @@
+{
+  "summary": {
+    "total": 100,
+    "passed": 100,
+    "failed": 0,
+    "pass_rate": 1.0
+  },
+  "by_category": {
+    "normal": {
+      "passed": 20,
+      "failed": 0
+    },
+    "time": {
+      "passed": 20,
+      "failed": 0
+    },
+    "height": {
+      "passed": 20,
+      "failed": 0
+    },
+    "ll": {
+      "passed": 20,
+      "failed": 0
+    },
+    "anchor": {
+      "passed": 10,
+      "failed": 0
+    },
+    "mode": {
+      "passed": 10,
+      "failed": 0
+    }
+  },
+  "failures": []
+}

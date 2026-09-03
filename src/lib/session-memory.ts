@@ -1,13 +1,15 @@
 /**
- * 会话记忆管理
- * 在多轮对话中追踪用户偏好变化，无需重新填写 Onboarding
- * 简历亮点：Session-scoped context memory for conversational preference tracking
+ * 会话记忆
+ *
+ * 在多轮对话中累积用户透露的偏好（最长可接受排队、不想玩的项目、同行人员、
+ * 当前位置），下一轮直接进系统提示词，用户不必重填 Onboarding。
  */
 
 import { UserProfile } from "@/types";
+import { getSessionStore } from "./session-store";
 
 export type PreferenceUpdate = {
-  type: "thrill_limit"    // "我不想排队超过X分钟"
+  type: "max_wait"        // "我不想排队超过X分钟"
        | "avoid_ride"     // "我不想玩XX"
        | "must_ride"      // "我一定要玩XX"
        | "location"       // "我现在在XX"
@@ -36,10 +38,14 @@ export type SessionMemory = {
   };
 };
 
-// ─── 内存存储（生产环境替换为 Upstash Redis）────────────────────────────────
-const sessions = new Map<string, SessionMemory>();
+// ─── 持久化 ───────────────────────────────────────────────────────────────
+// 后端由 session-store.ts 决定：默认进程内，配置了 Upstash 则走 Redis。
+// 一次游园不会超过一天，24 小时 TTL 足够，也不至于让废弃会话一直占空间。
+const TTL_SECONDS = 24 * 60 * 60;
 
-export function createSession(sessionId: string, profile: UserProfile): SessionMemory {
+const key = (sessionId: string) => `session:${sessionId}`;
+
+export async function createSession(sessionId: string, profile: UserProfile): Promise<SessionMemory> {
   const memory: SessionMemory = {
     sessionId,
     baseProfile: profile,
@@ -50,23 +56,30 @@ export function createSession(sessionId: string, profile: UserProfile): SessionM
       mustRides: [],
     },
   };
-  sessions.set(sessionId, memory);
+  await getSessionStore().set(key(sessionId), memory, TTL_SECONDS);
   return memory;
 }
 
-export function getSession(sessionId: string): SessionMemory | null {
-  return sessions.get(sessionId) ?? null;
+export async function getSession(sessionId: string): Promise<SessionMemory | null> {
+  return getSessionStore().get<SessionMemory>(key(sessionId));
 }
 
-export function updateSession(sessionId: string, update: PreferenceUpdate): SessionMemory | null {
-  const session = sessions.get(sessionId);
+export async function saveSession(session: SessionMemory): Promise<void> {
+  await getSessionStore().set(key(session.sessionId), session, TTL_SECONDS);
+}
+
+export async function updateSession(
+  sessionId: string,
+  update: PreferenceUpdate
+): Promise<SessionMemory | null> {
+  const session = await getSession(sessionId);
   if (!session) return null;
 
   session.updates.push(update);
 
   // 推断偏好
   switch (update.type) {
-    case "thrill_limit":
+    case "max_wait":
       session.inferredPreferences.maxWaitMinutes = Number(update.value);
       break;
     case "avoid_ride":
@@ -92,35 +105,23 @@ export function updateSession(sessionId: string, update: PreferenceUpdate): Sess
       break;
   }
 
-  sessions.set(sessionId, session);
+  await saveSession(session);
   return session;
 }
 
-export function addMessage(sessionId: string, role: "user" | "assistant", content: string) {
-  const session = sessions.get(sessionId);
+export async function addMessage(
+  sessionId: string,
+  role: "user" | "assistant",
+  content: string
+): Promise<void> {
+  const session = await getSession(sessionId);
   if (!session) return;
   session.conversationHistory.push({ role, content });
-  // 只保留最近20条（避免 context 过长）
+  // 只保留最近 20 条，避免上下文无限增长
   if (session.conversationHistory.length > 20) {
     session.conversationHistory = session.conversationHistory.slice(-20);
   }
-  sessions.set(sessionId, session);
-}
-
-// ─── 把 session 偏好合并回 UserProfile ───────────────────────────────────────
-export function mergeSessionToProfile(session: SessionMemory): UserProfile & {
-  _avoidRides: string[];
-  _mustRides: string[];
-  _maxWaitMinutes?: number;
-  _currentArea?: string;
-} {
-  return {
-    ...session.baseProfile,
-    _avoidRides: session.inferredPreferences.avoidRides,
-    _mustRides: session.inferredPreferences.mustRides,
-    _maxWaitMinutes: session.inferredPreferences.maxWaitMinutes,
-    _currentArea: session.currentArea,
-  };
+  await saveSession(session);
 }
 
 // ─── 从对话中提取偏好更新（传给 Claude 解析）────────────────────────────────

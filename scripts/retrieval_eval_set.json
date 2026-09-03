@@ -1,0 +1,186 @@
+{
+  "description": "评论检索的算法基准。文档 id 形如 <targetId>#<index>，对应 src/lib/seed-reviews.ts 中该目标的第 index 条评论。",
+  "corpus": "src/lib/seed-reviews.ts (SEED_REVIEWS)",
+  "corpusSize": 14,
+  "limitations": [
+    "语料是 14 条人工编写的示例评论，不是抓取到的真实评论分布——因此指标不代表线上真实检索质量",
+    "单人标注，无第二标注者，未计算标注一致性",
+    "真实语料（data/reviews/，由 scripts/collect_reviews.mjs 抓取）规模与措辞都不同，需要另行标注才能评测，不能沿用这份标注"
+  ],
+  "queries": [
+    {
+      "id": "q01",
+      "query": "适合孩子吗",
+      "relevant": [
+        "seven-dwarfs#0",
+        "seven-dwarfs#1",
+        "tron#1",
+        "pirates#0",
+        "soaring#0"
+      ],
+      "rationale": "直接谈及儿童体验或身高准入的评论"
+    },
+    {
+      "id": "q02",
+      "query": "身高限制多少",
+      "relevant": [
+        "tron#1",
+        "seven-dwarfs#0",
+        "pirates#0"
+      ],
+      "rationale": "提到具体身高数值或明确说无身高限制"
+    },
+    {
+      "id": "q03",
+      "query": "排队要多久",
+      "relevant": [
+        "tron#2",
+        "tron#0",
+        "seven-dwarfs#0",
+        "pirates#1",
+        "harbour-galley#1"
+      ],
+      "rationale": "给出等待时长或谈及排队策略"
+    },
+    {
+      "id": "q04",
+      "query": "刺激吗速度快不快",
+      "relevant": [
+        "tron#0",
+        "soaring#0"
+      ],
+      "rationale": "描述速度与刺激程度，soaring 明确说不刺激也算命中该维度"
+    },
+    {
+      "id": "q05",
+      "query": "拍照出片吗",
+      "relevant": [
+        "pirates#1",
+        "harbour-galley#0"
+      ],
+      "rationale": "明确提到出片或视觉观感"
+    },
+    {
+      "id": "q06",
+      "query": "需要提前预约吗",
+      "relevant": [
+        "belle-castle#0",
+        "belle-castle#1",
+        "harbour-galley#0"
+      ],
+      "rationale": "谈及是否需要订位及提前多久"
+    },
+    {
+      "id": "q07",
+      "query": "餐厅好吃吗",
+      "relevant": [
+        "belle-castle#0",
+        "harbour-galley#0",
+        "harbour-galley#1"
+      ],
+      "rationale": "对食物味道或性价比的评价"
+    },
+    {
+      "id": "q08",
+      "query": "老人适合玩吗",
+      "relevant": [
+        "soaring#0",
+        "pirates#0"
+      ],
+      "rationale": "明确提到长辈可玩或全年龄适宜"
+    },
+    {
+      "id": "q09",
+      "query": "尊享卡值得买吗",
+      "relevant": [
+        "tron#4",
+        "tron#2"
+      ],
+      "rationale": "谈及快速通道带来的等待缩减"
+    },
+    {
+      "id": "q10",
+      "query": "什么时候去人少",
+      "relevant": [
+        "tron#3",
+        "tron#0",
+        "harbour-galley#1"
+      ],
+      "rationale": "给出时段建议以避开高峰"
+    },
+    {
+      "id": "q11",
+      "query": "single rider 单人通道",
+      "relevant": [
+        "tron#2"
+      ],
+      "rationale": "唯一提到单人通道的评论"
+    },
+    {
+      "id": "q12",
+      "query": "有什么特别之处",
+      "relevant": [
+        "pirates#0",
+        "tron#0",
+        "soaring#0"
+      ],
+      "rationale": "描述该项目区别于其他乐园的独特体验"
+    },
+    {
+      "id": "q13",
+      "query": "值不值得排",
+      "relevant": [
+        "tron#0",
+        "tron#3",
+        "pirates#0"
+      ],
+      "rationale": "对是否值得投入等待时间给出判断"
+    },
+    {
+      "id": "q14",
+      "query": "小朋友会害怕吗",
+      "relevant": [
+        "seven-dwarfs#0",
+        "seven-dwarfs#1"
+      ],
+      "rationale": "描述低龄儿童的实际体验感受"
+    },
+    {
+      "id": "q15",
+      "query": "公主 主题装修",
+      "relevant": [
+        "belle-castle#0",
+        "belle-castle#1"
+      ],
+      "rationale": "谈及主题餐厅的装潢与角色元素"
+    },
+    {
+      "id": "q16",
+      "query": "worth the wait",
+      "relevant": [
+        "tron#3",
+        "tron#4"
+      ],
+      "rationale": "英文评论中对等待价值的判断"
+    },
+    {
+      "id": "q17",
+      "query": "龙虾卷 招牌菜",
+      "relevant": [
+        "harbour-galley#1"
+      ],
+      "rationale": "唯一提到具体菜品的评论"
+    },
+    {
+      "id": "q18",
+      "query": "海盗船 宝藏湾",
+      "relevant": [
+        "pirates#1",
+        "pirates#0",
+        "harbour-galley#0"
+      ],
+      "rationale": "提到宝藏湾主题区或海盗船景观"
+    }
+  ],
+  "purpose": "固定语料上的横向对比基准：用于判断分词/打分方式的改动是让检索变好还是变差。语料固定不变，指标才可比。"
+}

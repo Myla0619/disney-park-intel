@@ -1,22 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { parseBody } from "@/lib/api/respond";
+import { ItineraryBodySchema } from "@/lib/api/schemas";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/api/with-rate-limit";
+import { z } from "zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { getAnthropicClient } from "@/lib/anthropic-client";
+import { ITINERARY_MODEL } from "@/lib/models";
+import { logUsage } from "@/lib/usage-log";
+import { isAnthropicConfigured } from "@/lib/anthropic-client";
 import { UserProfile, RideScore, HistoricalWaitData, LiveWaitData } from "@/types";
 import { getRidesByPark, getParkById } from "@/lib/parks-data";
 import { buildRoute, buildAnchors, getParkHours, fillGaps } from "@/lib/routing";
+import { nowMinutesInPark, todayInPark } from "@/lib/park-time";
 
-const client = new Anthropic();
+const NotesSchema = z.object({
+  notes: z.array(z.object({ itemId: z.string(), note: z.string() })),
+});
 
 export async function POST(req: NextRequest) {
-  const { profile, scores, historicalWaits, liveWaits, currentArea } = await req.json() as {
-    profile: UserProfile;
-    scores: RideScore[];
-    historicalWaits: HistoricalWaitData[];
-    liveWaits: LiveWaitData[];
-    currentArea?: string;
-  };
+  const limited = checkRateLimit(req, "itinerary", RATE_LIMITS.llm);
+  if (limited.response) return limited.response;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const isToday = profile.visitDate === today;
+  const parsed = await parseBody(req, ItineraryBodySchema);
+  if (!parsed.ok) return parsed.response;
+
+  const profile = parsed.data.profile as UserProfile;
+  const scores = parsed.data.scores as RideScore[];
+  const historicalWaits = parsed.data.historicalWaits as HistoricalWaitData[];
+  const liveWaits = parsed.data.liveWaits as LiveWaitData[];
+  const currentArea = parsed.data.currentArea;
+  const polishNotes = parsed.data.polishNotes;
+  const wishlist = parsed.data.wishlist;
+
+  // 按园区时区判断"今天"，服务端时区不参与
+  const isToday = profile.visitDate === todayInPark(profile.park);
+  const nowMin = isToday ? nowMinutesInPark(profile.park) : undefined;
   const park = getParkById(profile.park);
   const rides = getRidesByPark(profile.park);
 
@@ -24,7 +42,7 @@ export async function POST(req: NextRequest) {
   const parkHours = await getParkHours(profile.park, profile.visitDate, isToday);
 
   // 锚点（花车/烟花）
-  const anchors = buildAnchors(profile, parkHours);
+  const anchors = buildAnchors(profile, parkHours, nowMin);
 
   // 起始区域
   const startArea = isToday && currentArea ? currentArea : "entrance";
@@ -34,14 +52,22 @@ export async function POST(req: NextRequest) {
     rides, scores,
     historical: historicalWaits,
     live: isToday ? liveWaits : [],
-    profile, startArea, parkHours, anchors,
+    profile, startArea, parkHours, anchors, nowMin, wishlist,
   };
 
   const rawRoute = buildRoute(routeParams);
   const localRoute = fillGaps(rawRoute, profile);
 
   if (localRoute.length === 0) {
-    return NextResponse.json({ itinerary: [], isToday, parkHours });
+    return NextResponse.json({ itinerary: [], isToday, parkHours }, { headers: limited.headers });
+  }
+
+  // 不需要润色时直接返回确定性结果，不产生任何模型调用
+  if (!polishNotes || !isAnthropicConfigured()) {
+    return NextResponse.json(
+      { itinerary: localRoute, isToday, parkHours, polished: false },
+      { headers: limited.headers }
+    );
   }
 
   // Claude 润色备注（不改时间顺序）
@@ -59,17 +85,20 @@ export async function POST(req: NextRequest) {
 行程：
 ${routeSummary}
 
-返回 JSON 数组，每项只有两个字段：{ "itemId": string, "note": string }
-只返回 JSON，不要其他文字。`;
+为行程中的每个项目各产出一条备注。`;
 
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1500,
-      messages: [{ role:"user", content:prompt }],
+    const message = await getAnthropicClient().messages.parse({
+      model: ITINERARY_MODEL,
+      max_tokens: 16000,
+      thinking: { type: "adaptive" },
+      output_config: { format: zodOutputFormat(NotesSchema) },
+      messages: [{ role: "user", content: prompt }],
     });
-    const raw = (message.content[0] as any).text.trim().replace(/```json|```/g,"").trim();
-    const notes: { itemId:string; note:string }[] = JSON.parse(raw);
+    logUsage("itinerary_notes", ITINERARY_MODEL, message.usage);
+
+    const notes = message.parsed_output?.notes;
+    if (!notes) throw new Error("结构化输出解析失败");
     const noteMap: Record<string,string> = {};
     notes.forEach((n) => { noteMap[n.itemId] = n.note; });
 
@@ -77,8 +106,9 @@ ${routeSummary}
       ...item,
       note: noteMap[item.itemId] ?? item.note,
     }));
-    return NextResponse.json({ itinerary:merged, isToday, parkHours });
-  } catch {
-    return NextResponse.json({ itinerary:localRoute, isToday, parkHours, fallback:true });
+    return NextResponse.json({ itinerary:merged, isToday, parkHours }, { headers: limited.headers });
+  } catch (err) {
+    console.error("[itinerary] Claude 备注润色失败，返回未润色行程:", err);
+    return NextResponse.json({ itinerary:localRoute, isToday, parkHours, fallback:true }, { headers: limited.headers });
   }
 }

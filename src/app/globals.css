@@ -6,8 +6,37 @@
   * {
     -webkit-tap-highlight-color: transparent;
   }
+
   body {
-    @apply bg-slate-900 text-white;
+    @apply text-white;
+    /* 夜空渐变固定在视口上，滚动时背景不跟着跑，园区"天空"的感觉才立得住 */
+    background: theme("backgroundImage.night-sky");
+    background-attachment: fixed;
+    background-color: theme("colors.night.900");
+    min-height: 100vh;
+  }
+
+  /* 时间输入等原生控件在深色背景下默认是白底，强制跟随暗色 */
+  input[type="time"],
+  input[type="date"] {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  /* 卡片：半透明紫调玻璃质感，而非纯灰面板 */
+  .card-night {
+    @apply rounded-2xl border border-white/10 bg-night-800/60 backdrop-blur-sm;
+  }
+
+  .card-night-hover {
+    @apply transition-all hover:border-magic-400/40 hover:bg-night-700/60;
+  }
+
+  /* 主操作按钮 */
+  .btn-magic {
+    @apply rounded-xl bg-magic-gradient font-semibold text-white shadow-glow transition-all
+           hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:shadow-none;
   }
 }
 
@@ -18,5 +47,10 @@
   }
   .scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+
+  /* 金色渐变文字，用于标题与评分 */
+  .text-castle-gradient {
+    @apply bg-castle-gradient bg-clip-text text-transparent;
   }
 }

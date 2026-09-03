@@ -1,9 +1,13 @@
 /**
  * Claude Tool Use 工具定义
- * 简历亮点：Multi-tool Agent orchestration via Anthropic Tool Use API
+ *
+ * 这些描述会直接进入模型上下文，决定工具选择的准确率——改动前请跑
+ * scripts/eval_tool_accuracy.py 看指标是否回退。
  */
 
-export const DISNEY_TOOLS = [
+import type Anthropic from "@anthropic-ai/sdk";
+
+export const DISNEY_TOOLS: Anthropic.Tool[] = [
   {
     name: "get_wait_times",
     description: "获取上海迪士尼乐园项目的实时或历史预测等待时间。当用户询问排队、等待时间、哪个项目人少时调用。",

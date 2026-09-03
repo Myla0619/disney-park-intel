@@ -1,0 +1,301 @@
+{
+  "metrics": {
+    "corpusSize": 14,
+    "queries": 18,
+    "P@1": 0.944,
+    "P@3": 0.556,
+    "Recall@3": 0.678,
+    "MRR": 0.963,
+    "nDCG@5": 0.79
+  },
+  "perQuery": [
+    {
+      "id": "q01",
+      "query": "适合孩子吗",
+      "ranked": [
+        "soaring#0",
+        "tron#1",
+        "seven-dwarfs#0",
+        "tron#0",
+        "tron#2"
+      ],
+      "p1": 1,
+      "p3": 1,
+      "recall3": 0.6,
+      "rr": 1,
+      "ndcg5": 0.7227265726449519
+    },
+    {
+      "id": "q02",
+      "query": "身高限制多少",
+      "ranked": [
+        "tron#1",
+        "pirates#0",
+        "tron#0",
+        "tron#2",
+        "tron#3"
+      ],
+      "p1": 1,
+      "p3": 0.6666666666666666,
+      "recall3": 0.6666666666666666,
+      "rr": 1,
+      "ndcg5": 0.7653606369886217
+    },
+    {
+      "id": "q03",
+      "query": "排队要多久",
+      "ranked": [
+        "pirates#1",
+        "harbour-galley#1",
+        "tron#2",
+        "seven-dwarfs#0",
+        "tron#0"
+      ],
+      "p1": 1,
+      "p3": 1,
+      "recall3": 0.6,
+      "rr": 1,
+      "ndcg5": 1
+    },
+    {
+      "id": "q04",
+      "query": "刺激吗速度快不快",
+      "ranked": [
+        "soaring#0",
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3"
+      ],
+      "p1": 1,
+      "p3": 0.6666666666666666,
+      "recall3": 1,
+      "rr": 1,
+      "ndcg5": 1
+    },
+    {
+      "id": "q05",
+      "query": "拍照出片吗",
+      "ranked": [
+        "pirates#1",
+        "harbour-galley#0",
+        "tron#0",
+        "tron#1",
+        "tron#2"
+      ],
+      "p1": 1,
+      "p3": 0.6666666666666666,
+      "recall3": 1,
+      "rr": 1,
+      "ndcg5": 1
+    },
+    {
+      "id": "q06",
+      "query": "需要提前预约吗",
+      "ranked": [
+        "harbour-galley#0",
+        "belle-castle#0",
+        "tron#1",
+        "tron#0",
+        "tron#2"
+      ],
+      "p1": 1,
+      "p3": 0.6666666666666666,
+      "recall3": 0.6666666666666666,
+      "rr": 1,
+      "ndcg5": 0.7653606369886217
+    },
+    {
+      "id": "q07",
+      "query": "餐厅好吃吗",
+      "ranked": [
+        "belle-castle#0",
+        "harbour-galley#0",
+        "tron#0",
+        "tron#1",
+        "tron#2"
+      ],
+      "p1": 1,
+      "p3": 0.6666666666666666,
+      "recall3": 0.6666666666666666,
+      "rr": 1,
+      "ndcg5": 0.7653606369886217
+    },
+    {
+      "id": "q08",
+      "query": "老人适合玩吗",
+      "ranked": [
+        "soaring#0",
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 0.5,
+      "rr": 1,
+      "ndcg5": 0.6131471927654584
+    },
+    {
+      "id": "q09",
+      "query": "尊享卡值得买吗",
+      "ranked": [
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3",
+        "tron#4"
+      ],
+      "p1": 0,
+      "p3": 0.3333333333333333,
+      "recall3": 0.5,
+      "rr": 0.3333333333333333,
+      "ndcg5": 0.5437713091520254
+    },
+    {
+      "id": "q10",
+      "query": "什么时候去人少",
+      "ranked": [
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3",
+        "tron#4"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 0.3333333333333333,
+      "rr": 1,
+      "ndcg5": 0.6713860725233041
+    },
+    {
+      "id": "q11",
+      "query": "single rider 单人通道",
+      "ranked": [
+        "tron#2",
+        "tron#0",
+        "tron#1",
+        "tron#3",
+        "tron#4"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 1,
+      "rr": 1,
+      "ndcg5": 1
+    },
+    {
+      "id": "q12",
+      "query": "有什么特别之处",
+      "ranked": [
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3",
+        "tron#4"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 0.3333333333333333,
+      "rr": 1,
+      "ndcg5": 0.46927872602275644
+    },
+    {
+      "id": "q13",
+      "query": "值不值得排",
+      "ranked": [
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3",
+        "tron#4"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 0.3333333333333333,
+      "rr": 1,
+      "ndcg5": 0.6713860725233041
+    },
+    {
+      "id": "q14",
+      "query": "小朋友会害怕吗",
+      "ranked": [
+        "seven-dwarfs#0",
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 0.5,
+      "rr": 1,
+      "ndcg5": 0.6131471927654584
+    },
+    {
+      "id": "q15",
+      "query": "公主 主题装修",
+      "ranked": [
+        "belle-castle#0",
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 0.5,
+      "rr": 1,
+      "ndcg5": 0.6131471927654584
+    },
+    {
+      "id": "q16",
+      "query": "worth the wait",
+      "ranked": [
+        "tron#4",
+        "tron#3",
+        "seven-dwarfs#1",
+        "belle-castle#1",
+        "tron#0"
+      ],
+      "p1": 1,
+      "p3": 0.6666666666666666,
+      "recall3": 1,
+      "rr": 1,
+      "ndcg5": 1
+    },
+    {
+      "id": "q17",
+      "query": "龙虾卷 招牌菜",
+      "ranked": [
+        "harbour-galley#1",
+        "tron#0",
+        "tron#1",
+        "tron#2",
+        "tron#3"
+      ],
+      "p1": 1,
+      "p3": 0.3333333333333333,
+      "recall3": 1,
+      "rr": 1,
+      "ndcg5": 1
+    },
+    {
+      "id": "q18",
+      "query": "海盗船 宝藏湾",
+      "ranked": [
+        "pirates#1",
+        "harbour-galley#0",
+        "pirates#0",
+        "tron#0",
+        "tron#1"
+      ],
+      "p1": 1,
+      "p3": 1,
+      "recall3": 1,
+      "rr": 1,
+      "ndcg5": 1
+    }
+  ]
+}

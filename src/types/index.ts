@@ -40,6 +40,20 @@ export type UserProfile = {
   focusPhoto: boolean;
   focusShopping: boolean;
   selectedRestaurants: string[];
+  /** 用餐安排。为空时按推荐时段自动插入用餐。 */
+  diningPlans?: DiningPlan[];
+};
+
+export type DiningPlan = {
+  restaurantId: string;
+  mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  /** HH:MM */
+  time: string;
+  /**
+   * true = 已预约。预约是园方给定的固定时段，行程必须让路，与巡游烟花同级；
+   * false = 只是打算这个时间吃，排程可在附近浮动。
+   */
+  isReservation: boolean;
 };
 
 // ─── 优速通套餐配置 ───────────────────────────────────────────────────────────
@@ -103,6 +117,10 @@ export type ShopSpot = {
   area: string;
   areaName: string;
   theme: string;
+  /** 官方列出的商品品类 */
+  categories: string[];
+  /** 店面规模，由官方品类数推导：品类越多可逛内容越多 */
+  scale: "flagship" | "major" | "small" | "kiosk";
   hasLimitedEdition: boolean;
   bestTimeToVisit: "opening" | "anytime" | "before-closing";
   duration: number;
@@ -162,6 +180,10 @@ export type Review = {
   tags: string[];
   sentiment: "positive" | "neutral" | "negative";
   url?: string;
+  /** 抓取时间（ISO 8601）。示例数据没有这个字段，据此可区分真实语料与降级内容。 */
+  scrapedAt?: string;
+  /** 原始互动数据，用于排序与可信度判断 */
+  engagement?: { likes?: number; comments?: number; collects?: number };
 };
 
 export type RideScore = {
