@@ -19,12 +19,12 @@ function toolLine(t: { name: string; description: string; input_schema: any }): 
   return `- ${t.name}(${params}): ${t.description}`;
 }
 
-export function buildSystemPrompt(parkId: string): string {
+export function buildSystemPrompt(parkId: string, date?: string): string {
   const park = getParkById(parkId);
   const areas = park ? park.areas.map((a) => `${a.id}=${a.name}`).join(" ") : "";
 
   // 当前日期必须注入：排队/天气/演出随日期变化，节假日与平日结果完全不同
-  const today = new Date().toISOString().slice(0, 10);
+  const today = date ?? new Date().toISOString().slice(0, 10);
 
   return `你是乐园游玩规划助手，通过调用工具帮游客查排队、找评论、规划行程。当前乐园：${park?.name ?? parkId}（park_id="${parkId}"）。今天是 ${today}。
 
