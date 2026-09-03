@@ -8,6 +8,7 @@ import copy
 from collections import defaultdict
 from pathlib import Path
 from eval_common import parse_output, score, compare
+from reward_v2 import score_first_step
 
 CALL = '<think>查排队</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>'
 
@@ -64,14 +65,15 @@ class ProtocolTests(unittest.TestCase):
     def test_actual_training_reward_parser(self):
         # Extract the actual parser and regex assignments, without importing torch/TRL.
         source = ast.parse(Path(__file__).with_name("grpo_trl.py").read_text())
-        names = {"THINK_RE", "TOOL_RE", "ANSWER_RE"}
-        nodes = [n for n in source.body if (isinstance(n, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id in names for t in n.targets)) or
-            (isinstance(n, ast.FunctionDef) and n.name == "parse_completion")]
-        namespace = {"re": re, "json": json}
+        nodes = [n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == "composite_reward"]
+        namespace = {"score_first_step": score_first_step}
         exec(compile(ast.Module(body=nodes, type_ignores=[]), "reward-parser", "exec"), namespace)
-        self.assertTrue(namespace["parse_completion"](CALL)["call_ok"])
-        self.assertFalse(namespace["parse_completion"](CALL.replace("tool_call", "tool_response"))["call_ok"])
+        reward = namespace['composite_reward']
+        labels = dict(category=['explicit_wait'], ref_tool_name=['get_wait_times'], ref_tool_args=[{'park_id':'shanghai'}])
+        self.assertEqual(reward([CALL], **labels), [1.0])
+        self.assertEqual(reward([CALL.replace('tool_call','tool_response')], **labels), [0.0])
+        with self.assertRaises(ValueError):
+            reward([CALL, CALL], **labels)
 
     def test_python_sources_parse(self):
         for name in ["eval_model.py", "eval_adapter.py", "eval_common.py", "grpo_trl.py"]:

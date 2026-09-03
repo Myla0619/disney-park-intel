@@ -47,16 +47,16 @@ const mkTask = (category: string, query: string, profile: SeedTask["profile"] = 
 
   // ③ 常识题不调工具 = 正确
   const noTool = await runEpisode(new ScriptedLLM([
-    "<answer>可以带未开封的食品入园，玻璃瓶和需加热的食物不行，以当日安检为准。</answer>",
+    "<think>测试</think><answer>可以带未开封的食品入园，玻璃瓶和需加热的食物不行，以当日安检为准。</answer>",
   ]), { parkId: "shanghai", query: "能带吃的进园吗" }, caller);
   const rNoTool = await scoreTrajectory(noTool, mkTask("no_tool", "能带吃的进园吗"), judge);
   check(rNoTool.trajectory === 1, "③: 常识题不调工具，轨迹满分");
 
   // ④ 常识题狂调工具 = 扣分
   const overCall = await runEpisode(new ScriptedLLM([
-    '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-    '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-    "<answer>可以带未开封食品。</answer>",
+    '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+    '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+    "<think>测试</think><answer>可以带未开封食品。</answer>",
   ]), { parkId: "shanghai", query: "能带吃的进园吗" }, caller);
   const rOver = await scoreTrajectory(overCall, mkTask("no_tool", "能带吃的进园吗"), judge);
   check(rOver.trajectory < 0.5, "④: 常识题乱调工具被惩罚");
@@ -65,23 +65,23 @@ const mkTask = (category: string, query: string, profile: SeedTask["profile"] = 
   // ⑤ 规划任务：真跑 plan_itinerary，硬约束维度由校验器重算（可验证奖励）
   const plan = await runEpisode(new ScriptedLLM([
     '<think>规划</think><tool_call>{"name":"plan_itinerary","arguments":{"park_id":"shanghai","profile":{"mode":"family","kids":[{"age":5,"heightCm":110}],"watchFireworks":true}}}</tool_call>',
-    "<answer>已为你规划：09:00 入园后先玩小熊维尼（20分钟），10:30 疯狂动物城……21:00 烟花收尾。</answer>",
+    "<think>测试</think><answer>已为你规划：09:00 入园后先玩小熊维尼（20分钟），10:30 疯狂动物城……21:00 烟花收尾。</answer>",
   ]), { parkId: "shanghai", query: "带娃规划一天" }, caller);
   const rPlan = await scoreTrajectory(plan, mkTask("plan_request", "带娃规划一天", { mode: "family", kids: [{ age: 5, heightCm: 110 }], watchFireworks: true }, "medium"), judge);
   check(rPlan.constraints === 1, "⑤: 规划行程硬约束校验全过（RL/VR）", rPlan.detail.constraints);
 
   // ⑥ 规划任务不出行程 = 硬约束 0 分
   const planNoTool = await runEpisode(new ScriptedLLM([
-    "<answer>建议你上午玩明日世界，下午看烟花，随便逛逛就行。</answer>",
+    "<think>测试</think><answer>建议你上午玩明日世界，下午看烟花，随便逛逛就行。</answer>",
   ]), { parkId: "shanghai", query: "带娃规划一天" }, caller);
   const rPlanNo = await scoreTrajectory(planNoTool, mkTask("plan_request", "带娃规划一天", {}, "medium"), judge);
   check(rPlanNo.constraints === 0, "⑥: 无可校验行程硬约束 0 分");
 
   // ⑦ 失败恢复减半惩罚
   const recover = await runEpisode(new ScriptedLLM([
-    '<tool_call>{"name":"get_wait_times","arguments":{}}</tool_call>',
-    '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-    "<answer>全园平均等待约44分钟。</answer>",
+    '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{}}</tool_call>',
+    '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+    "<think>测试</think><answer>全园平均等待约44分钟。</answer>",
   ]), { parkId: "shanghai", query: "人多吗" }, caller);
   const rRec = await scoreTrajectory(recover, mkTask("implicit_wait", "人多吗"), judge);
   check(rRec.callStatus === 0.9, `⑦: 失败后恢复只扣 0.1 (${rRec.callStatus})`);

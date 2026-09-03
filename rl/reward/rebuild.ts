@@ -15,7 +15,10 @@ function extractToolResult(content: string): ToolResult | null {
   const m = content.match(/<tool_response>([\s\S]*?)<\/tool_response>/);
   if (!m) return null;
   try {
-    return JSON.parse(m[1]) as ToolResult;
+    const value = JSON.parse(m[1]);
+    if (!value || typeof value !== "object" ||
+        !(value.ok === true && "result" in value || value.ok === false && typeof value.error === "string")) return null;
+    return value as ToolResult;
   } catch {
     return null;
   }
@@ -47,6 +50,7 @@ export function rebuildTrajectoryFromMessages(messages: ChatMessage[]): Trajecto
     if (parsed.answer !== null) {
       answer = parsed.answer;
       answerRepaired = parsed.answerRepaired;
+      break; // Real rollout terminates at the first valid answer.
     }
   }
 

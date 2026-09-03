@@ -18,7 +18,7 @@ def main():
     model.eval()
     def generate(messages):
         text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        tokens = tokenizer(text, return_tensors="pt").to(model.device)
+        tokens = tokenizer(text, return_tensors="pt", add_special_tokens=False).to(model.device)
         with torch.no_grad():
             output = model.generate(**tokens, max_new_tokens=args.max_tokens, do_sample=False)
         return tokenizer.decode(output[0][tokens["input_ids"].shape[1]:], skip_special_tokens=True)

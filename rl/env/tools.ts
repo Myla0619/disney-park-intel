@@ -28,6 +28,7 @@ import { getSnapshot } from "./sandbox";
 import { normalizeThemeParksWiki, normalizeQueueTimes, extractShowtimes } from "./normalize";
 import { scoreRides } from "./scorer";
 import { checkItinerary } from "./constraints";
+import { validateToolCall } from "../agent/protocol";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PARKS_CONFIG = JSON.parse(
@@ -107,9 +108,10 @@ function buildProfile(partial: Partial<UserProfile>, appParkId: string): UserPro
     watchParade: false, paradeTime: getParkById(appParkId)?.defaultParadeTime ?? "15:45",
     watchFireworks: false, fireworksTime: getParkById(appParkId)?.defaultFireworksTime ?? "21:00",
     visitDate: new Date().toISOString().slice(0, 10),
-    park: appParkId, routeProfile: "balanced", diningPreference: "normal",
+    routeProfile: "balanced", diningPreference: "normal",
     focusPhoto: false, focusShopping: false, selectedRestaurants: [],
     ...partial,
+    park: appParkId,
   };
 }
 
@@ -163,7 +165,7 @@ export const TOOLS: ToolDef[] = [
         target_id: { type: "string", description: "项目ID或餐厅ID" },
         target_type: { type: "string", enum: ["ride", "restaurant"] },
         query: { type: "string", description: "关心的问题，如'适合孩子吗'" },
-        top_k: { type: "number", description: "返回条数，默认3" },
+        top_k: { type: "integer", minimum: 1, maximum: 20, description: "返回条数，1–20，默认3" },
       },
       required: ["park_id", "target_id", "target_type", "query"],
     },
@@ -177,7 +179,7 @@ export const TOOLS: ToolDef[] = [
           ...r, date: "", sentiment: r.rating >= 4 ? "positive" : r.rating >= 3 ? "neutral" : "negative",
         })) as Review[];
       } else {
-        const ride = getRideById(target_id);
+        const ride = getRidesByPark(park_id).find((r) => r.id === target_id);
         if (!ride) return toolError(`项目不存在: ${target_id}`);
         corpus = RIDE_REVIEW_FIXTURES[target_id] ?? [];
       }
@@ -199,7 +201,168 @@ export const TOOLS: ToolDef[] = [
       type: "object",
       properties: {
         park_id: { type: "string" },
-        profile: { type: "object", description: "游客档案增量字段：mode/kids/arrivalTime/departureTime/llPackage/watchParade/watchFireworks 等" },
+        profile: {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "family",
+                "thrill",
+                "casual",
+                "photo",
+                "shopping"
+              ]
+            },
+            "kids": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "age",
+                  "heightCm"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "age": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "heightCm": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 250
+                  }
+                }
+              }
+            },
+            "thrillLevel": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "arrivalTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "departureTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "mobilityNeeds": {
+              "type": "boolean"
+            },
+            "llPackage": {
+              "type": "string",
+              "enum": [
+                "none",
+                "single",
+                "bundle3",
+                "bundle6-kids",
+                "bundle6-adv",
+                "bundle6-fun",
+                "bundle8",
+                "premium9",
+                "premium13",
+                "concierge11",
+                "vip33"
+              ]
+            },
+            "singlePassRides": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "bundle3Rides": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "watchParade": {
+              "type": "boolean"
+            },
+            "paradeTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "watchFireworks": {
+              "type": "boolean"
+            },
+            "fireworksTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "visitDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "routeProfile": {
+              "type": "string",
+              "enum": [
+                "efficient",
+                "balanced",
+                "easy"
+              ]
+            },
+            "diningPreference": {
+              "type": "string",
+              "enum": [
+                "quick",
+                "normal",
+                "fancy"
+              ]
+            },
+            "focusPhoto": {
+              "type": "boolean"
+            },
+            "focusShopping": {
+              "type": "boolean"
+            },
+            "selectedRestaurants": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "diningPlans": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "restaurantId",
+                  "mealType",
+                  "time",
+                  "isReservation"
+                ],
+                "properties": {
+                  "restaurantId": {
+                    "type": "string"
+                  },
+                  "mealType": {
+                    "type": "string",
+                    "enum": [
+                      "breakfast",
+                      "lunch",
+                      "dinner",
+                      "snack"
+                    ]
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  "isReservation": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
         route_profile: { type: "string", enum: ["efficient", "balanced", "easy"], description: "权衡档位：efficient=排队优先最小化，easy=步行优先最小化" },
         start_area: { type: "string", description: "出发区域ID，默认 entrance" },
         avoid_rides: { type: "array", items: { type: "string" }, description: "排除的项目ID" },
@@ -237,7 +400,7 @@ export const TOOLS: ToolDef[] = [
         totalItems: itinerary.length,
         constraintsPassed: constraint.passed,
         items: itinerary.map((i) => ({
-          time: i.time, end: i.endTime, name: i.itemName, area: i.area,
+          ...i, time: i.time, end: i.endTime, name: i.itemName, area: i.area,
           wait: i.estimatedWait, type: i.type, ll: i.llType ?? null,
         })),
       }, false);
@@ -262,7 +425,7 @@ export const TOOLS: ToolDef[] = [
       const walk = (area: string) => (current_area ? walkTime(current_area, area, mockProfile) : null);
 
       if (spot_type === "ride") {
-        const r = getRideById(spot_id);
+        const r = getRidesByPark(park_id).find((r) => r.id === spot_id);
         if (!r) return toolError(`项目不存在: ${spot_id}`);
         return toolOk({
           name: r.name, area: r.areaName, heightRequirement: r.heightRequirement,
@@ -388,9 +551,176 @@ export const TOOLS: ToolDef[] = [
         itinerary: {
           type: "array",
           description: "行程项数组，每项含 time/endTime/itemId/itemName/type，LL项目带 llType",
-          items: { type: "object" },
+          minItems: 1,
+          items: { type: "object", required: ["time", "endTime", "itemId", "itemName", "type"], properties: {
+            time: { type: "string", pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+            endTime: { type: "string", pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+            itemId: { type: "string" }, itemName: { type: "string" },
+            type: { type: "string", enum: ["ride", "meal", "photo", "shop", "show", "rest", "parade", "fireworks", "walk"] },
+          } },
         },
-        profile: { type: "object", description: "游客档案增量字段（kids/arrivalTime/departureTime 等）" },
+        profile: {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "family",
+                "thrill",
+                "casual",
+                "photo",
+                "shopping"
+              ]
+            },
+            "kids": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "age",
+                  "heightCm"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "age": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "heightCm": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 250
+                  }
+                }
+              }
+            },
+            "thrillLevel": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "arrivalTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "departureTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "mobilityNeeds": {
+              "type": "boolean"
+            },
+            "llPackage": {
+              "type": "string",
+              "enum": [
+                "none",
+                "single",
+                "bundle3",
+                "bundle6-kids",
+                "bundle6-adv",
+                "bundle6-fun",
+                "bundle8",
+                "premium9",
+                "premium13",
+                "concierge11",
+                "vip33"
+              ]
+            },
+            "singlePassRides": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "bundle3Rides": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "watchParade": {
+              "type": "boolean"
+            },
+            "paradeTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "watchFireworks": {
+              "type": "boolean"
+            },
+            "fireworksTime": {
+              "type": "string",
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            },
+            "visitDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "routeProfile": {
+              "type": "string",
+              "enum": [
+                "efficient",
+                "balanced",
+                "easy"
+              ]
+            },
+            "diningPreference": {
+              "type": "string",
+              "enum": [
+                "quick",
+                "normal",
+                "fancy"
+              ]
+            },
+            "focusPhoto": {
+              "type": "boolean"
+            },
+            "focusShopping": {
+              "type": "boolean"
+            },
+            "selectedRestaurants": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "diningPlans": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "restaurantId",
+                  "mealType",
+                  "time",
+                  "isReservation"
+                ],
+                "properties": {
+                  "restaurantId": {
+                    "type": "string"
+                  },
+                  "mealType": {
+                    "type": "string",
+                    "enum": [
+                      "breakfast",
+                      "lunch",
+                      "dinner",
+                      "snack"
+                    ]
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  "isReservation": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
       },
       required: ["park_id", "itinerary"],
     },
@@ -414,7 +744,8 @@ export const TOOLS: ToolDef[] = [
     handler: async (input, ctx) => {
       const park = getParkById(input.park_id);
       if (!park) return toolError(`未知乐园: ${input.park_id}`);
-      const date = input.date ?? new Date().toISOString().slice(0, 10);
+      const date = input.date ?? ctx.snapshotAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) return toolError("date 必须为有效 YYYY-MM-DD 日期");
 
       if (ctx.mode === "sandbox") {
         // 由日期哈希生成确定性伪天气：同一天永远同一结果，rollout 可复现
@@ -434,11 +765,15 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
-export const TOOL_REGISTRY = TOOLS.map(({ name, description, input_schema }) => ({ name, description, input_schema }));
+export const TOOL_REGISTRY = TOOLS.map(({ name, description, input_schema }) => ({ name, description, input_schema: { ...input_schema, additionalProperties: false } }));
 
 export async function callTool(name: string, input: any, ctx: ToolContext): Promise<ToolResult> {
   const tool = TOOLS.find((t) => t.name === name);
   if (!tool) return toolError(`未知工具: ${name}。可用工具: ${TOOLS.map((t) => t.name).join(", ")}`);
+  const invalid = validateToolCall({ name, arguments: input }, TOOL_REGISTRY);
+  if (invalid) return toolError(invalid);
+  if (ctx.mode !== "sandbox" && ctx.mode !== "live") return toolError("mode 必须为 sandbox 或 live");
+  if (input.park_id && !getParkById(input.park_id)) return toolError(`未知乐园: ${input.park_id}`);
   try {
     return await tool.handler(input ?? {}, ctx);
   } catch (e: any) {

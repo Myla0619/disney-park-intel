@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseAgentStep } from "../agent/protocol";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const TRAJ_DIR = join(ROOT, "data", "rl", "trajectories");
@@ -70,6 +71,10 @@ export function cleanTrajectories(records: TrajectoryRecord[]): CleanResult {
 
   let strippedTotal = 0;
   for (const t of records) {
+    if (t.messages.some(m => m.role === "assistant" && m.content.includes("<tool_response>"))) {
+      rejected.push({ taskId: t.taskId, reason: "assistant_forged_tool_response" });
+      continue;
+    }
     // 关卡 1：规则过滤
     if (t.stoppedReason === "llm_error") { rejected.push({ taskId: t.taskId, reason: "llm_error" }); continue; }
     if (t.stoppedReason === "timeout") { rejected.push({ taskId: t.taskId, reason: "timeout" }); continue; }
@@ -101,6 +106,10 @@ export function cleanTrajectories(records: TrajectoryRecord[]): CleanResult {
       strippedTotal += stripped;
       return { ...m, content: cleaned };
     });
+    if (cleanedMessages.some(m => m.role === "assistant" && parseAgentStep(m.content).errors.length > 0)) {
+      rejected.push({ taskId: t.taskId, reason: "invalid_assistant_protocol" });
+      continue;
+    }
 
     // 关卡 4：加权。完美 = 无格式错误、无补救、无失败调用
     const perfect = t.formatErrorCount === 0 && !t.answerRepaired && failedCalls === 0;

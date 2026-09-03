@@ -28,10 +28,10 @@ const P = "shanghai";
   check(badJson.toolCall === null && badJson.errors.some((e) => e.includes("JSON")), "parse: 坏 JSON 报错");
 
   const unclosed = parseAgentStep("<think>ok</think><answer>今天人不多，建议先玩创极速");
-  check(unclosed.answer !== null && unclosed.answerRepaired, "parse: answer 未闭合被补救");
+  check(unclosed.answer === null && unclosed.errors.length > 0, "parse: answer 未闭合被拒绝");
 
-  const both = parseAgentStep('<tool_call>{"name":"walk_time","arguments":{}}</tool_call><answer>x</answer>');
-  check(both.answer === null && both.toolCall?.name === "walk_time" && both.errors.length > 0, "parse: tool_call+answer 互斥取 tool_call");
+  const both = parseAgentStep('<think>测试</think><tool_call>{"name":"walk_time","arguments":{}}</tool_call><answer>x</answer>');
+  check(both.answer === null && both.toolCall === null && both.errors.length > 0, "parse: tool_call+answer 混合输出拒绝执行");
 
   const neither = parseAgentStep("我觉得今天天气不错");
   check(neither.errors.some((e) => e.includes("也没有")), "parse: 裸文本判格式错误");
@@ -39,7 +39,7 @@ const P = "shanghai";
   // ── system prompt 生成 ───────────────────────────────────────
   const prompt = buildSystemPrompt(P);
   check(prompt.includes("get_wait_times") && prompt.includes("check_constraints") && prompt.includes("<tool_call>"), "prompt: 包含注册表工具与格式规范");
-  check(prompt.length < 3500, "prompt: 保持小模型友好长度(<3500字)", prompt.length);
+  check(prompt.length < 8000, "prompt: 包含完整 schema 且长度受控(<8000字)", prompt.length);
 
   // ── episode 1: 正常两步走 ────────────────────────────────────
   const t1 = await runEpisode(
@@ -58,9 +58,9 @@ const P = "shanghai";
   // ── episode 2: 失败感知（坏参数 → 模型纠正）─────────────────
   const t2 = await runEpisode(
     new ScriptedLLM([
-      '<tool_call>{"name":"get_wait_times","arguments":{}}</tool_call>', // 缺 park_id
+      '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{}}</tool_call>', // 缺 park_id
       '<think>补上必填参数</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-      "<answer>当前全园平均等待约44分钟。</answer>",
+      "<think>测试</think><answer>当前全园平均等待约44分钟。</answer>",
     ]),
     { parkId: P, query: "现在人多吗" },
     caller
@@ -81,16 +81,16 @@ const P = "shanghai";
   check(t3.stoppedReason === "answer" && t3.formatErrorCount > 0 && (t3.steps[0].toolResult as any)?.error?.includes("格式错误"), "episode: 格式违规回传纠正提示后恢复");
 
   // ── episode 4: 最大轮数护栏 ─────────────────────────────────
-  const loopScript = Array(5).fill('<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>');
+  const loopScript = Array(5).fill('<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>');
   const t4 = await runEpisode(new ScriptedLLM(loopScript), { parkId: P, query: "test" }, caller, { maxTurns: 3 });
   check(t4.stoppedReason === "max_turns" && t4.toolCallCount === 3, "episode: maxTurns 护栏生效");
 
   // ── episode 5: 工具调用次数上限 ─────────────────────────────
   const t5 = await runEpisode(
     new ScriptedLLM([
-      '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-      '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-      "<answer>好的，基于已有信息：全园平均44分钟。</answer>",
+      '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+      '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+      "<think>测试</think><answer>好的，基于已有信息：全园平均44分钟。</answer>",
     ]),
     { parkId: P, query: "test" },
     caller,
@@ -101,18 +101,18 @@ const P = "shanghai";
   // ── episode 6: 上下文预算 early-stop ────────────────────────
   const t6 = await runEpisode(
     new ScriptedLLM([
-      '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
-      "<answer>上下文有限，直接给结论：当前全园平均等待约44分钟。</answer>",
+      '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai"}}</tool_call>',
+      "<think>测试</think><answer>上下文有限，直接给结论：当前全园平均等待约44分钟。</answer>",
     ]),
     { parkId: P, query: "现在人多吗" },
     caller,
     { maxContextChars: 100 }
   );
-  check(t6.earlyStopTriggered && t6.stoppedReason === "answer", "episode: 上下文预算触发 early-stop 提示");
+  check(t6.earlyStopTriggered && t6.stoppedReason === "context_budget" && t6.toolCallCount === 0, "episode: 初始上下文超预算时不发送模型请求");
 
   // ── episode 7: 墙钟超时护栏（防单样本卡死批量蒸馏）──────────
   const t7 = await runEpisode(
-    new ScriptedLLM(["<answer>不该到这里。</answer>"]),
+    new ScriptedLLM(["<think>测试</think><answer>不该到这里。</answer>"]),
     { parkId: P, query: "test" },
     caller,
     { timeoutMs: 0 }

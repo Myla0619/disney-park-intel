@@ -26,6 +26,12 @@ export function checkItinerary(
   profile: UserProfile
 ): { passed: boolean; checks: ConstraintCheck[] } {
   const checks: ConstraintCheck[] = [];
+  const timePattern = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!Array.isArray(items) || !items.length || !timePattern.test(profile.arrivalTime) || !timePattern.test(profile.departureTime) ||
+      profile.departureTime < profile.arrivalTime || items.some(i => !i || !timePattern.test(i.time) || !timePattern.test(i.endTime) || i.endTime < i.time) ||
+      !Array.isArray(profile.kids) || profile.kids.some(k => !k || !Number.isFinite(k.heightCm) || k.heightCm <= 0)) {
+    return { passed: false, checks: [{ check: "input_validity", pass: false, detail: "空行程、非法时间/负时长或孩子身高数据无效" }] };
+  }
   const sorted = [...items].sort((a, b) => a.time.localeCompare(b.time));
 
   // 1. 时间连续性：任何项不得早于上一项结束（容差 2 分钟）
