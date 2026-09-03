@@ -100,7 +100,7 @@ npm run eval:retrieval
 ## 本地运行
 
 ```bash
-git clone https://github.com/liuliu-21/disney-park-intel.git
+git clone https://github.com/Myla0619/disney-park-intel.git
 cd disney-park-intel
 npm install
 cp .env.local.example .env.local
@@ -128,8 +128,12 @@ data/                    评论与排队快照
 scripts/                 采集、校验和评测
 ```
 
+## RL 实验与产品的关系
+
+`rl/` 保留了数据蒸馏、SFT、GRPO、工具环境和评测代码，结果在 `data/rl/eval/`。这部分目前是独立实验，尚未接入网页 Agent；产品仍通过 Anthropic 客户端调用模型，具体模型可由部署环境变量覆盖。训练结果不等于线上效果，接入前还需要部署模型服务并验证工具协议与安全边界。
+
 ## 贡献与归属
 
-仓库历史中的 `JINGYU LIU` 和 `Myla0619` 是同一位作者的两个 GitHub 身份。其余快照提交由该作者配置的 GitHub Actions 自动生成。
+项目由 [Myla0619](https://github.com/Myla0619) 维护，原先两个账号下的代码已合并到本仓库。开发过程中使用了 AI 编程辅助；排队快照由作者配置的 GitHub Actions 自动采集。提交身份统一并不表示这些自动化工作是手工完成的。
 
 外部 API、迪士尼项目信息和小红书公开内容并非本项目原创；本项目实现了它们的采集、映射、降级处理、检索和评测。
