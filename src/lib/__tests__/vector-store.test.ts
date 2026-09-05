@@ -57,7 +57,7 @@ describe("按项目分片的评论检索", () => {
     indexReviews("dumbo", [review("适合 幼儿 温和 不 刺激")]);
     expect(searchReviews("tron", "刺激", 5)).toHaveLength(1);
     expect(searchReviews("tron", "刺激", 5)[0].text).toContain("速度");
-    expect(searchReviews("dumbo", "刺激", 5)[0].text).toContain("幼儿");
+    expect(searchReviews("dumbo", "刺激", 5)).toEqual([]);
   });
 
   it("未索引过的项目返回空数组", () => {

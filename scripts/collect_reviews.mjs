@@ -11,7 +11,8 @@
  *   export APIFY_TOKEN=apify_api_xxx
  *   node scripts/collect_reviews.mjs                    # 抓全部目标
  *   node scripts/collect_reviews.mjs --target tron      # 只抓一个
- *   node scripts/collect_reviews.mjs --limit 3          # 每个关键词最多几条
+ *   node scripts/collect_reviews.mjs --limit 10         # 每个关键词最多几条
+ *   node scripts/collect_reviews.mjs --replace          # 明确要求才覆盖旧语料；默认增量合并
  *   node scripts/collect_reviews.mjs --dry-run          # 只打印计划，不调用 API
  */
 
@@ -56,7 +57,11 @@ const flag = (name, fallback) => {
 };
 const DRY_RUN = args.includes("--dry-run");
 const ONLY_TARGET = flag("--target", null);
-const PER_KEYWORD = Number(flag("--limit", 5));
+const PER_KEYWORD = Number(flag("--limit", 10));
+const REPLACE = args.includes("--replace");
+if (!Number.isInteger(PER_KEYWORD) || PER_KEYWORD < 1 || PER_KEYWORD > 50) {
+  throw new Error("--limit 必须是 1–50 的整数");
+}
 
 /**
  * 从 parks-data.ts 解析关键词表。直接读源文件而不是引入构建步骤：
@@ -185,6 +190,11 @@ async function collectTarget({ targetId, targetType, keywords }, token) {
   const scrapedAt = new Date().toISOString();
   const reviews = [];
   const seen = new Set();
+  const relevanceTerms = keywords.flatMap((k) => {
+    const normalized = k.replace(/上海迪士尼|迪士尼|攻略|值得玩吗|排队/g, "").trim();
+    return [k, normalized].filter((x) => x.length >= 2);
+  });
+  let irrelevant = 0;
 
   for (const n of notes) {
     // 多个关键词会命中同一篇笔记，按 id 去重
@@ -194,6 +204,10 @@ async function collectTarget({ targetId, targetType, keywords }, token) {
 
     const text = `${String(n?.title ?? "").trim()} ${String(n?.desc ?? "").trim()}`.trim();
     if (text.length < 10) continue; // 正文过短的笔记对检索没有价值
+    if (!relevanceTerms.some((term) => text.toLowerCase().includes(term.toLowerCase()))) {
+      irrelevant++;
+      continue;
+    }
 
     const eng = n?.engagement ?? {};
     const likes = toCount(eng.liked_count);
@@ -202,7 +216,7 @@ async function collectTarget({ targetId, targetType, keywords }, token) {
       source: "xiaohongshu",
       author: String(n?.author?.nickname ?? "小红书用户"),
       rating: ratingFromLikes(likes),
-      text: text.slice(0, 500),
+      text: text.slice(0, 1200),
       date: toIso(n?.timestamp ?? n?.last_update_time ?? n?.update_time) || scrapedAt,
       tags: tagsOf(text),
       sentiment: sentiment(text),
@@ -218,7 +232,7 @@ async function collectTarget({ targetId, targetType, keywords }, token) {
 
   // 按互动量降序，最有代表性的笔记排在前面
   reviews.sort((a, b) => (b.engagement.likes ?? 0) - (a.engagement.likes ?? 0));
-  console.log(`  保留 ${reviews.length} 条有效评论（去重后）`);
+  console.log(`  保留 ${reviews.length} 条相关笔记（去重后），过滤 ${irrelevant} 条未提及目标的泛攻略`);
 
   return { targetId, targetType, scrapedAt, keywords, reviews };
 }
@@ -251,8 +265,23 @@ async function main() {
     try {
       const entry = await collectTarget(target, token);
       if (!entry || !entry.reviews.length) continue;
+      const output = path.join(OUT_DIR, `${entry.targetId}.json`);
+      if (!REPLACE && existsSync(output)) {
+        const previous = JSON.parse(readFileSync(output, "utf-8"));
+        const combined = [...entry.reviews, ...(previous.reviews ?? [])];
+        const unique = new Map();
+        for (const review of combined) {
+          const key = review.url || `${review.author}\u0000${review.text}`;
+          const old = unique.get(key);
+          if (!old || review.text.length > old.text.length) unique.set(key, review);
+        }
+        entry.reviews = [...unique.values()].sort((a, b) =>
+          (b.engagement?.likes ?? 0) - (a.engagement?.likes ?? 0)
+        );
+        entry.keywords = [...new Set([...(previous.keywords ?? []), ...entry.keywords])];
+      }
       writeFileSync(
-        path.join(OUT_DIR, `${entry.targetId}.json`),
+        output,
         JSON.stringify(entry, null, 2) + "\n",
         "utf-8"
       );

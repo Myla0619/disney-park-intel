@@ -6,6 +6,7 @@ import { getRideById } from "@/lib/parks-data";
 import { useProfileStore } from "@/lib/store";
 import WishlistButton from "@/components/WishlistButton";
 import { Review, Ride } from "@/types";
+import { reviewMatches, reviewSnippet } from "@/lib/review-snippet";
 import {
   ArrowLeft, Star, Clock, Zap, AlertCircle, Heart,
   ThumbsUp, ThumbsDown, Minus, ExternalLink, TrendingUp
@@ -47,8 +48,16 @@ export default function RideDetailPage() {
     fetch(`/api/reviews?rideId=${id}`)
       .then((res) => res.json())
       .then((data) => {
-        setReviews(data.reviews ?? []);
-        setSummary(data.summary ?? null);
+        const related: Review[] = (data.reviews ?? []).filter((review: Review) =>
+          reviewMatches(review.text, [r.name, r.id])
+        );
+        setReviews(related);
+        setSummary(related.length ? {
+          positive: related.filter((review) => review.sentiment === "positive").length,
+          neutral: related.filter((review) => review.sentiment === "neutral").length,
+          negative: related.filter((review) => review.sentiment === "negative").length,
+          avgRating: +(related.reduce((sum, review) => sum + review.rating, 0) / related.length).toFixed(1),
+        } : null);
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -175,13 +184,13 @@ export default function RideDetailPage() {
 
         {/* Reviews */}
         <div>
-          <h2 className="font-semibold text-sm mb-3 text-white/70">真实用户评论 ({reviews.length})</h2>
+          <h2 className="font-semibold text-sm mb-3 text-white/70">项目相关用户笔记 ({reviews.length})</h2>
           {loading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-night-800/55 rounded-xl animate-pulse" />)}
             </div>
           ) : reviews.length === 0 ? (
-            <div className="text-center py-8 text-white/30 text-sm">暂无评论数据</div>
+            <div className="text-center py-8 text-white/30 text-sm">暂无明确提及该项目的笔记片段</div>
           ) : (
             <div className="space-y-3">
               {reviews.map((review, i) => (
@@ -199,7 +208,9 @@ export default function RideDetailPage() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-white/70 text-sm leading-relaxed">{review.text}</p>
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    {reviewSnippet(review.text, [ride.name, ride.id], 180)}
+                  </p>
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex gap-1 flex-wrap">
                       {review.tags.slice(0, 3).map((tag) => (

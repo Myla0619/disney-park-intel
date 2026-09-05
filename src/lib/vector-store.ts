@@ -100,7 +100,7 @@ export class VectorStore<T extends { text: string }> {
       return { ...doc, score };
     });
 
-    return scored.sort((a, b) => b.score - a.score).slice(0, topK);
+    return scored.filter((item) => item.score > 0).sort((a, b) => b.score - a.score).slice(0, topK);
   }
 }
 

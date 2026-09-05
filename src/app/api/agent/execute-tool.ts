@@ -15,6 +15,7 @@ import { getLiveWaitTimes, getPredictedWaitTimes } from "@/lib/wait-times";
 import { getReviews } from "@/lib/reviews";
 import { scoreRides } from "@/lib/scoring";
 import { indexReviews, searchReviews } from "@/lib/vector-store";
+import { reviewSnippet } from "@/lib/review-snippet";
 import { buildRoute, buildAnchors, getParkHours, timeToMin } from "@/lib/routing";
 import { nowMinutesInPark, todayInPark } from "@/lib/park-time";
 import { SessionMemory } from "@/lib/session-memory";
@@ -115,7 +116,7 @@ async function searchReviewsTool(input: Record<string, any>) {
         source: r.source,
         author: r.author,
         rating: r.rating,
-        text: r.text.slice(0, 150),
+        text: reviewSnippet(r.text, [query, targetId, ...r.tags], 180),
         tags: r.tags,
         relevanceScore: (r as any).score?.toFixed(3),
       })),

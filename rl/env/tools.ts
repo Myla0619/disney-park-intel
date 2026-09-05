@@ -22,6 +22,7 @@ import {
 import { LL_PACKAGES } from "@/lib/ll-packages";
 import { buildRoute, buildAnchors } from "@/lib/routing";
 import { indexReviews, searchReviews } from "@/lib/vector-store";
+import { reviewSnippet } from "@/lib/review-snippet";
 
 import { type EnvMode, type ToolResult, toolOk, toolError, withRetry, withTimeout } from "./util";
 import { getSnapshot } from "./sandbox";
@@ -189,7 +190,8 @@ export const TOOLS: ToolDef[] = [
       return toolOk({
         totalReviews: corpus.length,
         relevantReviews: hits.map((r) => ({
-          source: r.source, rating: r.rating, text: r.text, tags: r.tags,
+          source: r.source, rating: r.rating,
+          text: reviewSnippet(r.text, [query, target_id, ...r.tags], 180), tags: r.tags,
         })),
       });
     },
