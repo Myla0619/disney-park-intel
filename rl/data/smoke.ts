@@ -75,7 +75,7 @@ function check(cond: boolean, label: string, extra?: unknown) {
     toRecord(perfect, "t1", "explicit_wait"),
     toRecord(recovered, "t2", "explicit_wait"),
     toRecord(noAnswer, "t3", "explicit_wait"),
-    toRecord(long, "t4", "plan_request"),
+    toRecord(long, "t4", "explicit_wait"),
   ]);
 
   check(stats.kept === 3 && stats.rejected === 1, "clean: 3收1弃", stats);

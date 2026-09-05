@@ -18,9 +18,8 @@
 
 import type { Trajectory } from "../agent/loop";
 import type { SeedTask } from "../data/seeds";
-import { checkItinerary } from "../env/constraints";
-import { buildProfileForReward } from "./profile";
 import type { Judge } from "./judge";
+import { needsPlan, verifyFinalPlan } from "./plan-evidence";
 
 export type RewardBreakdown = {
   format: number;
@@ -38,9 +37,9 @@ export type CurriculumPhase = "early" | "mid" | "late";
 
 /** 课程式权重：结构化 → 答案质量 逐步让渡；late 阶段答案 ≥60%（大原则） */
 export const PHASE_WEIGHTS: Record<CurriculumPhase, Record<string, number>> = {
-  early: { format: 0.15, trajectory: 0.12, efficiency: 0.08, constraints: 0.12, callStatus: 0.08, answer: 0.45 },
-  mid:   { format: 0.08, trajectory: 0.08, efficiency: 0.06, constraints: 0.12, callStatus: 0.06, answer: 0.60 },
-  late:  { format: 0.05, trajectory: 0.06, efficiency: 0.05, constraints: 0.12, callStatus: 0.04, answer: 0.68 },
+  early: { format: 0.10, trajectory: 0.08, efficiency: 0.05, constraints: 0.12, callStatus: 0.05, answer: 0.60 },
+  mid:   { format: 0.06, trajectory: 0.06, efficiency: 0.04, constraints: 0.12, callStatus: 0.04, answer: 0.68 },
+  late:  { format: 0.04, trajectory: 0.04, efficiency: 0.03, constraints: 0.12, callStatus: 0.02, answer: 0.75 },
 };
 
 /** 任务类别 → 期望调用的工具（轨迹合理性判定表） */
@@ -109,28 +108,9 @@ function scoreEfficiency(t: Trajectory, task: SeedTask): [number, string] {
 }
 
 function scoreConstraints(t: Trajectory, task: SeedTask): [number, string] {
-  // 非规划类任务没有硬约束对象：中性满分（该维度权重实质只作用于规划任务）
-  if (task.category !== "plan_request") return [1, "非规划任务，无硬约束对象"];
-
-  // 从轨迹中找最后一次成功的 plan_itinerary 结果，重跑规则校验器（可验证，不信任工具自报）
-  for (let i = t.steps.length - 1; i >= 0; i--) {
-    const s = t.steps[i];
-    if (s.parsed.toolCall?.name === "plan_itinerary" && s.toolResult?.ok) {
-      const items = (s.toolResult as any).result?.items;
-      if (Array.isArray(items)) {
-        const normalized = items.map((x: any) => ({
-          time: x.time, endTime: x.end ?? x.endTime, itemId: x.itemId ?? "", itemName: x.name ?? x.itemName ?? "",
-          area: x.area ?? "", estimatedWait: x.wait ?? 0, walkMinutes: 0, duration: 0, note: "",
-          type: x.type ?? "ride", llType: x.ll ?? x.llType ?? null,
-        }));
-        const profile = buildProfileForReward(task.profile, task.parkId);
-        const res = checkItinerary(normalized as any, profile);
-        const passed = res.checks.filter((c) => c.pass).length;
-        return [passed / res.checks.length, `硬约束 ${passed}/${res.checks.length} 通过${res.passed ? "" : `：${res.checks.find((c) => !c.pass)?.detail}`}`];
-      }
-    }
-  }
-  return [0, "规划任务但未产出可校验的行程"];
+  if (!needsPlan(t, task)) return [1, "非规划任务，无硬约束对象"];
+  const result = verifyFinalPlan(t, task);
+  return [result.score, result.detail];
 }
 
 function scoreCallStatus(t: Trajectory): [number, string] {
@@ -164,13 +144,18 @@ export async function scoreTrajectory(
   const { score: answer, detail: dAns } = await judge.score(task, t);
 
   const w = PHASE_WEIGHTS[phase];
-  const total = clamp01(
+  const rawTotal = clamp01(
     w.format * format + w.trajectory * trajectory + w.efficiency * efficiency +
     w.constraints * constraints + w.callStatus * callStatus + w.answer * clamp01(answer)
   );
+  // Invalid plans cannot buy a high score with formatting or Judge prose.
+  // Keep partial feedback but cap all infeasible/unverified plans below valid ones.
+  const planFailed = needsPlan(t, task) && constraints < 1;
+  const total = planFailed ? 0 : rawTotal;
 
   return {
     format, trajectory, efficiency, constraints, callStatus, answer: clamp01(answer), total, phase,
-    detail: { format: dFormat, trajectory: dTraj, efficiency: dEff, constraints: dCons, callStatus: dCall, answer: dAns },
+    detail: { format: dFormat, trajectory: dTraj, efficiency: dEff, constraints: dCons, callStatus: dCall, answer: dAns,
+      feasibility_gate: planFailed ? "不可行/未验证规划总分为0" : "not capped" },
   };
 }

@@ -1,0 +1,8 @@
+{
+  "verl_commit": "23af6a7a2e8d6efeeb2adbe5d1689c7a24f503a3",
+  "llamafactory_commit": "dced5f8804bfbf7109ef7c14401db6bd5cce7e53",
+  "model": "Qwen/Qwen2.5-32B-Instruct",
+  "precision": "bfloat16",
+  "training": "full",
+  "protocol": "park-full-multiturn-v1"
+}

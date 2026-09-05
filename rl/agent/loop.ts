@@ -1,3 +1,4 @@
+import { sharedKeyPool } from "./key-pool";
 /**
  * Rollout 循环：驱动一次完整的 Agent episode
  *
@@ -35,17 +36,37 @@ export class OpenAICompatLLM implements LLM {
   ) {}
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const res = await fetch(`${this.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
-      body: JSON.stringify({ model: this.model, messages, temperature: this.temperature, max_tokens: 1024 }),
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!res.ok) throw new Error(`LLM HTTP ${res.status}`);
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim()) throw new Error("LLM returned no text content");
-    return content;
+    const keys = this.apiKey === (process.env.LLM_API_KEY ?? "EMPTY") && process.env.LLM_API_KEYS
+      ? JSON.parse(process.env.LLM_API_KEYS) as string[] : [this.apiKey];
+    const pool = sharedKeyPool(keys);
+    const deadline = Date.now() + 120_000;
+    for (let attempt=0; attempt<3; attempt++) {
+      const lease=await pool.acquire(deadline);
+      try {
+        const res=await fetch(`${this.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+          method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${lease.key}`},
+          body:JSON.stringify({model:this.model,messages,temperature:this.temperature,
+            max_tokens:Number(process.env.LLM_MAX_TOKENS ?? 4096)}),
+          signal:AbortSignal.timeout(Math.max(1,deadline-Date.now())),
+        });
+        const retry=res.headers.get("retry-after");
+        const seconds=retry ? Number(retry) : NaN;
+        const delay=Number.isFinite(seconds)?seconds*1000:retry?Math.max(0,Date.parse(retry)-Date.now()):1000*2**attempt;
+        lease.release(res.status,delay);
+        if(!res.ok) {
+          if([401,403,429].includes(res.status)||res.status>=500)continue;
+          throw new Error(`LLM HTTP ${res.status}`);
+        }
+        const data=await res.json();
+        const content=data.choices?.[0]?.message?.content;
+        if(typeof content!=="string"||!content.trim())throw new Error("LLM returned no text content");
+        return content;
+      } catch(e) {
+        lease.release(503,1000*2**attempt);
+        if(attempt===2 || Date.now()>=deadline)throw e;
+      }
+    }
+    throw new Error("LLM retry budget exhausted");
   }
 }
 
@@ -185,9 +206,9 @@ export async function runEpisode(
     }
     step.toolResult = feedback;
 
-    // 注入 tool_response，接近上下文预算时附加强制总结提示
+    // Reserve space for one final answer before reaching the hard context cap.
     let responseMsg = formatToolResponse(feedback);
-    if (contextSize() + responseMsg.length > maxContextChars) {
+    if (contextSize() + responseMsg.length > maxContextChars * 0.8 || toolCallCount >= maxToolCalls) {
       responseMsg += `\n${EARLY_STOP_NUDGE}`;
       earlyStopTriggered = true;
     }

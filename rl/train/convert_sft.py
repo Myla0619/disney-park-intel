@@ -7,9 +7,8 @@
   python rl/train/convert_sft.py --pass-only           # 只要 pass（丢 borderline）
   python rl/train/convert_sft.py --difficulty easy medium   # 课程学习分阶段导出
 
-说明：LLaMA-Factory 不支持逐样本 loss 权重，borderline 的 0.6 权重两种落地方式：
-  ① --pass-only 直接过滤（质量优先，样本少时不推荐）
-  ② 全保留（默认，多样性优先）；换 ms-swift 时可直接用 weight 字段
+保留 weight / taskId / category / difficulty 元数据供 weighted QLoRA 消费。
+其它训练器不会自动使用这些额外字段，必须核实其 sampler / loss。
 """
 
 import argparse
@@ -23,23 +22,33 @@ OUT_DIR = ROOT / "data" / "rl" / "llamafactory"
 ROLE_MAP = {"system": "system", "user": "human", "assistant": "gpt"}
 
 
+def convert_samples(samples):
+    from sft_data import validate_metadata
+    converted = []
+    for sample in samples:
+        validate_metadata(sample)
+        conv = [{"from": ROLE_MAP[m["role"]], "value": m["content"]} for m in sample["messages"]]
+        converted.append({"conversations": conv, **{
+            k: sample[k] for k in ("taskId", "weight", "difficulty", "category")
+        }})
+    return converted
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pass-only", action="store_true")
     ap.add_argument("--difficulty", nargs="*", default=None, help="easy/medium/hard 过滤")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--in", dest="source", default=str(SRC))
     args = ap.parse_args()
 
-    samples = [json.loads(l) for l in SRC.read_text(encoding="utf-8").splitlines() if l.strip()]
+    samples = [json.loads(l) for l in Path(args.source).read_text(encoding="utf-8").splitlines() if l.strip()]
     if args.pass_only:
         samples = [s for s in samples if s["quality"] == "pass"]
     if args.difficulty:
         samples = [s for s in samples if s["difficulty"] in args.difficulty]
 
-    converted = []
-    for s in samples:
-        conv = [{"from": ROLE_MAP[m["role"]], "value": m["content"]} for m in s["messages"]]
-        converted.append({"conversations": conv})
+    converted = convert_samples(samples)
 
     suffix = "_".join(args.difficulty) if args.difficulty else ("pass" if args.pass_only else "all")
     out = Path(args.out) if args.out else OUT_DIR / f"park_sft_{suffix}.json"
