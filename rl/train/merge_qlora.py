@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Merge QLoRA adapter back into base model and export."""
+if __name__ == "__main__":
+    raise SystemExit("Historical adapter entrypoint retired. Use rl/train/run_all.sh for the full-parameter pipeline.")
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel

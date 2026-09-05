@@ -36,7 +36,7 @@ const EN_ALIASES: Record<string, string> = {
   "junior explorers camp": "exploration-trail",
   "explorer canoes": "canoe",
   "once upon a time adventure": "fantasy-tale",
-  // 真实 themeparks.wiki 实体名（2026-09 录制数据核对；仅补充上方未覆盖的写法，已去重）
+  // 真实 themeparks.wiki 实体名（2026-09 录制数据核对）
   "tron realm": "tron",
   "pirates of the caribbean battle for the sunken treasure": "pirates",
   "rex s racer": "dragon",
@@ -61,7 +61,7 @@ export function matchRideId(apiName: string, rides: Ride[]): string | null {
     if (zhOnly && (n.includes(zhOnly) || zhOnly.includes(n))) return ride.id;
   }
   for (const [alias, id] of Object.entries(EN_ALIASES)) {
-    if (n.includes(norm(alias))) return id;
+    if (rides.some(r => r.id === id) && n.includes(norm(alias))) return id;
   }
   return null;
 }

@@ -1,74 +1,62 @@
-# 训练手册：从租卡到出数字
+# 乐园 Agent：唯一训练主线
 
-## 文件
+主线为 Qwen2.5-32B-Instruct，全参 SFT 冷启动 → 全参、多轮 GRPO。LLaMA-Factory 负责 SFT，veRL 负责 GRPO。`run_all.sh` 是唯一启动入口。旧 adapter 脚本保留作历史参考，直接运行会退出。
 
-| 文件 | 用途 |
-|---|---|
-| `convert_sft.py` | clean.ts 输出 → LLaMA-Factory sharegpt 格式（支持课程学习分阶段导出） |
-| `sft_7b_lora.yaml` | 阶段一：7B 链路验证 SFT（1×A100 / 2×4090） |
-| `sft_32b_lora.yaml` | 阶段二：Qwen3-32B 正式 SFT（4×A100 80G，ZeRO-3） |
-| `grpo_verl.yaml` | veRL GRPO 配置模板（8×A100/H800；标 [CHECK] 的字段装好 veRL 后核对） |
-| `tool_config.yaml` | veRL 多轮 rollout → 工具环境 /call 的桥接模板 |
-| `reward_bridge.py` | veRL custom reward → POST /reward（PARK_REWARD_PHASE 控课程阶段） |
-| `serve_vllm.sh` | 训练后模型部署成 OpenAI 兼容端点（评估/产品接回用） |
+## 数据
 
-## 要什么卡（租卡指南）
+`data/rl/seeds.jsonl` 是实际生成的 306 个任务家族，覆盖 12 类；先固定家族划分，再扩写。每个种子生成 5 个经教师核查的表达变体，保留原句，去重后目标不少于 1,800 条。最终数量以 `seeds_augmented.jsonl.manifest.json` 为准。扩写查询不等于蒸馏轨迹。
 
-| 阶段 | 卡 | 时长预估 | 干什么 |
-|---|---|---|---|
-| ① 蒸馏 | **不用卡** | 0.5–1 天 | 教师 API（DeepSeek ~10-30 元）跑 1500 条轨迹 |
-| ② 7B 链路验证 | **1×A100 80G**（或 2×4090） | 1–2 天 | SFT（~1-2h）+ GRPO 小规模试跑 + 评估，把整条链路调通 |
-| ③ 32B SFT | **4×A100 80G** | 0.5 天 | LoRA + ZeRO-3，几小时 |
-| ④ 32B GRPO | **8×A100 80G / 8×H800** | 2–4 天 | rollout(sglang) + 训练，含调参 |
-| ⑤ 评估 | ②/③ 的机器复用 | 0.5 天 | base / SFT / SFT+RL 三方跑分 |
-
-**租卡建议**：AutoDL / 阿里云 PAI / 智星云按小时租。**先只租 ②的 1×A100**（几十块/天）把链路跑通，
-7B 数字到手再租 8 卡冲 32B——8 卡机在链路没验证前开着就是烧钱。
-机器要求：CUDA 12.x、能装 `llamafactory`、`verl`、`vllm`/`sglang`、Node 20+（跑工具环境服务）。
-
-## 多久出数字
-
-- **最快出第一批可写数字（7B）：累计 3–4 天**
-  蒸馏 1 天 → SFT + 评估 1 天 → GRPO 试跑 + 复评 1–2 天。
-  产出：7B 的 base vs SFT vs SFT+RL 三方对比（工具选择 EM、约束通过率、Judge 分）。
-- **32B 完整数字：再加 4–6 天**（SFT 0.5 天 + GRPO 2–4 天 + 评估 0.5 天 + 调试 buffer）。
-- 全程日历时间约 **1.5–2 周**（含等卡、踩坑 buffer；纯计算时间远小于此）。
-
-## 跑批顺序（每步都有验证点）
+教师扩写、蒸馏均须配置 `TEACHER_BASE_URL`、`TEACHER_MODEL`、`LLM_API_KEY`。多 Key 可用 `LLM_API_KEYS` JSON 数组，仅使用已授权配额。`PARK_SNAPSHOT_AT` 固定回放日期。Key 只留在环境变量或用户指定配置文件，不进仓库。
 
 ```bash
-# 0. 机器上装好后，先跑四套冒烟测试确认环境
-npm install && npm run env:smoke && npm run agent:smoke && npm run data:smoke && npm run reward:smoke
-
-# 1. 蒸馏（不用 GPU，任何机器都行）
-npm run data:seeds
-TEACHER_BASE_URL=https://api.deepseek.com/v1 TEACHER_MODEL=deepseek-chat LLM_API_KEY=sk-... \
-  npx tsx rl/data/augment.ts --variants 4
-TEACHER_BASE_URL=... TEACHER_MODEL=... LLM_API_KEY=... \
-  npx tsx rl/data/distill.ts --seeds data/rl/seeds_augmented.jsonl --concurrency 4
-npx tsx rl/data/clean.ts        # 看 stats：kept/rejected 比例，rejected 过高先查教师质量
-
-# 2. SFT（课程学习两轮）
-python rl/train/convert_sft.py --difficulty easy medium
-python rl/train/convert_sft.py
-llamafactory-cli train rl/train/sft_7b_lora.yaml
-llamafactory-cli export ...     # LoRA merge → outputs/sft-7b-merged
-
-# 3. SFT 后立即评估（不要闷头进 RL）：格式遵循率、工具选择 EM 先达标
-bash rl/train/serve_vllm.sh outputs/sft-7b-merged 1
-# 用 rl/agent/loop.ts 的 OpenAICompatLLM 指向 :8200 跑评测集
-
-# 4. GRPO
-npm run env:serve &             # 工具环境 + reward（sandbox）
-PARK_REWARD_PHASE=early python -m verl.trainer.main_ppo --config-path rl/train --config-name grpo_verl
-# 盯三条曲线：reward 均值上升 / KL 不爆 / 格式错误率下降
-
-# 5. 三方评估 → 拿数字 → 填进简历版本 B
+bash rl/train/run_all.sh seeds
+bash rl/train/run_all.sh augment
+bash rl/train/run_all.sh distill
+bash rl/train/run_all.sh clean
+bash rl/train/run_all.sh prepare-sft
 ```
 
-## 踩坑预警（对应面试题）
+扩写使用规则检查、教师语义等价复核、字符 n-gram 去重和断点日志。约束改变会被拒绝；近重复可能导致总量不足，此时命令失败并保留进度，不能把目标量当成实际产量。清洗保留成功恢复的轨迹，输出逐条拒绝原因。只有已完成的 teacher trajectory 才能进入 SFT。
 
-- SFT 后格式还漂移 → 先怀疑 system prompt 与模板（题六），不要急着调 RL 超参
-- reward 曲线高但不涨 → 结构化权重占比过大（题七），检查 PARK_REWARD_PHASE
-- rollout 极慢 → 确认走的是 sandbox（零外部调用）；上下文先 8K，稳步外推（题十三）
-- loss 突刺 / KL 爆炸 → 降 lr、升 kl_loss_coef；确认课程学习没有直接上 hard 样本
+## 全参 SFT
+
+配置为 `sft_full_early.yaml`、`sft_full_mid.yaml`、`sft_full_late.yaml`，均明确 `finetuning_type: full`，使用 BF16 与 ZeRO-3，不加载量化基座和 LoRA。安装 `framework-lock.json` 固定提交的 LLaMA-Factory。
+
+三个阶段使用同一批固定验证家族。前期使用 easy/medium，之后加入 hard。为确保 LLaMA-Factory 实际使用质量权重，预处理将权重转成明确的样本曝光次数：borderline 相对 pass 的曝光为 0.30、0.45、0.60；与学习率、阶段步数共同写入清单。这是采样课程，不宣称原生 Trainer 自动消费 weight 字段。配置的训练步数是起始预算，尚非经过消融确定的最优值。
+
+```bash
+bash rl/train/run_all.sh sft-early
+bash rl/train/run_all.sh sft-mid
+bash rl/train/run_all.sh sft-late
+```
+
+阶段产物是完整模型权重，后一阶段从前一阶段权重初始化。训练只监督 assistant 消息，包含完整历史 assistant 动作；工具观察不作为标签目标。GPU 上仍需核对实际 tokenizer 的标签掩码和显存峰值。
+
+## 全参多轮 GRPO
+
+安装 `framework-lock.json` 固定提交的 veRL。环境先运行 `npm run env:serve`，并配置真实 `JUDGE_BASE_URL` / `JUDGE_MODEL` / `LLM_API_KEY`；启发式 Judge 只用于本地联调，不允许进入正式训练。
+
+```bash
+bash rl/train/run_all.sh prepare-rl
+python rl/train/launch_grpo.py --dry-run
+bash rl/train/run_all.sh grpo --phase early
+```
+
+`park_agent_loop.py` 使用该 veRL 提交的 AgentLoop 与 Continuous Token 接口，保留生成 token 和 log probability，工具观察对应 response mask 为 0。每次输出交给 `/agent-step`，共享 TypeScript 协议解析与工具执行；完整消息交给 `/reward`。停止条件是答案、调用预算、上下文预算和超时。缺失/截断答案得零分；奖励服务不可用会终止训练，不冒充模型低分。
+
+每题组采样八条完整轨迹。`model.lora_rank: 0`，KL 参考为固定 SFT 权重。`launch_grpo.py --phase mid/late --resume <上一阶段checkpoint>` 保留优化器与 SFT 参考；正式运行时必须核对 pinned veRL 恢复数据迭代器的阶段边界，不能直接把它当成已经完成的课程实验。
+
+答案奖励权重依次为 0.60、0.68、0.75；硬约束不通过或最终行程无证据时总奖励为零。其余过程维度继续记录，便于诊断。
+
+## 评估
+
+`rl/eval/run_eval.ts` 默认只读取冻结的 test 家族；三个 checkpoint 使用同一任务、同一 prompt、同一环境快照。保留逐题完整输出、协议摘要与失败记录。规则分数和 LLM 质量分分别报告。
+
+`rl/eval/cross_judge.ts --left ... --right ... --out ...` 做匿名成对评审，交换 A/B 两次，至少两个独立 Judge；`EVAL_JUDGES` 配置模型、端点和 key 环境变量名，`TRAINING_MODEL_IDS` 列出学生和所有教师模型。位置分歧或跨 Judge 冲突写入 `reviewRequired`，不能靠均值掩盖。
+
+## 当前执行状态
+
+- 306 个种子文件已生成。
+- 本地 TypeScript 检查、数据/工具/奖励/评估冒烟、Python 控制流测试已执行；完整记录见 `docs/TRAINING_ALIGNMENT.md`。
+- 尚无本次教师扩写/蒸馏产物：本地尚未配置 DeepSeek；个人 GitHub 仓库存在 DEEPSEEK_API_KEY Actions secret，尚未验证或使用它启动生成。
+- 尚无本次全参 GPU 训练结果：当前会话未取得 CUDA 机器连接。这里的代码联调不代表八卡训练已成功。

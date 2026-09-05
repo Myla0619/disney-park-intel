@@ -14,6 +14,7 @@ python -m vllm.entrypoints.openai.api_server \
   --tensor-parallel-size "$TP" \
   --max-model-len 16384 \
   --gpu-memory-utilization 0.9 \
+  --host 127.0.0.1 \
   --port "$PORT"
 
 # 起来后即为 OpenAI 兼容端点：http://localhost:8200/v1

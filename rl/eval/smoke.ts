@@ -32,13 +32,13 @@ const mk = (id: string, category: string, query: string, profile: SeedTask["prof
   ];
   const llm = new ScriptedLLM([
     // e1
-    '<tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai","ride_id":"tron"}}</tool_call>',
-    "<answer>创极速当前排队约75分钟，建议开园直冲。</answer>",
+    '<think>测试</think><tool_call>{"name":"get_wait_times","arguments":{"park_id":"shanghai","ride_id":"tron"}}</tool_call>',
+    "<think>测试</think><answer>创极速当前排队约75分钟，建议开园直冲。</answer>",
     // e2
-    "<answer>可以带未开封食品入园，玻璃瓶不行，以当日安检为准。</answer>",
+    "<think>测试</think><answer>可以带未开封食品入园，玻璃瓶不行，以当日安检为准。</answer>",
     // e3
-    '<tool_call>{"name":"plan_itinerary","arguments":{"park_id":"shanghai","profile":{"mode":"family","kids":[{"age":5,"heightCm":110}]}}}</tool_call>',
-    "<answer>已规划：09:00 入园先玩小熊维尼，10:00 疯狂动物城，12:00 午餐……</answer>",
+    '<think>测试</think><tool_call>{"name":"plan_itinerary","arguments":{"park_id":"shanghai","profile":{"mode":"family","kids":[{"age":5,"heightCm":110}]}}}</tool_call>',
+    "<think>测试</think><answer>已规划：09:00 入园先玩小熊维尼，10:00 疯狂动物城，12:00 午餐……</answer>",
   ]);
 
   const r = await evaluate(llm, tasks, "scripted-smoke", "scripted");
@@ -46,9 +46,15 @@ const mk = (id: string, category: string, query: string, profile: SeedTask["prof
   check(r.metrics.format_clean === 1, "metrics: format_clean=1.0");
   check(r.metrics.tool_em === 1, "metrics: tool_em=1.0（含 no_tool 正确不调用）");
   check(r.metrics.hallucination === 0, "metrics: hallucination=0");
-  check(r.metrics.constraint_pass === 1, "metrics: 规划任务约束全过");
+  check(r.metrics.constraint_pass === 0, "metrics: 自由文本规划答案没有结构化交付证据，不能算通过");
   check(Math.abs(r.metrics.avg_tool_calls - 2 / 3) < 0.01, `metrics: avg_tool_calls≈0.67 (${r.metrics.avg_tool_calls})`);
-  check(r.perCategory["plan_request"].n === 1 && r.metrics.reward_mean > 0.7, "metrics: 分类统计与 reward 均值合理");
+  check(r.perCategory["plan_request"].n === 1 && r.metrics.reward_mean < 0.7, "metrics: 未验证规划受可行性门控，分类计数保留");
+  const failedRun = await evaluate({ async chat() { throw new Error("test transport failure"); } },
+    [mk("failure", "plan_request", "规划一天")], "failure-smoke", "scripted");
+  check(failedRun.n === 1 && failedRun.perCategory.plan_request.n === 1 && failedRun.metrics.constraint_pass === 0,
+    "metrics: 失败规划保留在总数和约束分母中");
+  check(failedRun.metrics.format_clean === 0 && failedRun.perSample[0].error === "llm_error",
+    "metrics: 无模型输出不算格式成功，保留失败轨迹");
 
   console.log(failed === 0 ? "\n✅ eval smoke 全部通过" : `\n❌ ${failed} 项失败`);
   process.exit(failed === 0 ? 0 : 1);

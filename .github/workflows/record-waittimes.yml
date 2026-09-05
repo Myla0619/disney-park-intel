@@ -1,0 +1,36 @@
+# 排队数据自动录制（git-scraping）
+# 每 15 分钟抓一次 themeparks.wiki + queue-times 快照，commit 进仓库 data/waittimes/。
+# 注意：GitHub Actions 的 cron 是尽力而为的，高峰期可能延迟或跳过个别次数——
+# 对"积累历史分布"这个目的足够；要严格 5 分钟粒度再迁去 VPS。
+name: Record wait times
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record-waittimes
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record snapshot
+        run: python3 scripts/record_waittimes.py
+
+      - name: Commit data
+        run: |
+          git config user.name "Myla0619"
+          git config user.email "haileyliuliuliu@gmail.com"
+          git add data/waittimes/
+          git diff --cached --quiet && exit 0
+          git commit -m "data: wait time snapshot $(date -u +%Y-%m-%dT%H:%M)"
+          git pull --rebase origin ${GITHUB_REF_NAME}
+          git push
