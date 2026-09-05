@@ -46,9 +46,15 @@ const mk = (id: string, category: string, query: string, profile: SeedTask["prof
   check(r.metrics.format_clean === 1, "metrics: format_clean=1.0");
   check(r.metrics.tool_em === 1, "metrics: tool_em=1.0（含 no_tool 正确不调用）");
   check(r.metrics.hallucination === 0, "metrics: hallucination=0");
-  check(r.metrics.constraint_pass === 1, "metrics: 规划任务约束全过");
+  check(r.metrics.constraint_pass === 0, "metrics: 自由文本规划答案没有结构化交付证据，不能算通过");
   check(Math.abs(r.metrics.avg_tool_calls - 2 / 3) < 0.01, `metrics: avg_tool_calls≈0.67 (${r.metrics.avg_tool_calls})`);
-  check(r.perCategory["plan_request"].n === 1 && r.metrics.reward_mean > 0.7, "metrics: 分类统计与 reward 均值合理");
+  check(r.perCategory["plan_request"].n === 1 && r.metrics.reward_mean < 0.7, "metrics: 未验证规划受可行性门控，分类计数保留");
+  const failedRun = await evaluate({ async chat() { throw new Error("test transport failure"); } },
+    [mk("failure", "plan_request", "规划一天")], "failure-smoke", "scripted");
+  check(failedRun.n === 1 && failedRun.perCategory.plan_request.n === 1 && failedRun.metrics.constraint_pass === 0,
+    "metrics: 失败规划保留在总数和约束分母中");
+  check(failedRun.metrics.format_clean === 0 && failedRun.perSample[0].error === "llm_error",
+    "metrics: 无模型输出不算格式成功，保留失败轨迹");
 
   console.log(failed === 0 ? "\n✅ eval smoke 全部通过" : `\n❌ ${failed} 项失败`);
   process.exit(failed === 0 ? 0 : 1);

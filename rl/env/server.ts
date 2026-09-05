@@ -1,3 +1,5 @@
+import { executeAgentStep } from "./agent-step";
+import { buildSystemPrompt } from "../agent/prompt";
 /**
  * 工具环境 HTTP 服务（RL 训练环境的对外接口）
  *
@@ -39,10 +41,27 @@ function json(res: any, status: number, body: unknown) {
 
 const server = createServer((req, res) => {
   if (req.method === "GET" && req.url === "/health") {
-    return json(res, 200, { status: "ok", mode: DEFAULT_MODE, tools: TOOL_REGISTRY.length });
+    return json(res, 200, { status: "ok", mode: DEFAULT_MODE, tools: TOOL_REGISTRY.length, judge: judge.constructor.name, protocol: "park-full-multiturn-v1" });
   }
   if (req.method === "GET" && req.url === "/tools") {
     return json(res, 200, { tools: TOOL_REGISTRY });
+  }
+  if (req.method === "POST" && (req.url === "/agent-step" || req.url === "/prompt")) {
+    let body="";
+    req.on("data",chunk=>{body+=chunk;if(body.length>MAX_BODY)req.destroy();});
+    req.on("end",async()=>{
+      try {
+        const value=JSON.parse(body);
+        if(req.url==="/prompt") {
+          if(typeof value.parkId!=="string"||typeof value.query!=="string")throw new Error("Invalid task");
+          return json(res,200,{messages:[{role:"system",content:buildSystemPrompt(value.parkId,value.snapshotAt?.slice(0,10))},
+            {role:"user",content:value.query+(Object.keys(value.profile??{}).length ? `\n用户已确认的结构化偏好：${JSON.stringify(value.profile)}` : "")}]});
+        }
+        if(typeof value.raw!=="string"||!Number.isInteger(value.remainingCalls)||value.remainingCalls<0)throw new Error("Invalid step");
+        const result=await executeAgentStep(value.raw,{mode:"sandbox",snapshotAt:value.snapshot_at},value.remainingCalls);
+        return json(res,200,result);
+      }catch(e:any){return json(res,400,{ok:false,error:e.message});}
+    });return;
   }
   if (req.method === "POST" && req.url === "/call") {
     let body = "";

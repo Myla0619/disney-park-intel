@@ -1,3 +1,4 @@
+import {readFileSync,existsSync} from "node:fs";
 /**
  * 种子任务生成器
  *
@@ -19,7 +20,10 @@ export type SeedTask = {
   query: string;
   profile: Partial<UserProfile>;
   source: "template" | "human";
-  /** 预估难度（按预期工具调用次数）：easy 1-3 / medium 4-10 / hard >=10 */
+  familyId?: string;
+  split?: "train" | "validation" | "test";
+  augmentation?: { method: string; model?: string; parentId: string };
+  /** 预估难度（按预期工具调用次数）：easy 1-3 / medium 4-10 / hard >10 */
   difficultyHint: "easy" | "medium" | "hard";
 };
 
@@ -231,9 +235,8 @@ export function generateSeeds(parkId: string, seed = 20260901): SeedTask[] {
 
 /** 合入真实人类 query（第 1 层多样性）；文件不存在则跳过 */
 export function loadHumanQueries(path: string): SeedTask[] {
-  try {
-    const { readFileSync } = require("node:fs") as typeof import("node:fs");
-    return readFileSync(path, "utf-8")
+  if(!existsSync(path))return [];
+  return readFileSync(path, "utf-8")
       .split("\n").filter((l: string) => l.trim())
       .map((l: string, i: number) => {
         const j = JSON.parse(l);
@@ -247,9 +250,6 @@ export function loadHumanQueries(path: string): SeedTask[] {
           difficultyHint: j.difficultyHint ?? "medium",
         };
       });
-  } catch {
-    return [];
-  }
 }
 
 /** 第 3 层多样性：字符 3-gram Jaccard 去重（embedding 去重后续升级） */
@@ -263,7 +263,9 @@ export function dedup(tasks: SeedTask[], threshold = 0.8): SeedTask[] {
   const kept: { task: SeedTask; g: Set<string> }[] = [];
   for (const task of tasks) {
     const g = grams(task.query);
-    const dup = kept.some(({ g: g2 }) => {
+    const dup = kept.some(({ task: prior, g: g2 }) => {
+      // Similar wording with a different explicit constraint is a distinct task.
+      if (prior.category !== task.category || JSON.stringify(prior.profile) !== JSON.stringify(task.profile)) return false;
       let inter = 0;
       for (const x of g) if (g2.has(x)) inter++;
       const union = g.size + g2.size - inter;

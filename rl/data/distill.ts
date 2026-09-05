@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { buildSystemPrompt } from "../agent/prompt";
 /**
  * 数据蒸馏：教师模型在沙箱环境跑完整轨迹
  *
@@ -33,7 +35,7 @@ async function main() {
     process.exit(1);
   }
 
-  const seedsPath = arg("seeds", join(ROOT, "data", "rl", "seeds.jsonl"));
+  const seedsPath = arg("seeds", join(ROOT, "data", "rl", "seeds_augmented.jsonl"));
   const limit = Number(arg("limit", "999999"));
   const concurrency = Number(arg("concurrency", "4"));
 
@@ -41,20 +43,28 @@ async function main() {
     .split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
 
   mkdirSync(OUT_DIR, { recursive: true });
-  const outFile = join(OUT_DIR, `${new Date().toISOString().slice(0, 10)}.jsonl`);
+  const outFile = arg("out", join(OUT_DIR, "teacher-full.jsonl"));
+  const snapshotAt = process.env.PARK_SNAPSHOT_AT;
+  if (!snapshotAt) throw new Error("Freeze PARK_SNAPSHOT_AT before distillation");
+  const identity = JSON.stringify({model, baseUrl, snapshotAt,
+    inputHash: createHash("sha256").update(readFileSync(seedsPath)).digest("hex"), protocol:"park-full-multiturn-v1"});
+  if (existsSync(outFile+".run.json") && readFileSync(outFile+".run.json","utf8") !== identity)
+    throw new Error("Distillation resume mismatch; use a new output file");
+  mkdirSync(dirname(outFile), {recursive:true});
+  writeFileSync(outFile+".run.json", identity);
 
   // 断点续跑：跳过已蒸馏的任务
   const done = new Set<string>();
   if (existsSync(outFile)) {
     for (const l of readFileSync(outFile, "utf-8").split("\n")) {
-      if (l.trim()) done.add(JSON.parse(l).taskId);
+      if (l.trim()) { const row=JSON.parse(l); if(row.stoppedReason==="answer"&&row.answer)done.add(row.taskId); }
     }
   }
   const todo = tasks.filter((t) => !done.has(t.id)).slice(0, limit);
   console.error(`共 ${tasks.length} 任务，已完成 ${done.size}，本次蒸馏 ${todo.length}（并发 ${concurrency}）`);
 
   const llm = new OpenAICompatLLM(baseUrl, model, undefined, 0.7);
-  const caller = makeDirectCaller({ mode: "sandbox" });
+  const caller = makeDirectCaller({ mode: "sandbox", snapshotAt });
   let ok = 0, fail = 0;
 
   // 简单并发池
@@ -64,11 +74,11 @@ async function main() {
       while (queue.length) {
         const task = queue.shift()!;
         try {
-          const traj = await runEpisode(llm, { parkId: task.parkId, query: task.query }, caller, {
-            maxTurns: 30, maxToolCalls: 20,
+          const traj = await runEpisode(llm, { parkId: task.parkId, query: task.query + (Object.keys(task.profile).length ? `\n用户已确认的结构化偏好：${JSON.stringify(task.profile)}` : "") }, caller, {
+            maxTurns: 30, maxToolCalls: 25, systemPrompt: buildSystemPrompt(task.parkId,snapshotAt.slice(0,10)),
           });
           appendFileSync(outFile, JSON.stringify({
-            taskId: task.id, category: task.category, source: task.source,
+            taskId: task.id, familyId:task.familyId, split:task.split, snapshotAt, category: task.category, source: task.source,
             difficultyHint: task.difficultyHint, query: task.query, profile: task.profile,
             parkId: task.parkId, teacher: model,
             answer: traj.answer, stoppedReason: traj.stoppedReason,
@@ -77,7 +87,7 @@ async function main() {
             messages: traj.messages,
             toolResults: traj.steps.map((s) => ({ call: s.parsed.toolCall, ok: s.toolResult?.ok ?? null })),
           }) + "\n");
-          ok++;
+          if(traj.stoppedReason==="answer"&&traj.answer)ok++; else fail++;
           console.error(`[${ok + fail}/${todo.length}] ok ${task.id} calls=${traj.toolCallCount} stop=${traj.stoppedReason}`);
         } catch (e: any) {
           fail++;
@@ -86,6 +96,11 @@ async function main() {
       }
     })
   );
+  const rows=readFileSync(outFile,"utf8").trim().split("\n").map(l=>JSON.parse(l));
+  const latest=new Map(rows.map(r=>[r.taskId,r]));
+  writeFileSync(outFile+".manifest.json",JSON.stringify({totalTasks:tasks.length,
+    attempted:latest.size,answered:[...latest.values()].filter(r=>r.stoppedReason==="answer"&&r.answer).length,
+    identity:JSON.parse(identity)},null,2));
   console.error(`完成: ${ok} 成功 / ${fail} 失败 → ${outFile}`);
 }
 

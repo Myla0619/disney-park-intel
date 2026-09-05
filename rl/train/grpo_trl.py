@@ -5,6 +5,9 @@
 reward_v2.py 只评估首步协议/工具/参考参数，不执行工具，不声称任务成功。
 默认 30 步小试验；必须完成 rl/PROTOCOL.md 门禁并使用新输出目录。
 """
+if __name__ == "__main__":
+    raise SystemExit("Historical adapter entrypoint retired. Use rl/train/run_all.sh for the full-parameter pipeline.")
+
 import json
 import os
 import shutil

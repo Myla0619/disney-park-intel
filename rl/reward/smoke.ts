@@ -68,7 +68,7 @@ const mkTask = (category: string, query: string, profile: SeedTask["profile"] = 
     "<think>测试</think><answer>已为你规划：09:00 入园后先玩小熊维尼（20分钟），10:30 疯狂动物城……21:00 烟花收尾。</answer>",
   ]), { parkId: "shanghai", query: "带娃规划一天" }, caller);
   const rPlan = await scoreTrajectory(plan, mkTask("plan_request", "带娃规划一天", { mode: "family", kids: [{ age: 5, heightCm: 110 }], watchFireworks: true }, "medium"), judge);
-  check(rPlan.constraints === 1, "⑤: 规划行程硬约束校验全过（RL/VR）", rPlan.detail.constraints);
+  check(rPlan.constraints === 0 && rPlan.total <= 0.2, "⑤: 工具规划成功但自由文本答案未验证，不能获高分", rPlan.detail.constraints);
 
   // ⑥ 规划任务不出行程 = 硬约束 0 分
   const planNoTool = await runEpisode(new ScriptedLLM([
