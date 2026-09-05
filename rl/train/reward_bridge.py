@@ -46,7 +46,9 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         "query": str(ground_truth or ""), "profile": {}, "source": "human",
         "difficultyHint": "medium",
     }
-    messages = extra.get("messages") or [{"role": "assistant", "content": solution_str}]
+    messages = extra.get("messages")
+    if not messages or messages[-1].get("role") != "assistant" or messages[-1].get("content") != solution_str:
+        raise ValueError("Provide a trusted complete rollout transcript ending in the current completion; do not score stale prompt messages")
 
     # 服务端按消息序列 best-effort 重建轨迹（见 server.ts /reward 说明）
     trajectory = extra.get("trajectory") or {
@@ -61,9 +63,9 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
         res = _post({"trajectory": trajectory, "task": task, "phase": PHASE})
         if res.get("ok"):
             return float(res["result"]["total"])
-        return 0.0  # reward 服务报错：给 0 而不是崩训练
-    except Exception:
-        return 0.0
+        raise RuntimeError("Reward service rejected trajectory; stop training rather than treating infrastructure failure as model failure")
+    except Exception as error:
+        raise RuntimeError("Reward service unavailable or invalid result") from error
 
 
 if __name__ == "__main__":

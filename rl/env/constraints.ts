@@ -9,7 +9,7 @@
 
 import type { ItineraryItem, UserProfile } from "@/types";
 import { timeToMin } from "@/lib/routing";
-import { getRideById } from "@/lib/parks-data";
+import { getRidesByPark } from "@/lib/parks-data";
 
 export type ConstraintCheck = {
   check: string;
@@ -20,13 +20,24 @@ export type ConstraintCheck = {
 const TIME_TOLERANCE_MIN = 2;
 const DEPARTURE_TOLERANCE_MIN = 5;
 const LL_INTERVAL_MIN = 90;
+// Simulator policy, not a claim about current official park entitlement rules.
 
 export function checkItinerary(
   items: ItineraryItem[],
   profile: UserProfile
 ): { passed: boolean; checks: ConstraintCheck[] } {
   const checks: ConstraintCheck[] = [];
+  const timePattern = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!Array.isArray(items) || !items.length || !timePattern.test(profile.arrivalTime) || !timePattern.test(profile.departureTime) ||
+      profile.departureTime < profile.arrivalTime || items.some(i => !i || !timePattern.test(i.time) || !timePattern.test(i.endTime) || i.endTime < i.time) ||
+      !Array.isArray(profile.kids) || profile.kids.some(k => !k || !Number.isFinite(k.heightCm) || k.heightCm <= 0)) {
+    return { passed: false, checks: [{ check: "input_validity", pass: false, detail: "空行程、非法时间/负时长或孩子身高数据无效" }] };
+  }
   const sorted = [...items].sort((a, b) => a.time.localeCompare(b.time));
+  const rides = new Map(getRidesByPark(profile.park).map(r => [r.id, r]));
+  const unknownRide = sorted.find(i => i.type === "ride" && !rides.has(i.itemId));
+  checks.push({ check: "known_ride", pass: !unknownRide,
+    detail: unknownRide ? `当前乐园不存在项目ID: ${unknownRide.itemId}` : "项目ID属于当前乐园" });
 
   // 1. 时间连续性：任何项不得早于上一项结束（容差 2 分钟）
   let contOk = true;
@@ -50,7 +61,7 @@ export function checkItinerary(
     const minH = Math.min(...kids.map((k) => k.heightCm));
     for (const item of sorted) {
       if (item.type !== "ride") continue;
-      const ride = getRideById(item.itemId);
+      const ride = rides.get(item.itemId);
       if (ride?.heightRequirement && minH < ride.heightRequirement) {
         heightOk = false;
         heightDetail = `「${item.itemName}」要求 ${ride.heightRequirement}cm，孩子最矮 ${minH}cm`;
@@ -95,6 +106,17 @@ export function checkItinerary(
       ? `「${early.itemName}」开始于 ${early.time}，早于入园时间 ${profile.arrivalTime}`
       : "均在入园时间后",
   });
+
+  // A selected event must actually be present and span its configured start time.
+  // Do not silently omit an infeasible event to make an itinerary score as feasible.
+  const missing = ([
+    [profile.watchParade, "parade", profile.paradeTime],
+    [profile.watchFireworks, "fireworks", profile.fireworksTime],
+  ] as const).filter(([wanted, type, at]) => wanted && (
+    !timePattern.test(at) || !sorted.some(i => i.type === type && i.time <= at && i.endTime > at)
+  ));
+  checks.push({ check: "anchors", pass: missing.length === 0,
+    detail: missing.length ? `缺失或时段不覆盖指定场次: ${missing.map(x => x[1]).join(",")}` : "所需演出锚点完整" });
 
   return { passed: checks.every((c) => c.pass), checks };
 }

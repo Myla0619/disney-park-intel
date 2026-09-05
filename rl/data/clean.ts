@@ -7,7 +7,7 @@
  *      有意不学课程里"删除失败工具轮"的做法，恢复轨迹教的是失败感知能力）
  *   3. 格式清洗：剥离 assistant 消息中标签外的解释性废话（"希望对你有帮助"这类），
  *      防止 SFT 学会在协议标签外输出闲聊文本
- *   4. 难度分级：按工具调用次数打标 easy(1-3)/medium(4-10)/hard(>=10)，供课程学习
+ *   4. 难度分级：按工具调用次数打标 easy(1-3)/medium(4-10)/hard(>10)，供课程学习
  *   5. 样本加权：完美轨迹 weight=1.0；有格式补救/部分工具失败但恢复的 borderline 降权 0.6
  *   6. （可选 --judge）LLM-as-Judge 质量门：任务相关性/完整度/工具合理性打分，低分剔除
  *
@@ -20,6 +20,11 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseAgentStep } from "../agent/protocol";
+import { rebuildTrajectoryFromMessages } from "../reward/rebuild";
+import { needsPlan, verifyFinalPlan } from "../reward/plan-evidence";
+import type { SeedTask } from "./seeds";
+import type { ChatMessage } from "../agent/loop";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const TRAJ_DIR = join(ROOT, "data", "rl", "trajectories");
@@ -27,6 +32,7 @@ const TRAJ_DIR = join(ROOT, "data", "rl", "trajectories");
 export type TrajectoryRecord = {
   taskId: string; category: string; source: string; difficultyHint: string;
   query: string; parkId: string; teacher: string;
+  profile?: SeedTask["profile"];
   answer: string | null; stoppedReason: string;
   toolCallCount: number; formatErrorCount: number; answerRepaired: boolean;
   messages: { role: string; content: string }[];
@@ -70,6 +76,10 @@ export function cleanTrajectories(records: TrajectoryRecord[]): CleanResult {
 
   let strippedTotal = 0;
   for (const t of records) {
+    if (t.messages.some(m => m.role === "assistant" && m.content.includes("<tool_response>"))) {
+      rejected.push({ taskId: t.taskId, reason: "assistant_forged_tool_response" });
+      continue;
+    }
     // 关卡 1：规则过滤
     if (t.stoppedReason === "llm_error") { rejected.push({ taskId: t.taskId, reason: "llm_error" }); continue; }
     if (t.stoppedReason === "timeout") { rejected.push({ taskId: t.taskId, reason: "timeout" }); continue; }
@@ -81,6 +91,8 @@ export function cleanTrajectories(records: TrajectoryRecord[]): CleanResult {
     // 每步都出格式错的教不了格式：错误数 >= 步数
     const stepCount = Math.max(1, t.messages.filter((m) => m.role === "assistant").length);
     if (t.formatErrorCount >= stepCount) { rejected.push({ taskId: t.taskId, reason: "format_broken" }); continue; }
+
+    if(t.category!=="no_tool"&&t.toolCallCount===0){rejected.push({taskId:t.taskId,reason:"required_tool_missing"});continue;}
 
     // 关卡 2：工具健康度
     const calls = t.toolResults.filter((x) => x.call !== null);
@@ -101,6 +113,24 @@ export function cleanTrajectories(records: TrajectoryRecord[]): CleanResult {
       strippedTotal += stripped;
       return { ...m, content: cleaned };
     });
+    if (cleanedMessages.some(m => m.role === "assistant" && parseAgentStep(m.content).errors.length > 0)) {
+      rejected.push({ taskId: t.taskId, reason: "invalid_assistant_protocol" });
+      continue;
+    }
+
+    const rebuilt = rebuildTrajectoryFromMessages(cleanedMessages as ChatMessage[]);
+    if (needsPlan(rebuilt, t)) {
+      if (!t.profile) {
+        rejected.push({ taskId: t.taskId, reason: "missing_plan_profile" });
+        continue;
+      }
+      const task: SeedTask = { id: t.taskId, query: t.query, parkId: t.parkId,
+        category: t.category, profile: t.profile, source: "template", difficultyHint: difficulty };
+      if (!verifyFinalPlan(rebuilt, task).passed) {
+        rejected.push({ taskId: t.taskId, reason: "invalid_final_plan" });
+        continue;
+      }
+    }
 
     // 关卡 4：加权。完美 = 无格式错误、无补救、无失败调用
     const perfect = t.formatErrorCount === 0 && !t.answerRepaired && failedCalls === 0;
@@ -142,10 +172,14 @@ if (process.argv[1] && process.argv[1].endsWith("clean.ts")) {
       : existsSync(TRAJ_DIR) ? readdirSync(TRAJ_DIR).filter((f) => f.endsWith(".jsonl")).map((f) => join(TRAJ_DIR, f)) : [];
     if (!files.length) { console.error("没有轨迹文件，先跑 distill.ts"); process.exit(1); }
 
-    const records: TrajectoryRecord[] = files.flatMap((f) =>
+    const attempts: TrajectoryRecord[] = files.flatMap((f) =>
       readFileSync(f, "utf-8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l))
     );
-    const { samples, stats } = cleanTrajectories(records);
+    // Prefer the latest successful attempt; never duplicate a resumed task in SFT.
+    const unique = new Map<string,TrajectoryRecord>();
+    for(const r of attempts)if(!unique.has(r.taskId)||r.stoppedReason==="answer")unique.set(r.taskId,r);
+    const records=[...unique.values()];
+    const { samples, stats, rejected } = cleanTrajectories(records);
 
     let kept = samples;
     if (process.argv.includes("--judge")) {
@@ -165,6 +199,7 @@ if (process.argv[1] && process.argv[1].endsWith("clean.ts")) {
         );
         if (score < 0.35) {
           stats["rej_judge_low"] = (stats["rej_judge_low"] ?? 0) + 1;
+          rejected.push({taskId:s.taskId,reason:"judge_low"});
           console.error(`[judge] drop ${s.taskId} score=${score.toFixed(2)} ${detail}`);
           continue;
         }
@@ -179,6 +214,8 @@ if (process.argv[1] && process.argv[1].endsWith("clean.ts")) {
     // 课程学习顺序：easy → medium → hard 排列（训练框架按顺序喂或按 difficulty 字段分阶段）
     const order = { easy: 0, medium: 1, hard: 2 };
     kept.sort((a, b) => order[a.difficulty] - order[b.difficulty]);
+    writeFileSync(outPath+".rejected.json",JSON.stringify(rejected,null,2));
+    writeFileSync(outPath+".manifest.json",JSON.stringify({...stats,kept:kept.length,rejected:rejected.length},null,2));
     writeFileSync(outPath, kept.map((s) => JSON.stringify(s)).join("\n") + "\n");
 
     console.error(JSON.stringify(stats, null, 2));

@@ -1,0 +1,29 @@
+{
+  "schema": "park-corpus-v1",
+  "seedFamilies": 306,
+  "sha256": "fa67e18b474b97b10d7463c4e10a44d216392ce6959cda6d9f8eae84682c2b96",
+  "categories": {
+    "explicit_wait": 44,
+    "implicit_wait": 5,
+    "review_quality": 15,
+    "review_specific": 44,
+    "plan_request": 44,
+    "spot_info": 43,
+    "no_tool": 6,
+    "edge_negation": 10,
+    "edge_multi_intent": 43,
+    "weather_dependent": 4,
+    "trade_off": 43,
+    "edge_name_variant": 5
+  },
+  "splits": {
+    "test": 30,
+    "validation": 30,
+    "train": 246
+  },
+  "sources": {
+    "template": 306
+  },
+  "augmentationStatus": "not_run",
+  "trajectoryStatus": "not_run"
+}

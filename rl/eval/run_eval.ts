@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { buildSystemPrompt } from "../agent/prompt";
 /**
  * 评测运行器：对任意 OpenAI 兼容端点跑评测集，产出指标表
  *
@@ -36,12 +38,17 @@ function arg(name: string, dflt: string): string {
 }
 
 export type EvalResult = {
+  version: "park-full-multiturn-v1";
+  protocolHash: string;
+  snapshotAt: string;
   name: string;
   model: string;
   n: number;
   date: string;
   metrics: Record<string, number>;
   perCategory: Record<string, { n: number; tool_em: number; reward_mean: number }>;
+  perSample: { task: SeedTask; trajectory: Awaited<ReturnType<typeof runEpisode>> | null;
+    reward: Awaited<ReturnType<typeof scoreTrajectory>> | null; error: string | null }[];
 };
 
 /** 分层抽样：每类按比例取，保证小类别不被淹没 */
@@ -59,36 +66,47 @@ export function sampleTasks(tasks: SeedTask[], limit: number): SeedTask[] {
 }
 
 export async function evaluate(llm: LLM, tasks: SeedTask[], name: string, model: string): Promise<EvalResult> {
-  const caller = makeDirectCaller({ mode: "sandbox" });
+  if (!tasks.length) throw new Error("评测集不能为空");
+  const caller = makeDirectCaller({ mode: "sandbox", snapshotAt:process.env.PARK_SNAPSHOT_AT });
   const judge = new HeuristicJudge();
 
   let answered = 0, formatClean = 0, toolEm = 0, halluc = 0, tookCalls = 0;
   let planTotal = 0, planPass = 0, rewardSum = 0;
+  let logicalCalls=0, successfulCalls=0;
   const perCategory: EvalResult["perCategory"] = {};
+  const perSample: EvalResult["perSample"] = [];
 
   for (const [i, task] of tasks.entries()) {
+    if (task.category === "plan_request") planTotal++;
+    const c = (perCategory[task.category] ??= { n: 0, tool_em: 0, reward_mean: 0 });
+    c.n++;
     let traj;
     try {
-      traj = await runEpisode(llm, { parkId: task.parkId, query: task.query }, caller, { maxTurns: 20, maxToolCalls: 15 });
+      traj = await runEpisode(llm, { parkId: task.parkId, query: task.query + (Object.keys(task.profile).length ? `\n用户已确认的结构化偏好：${JSON.stringify(task.profile)}` : "") }, caller, { maxTurns: 30, maxToolCalls: 25, systemPrompt:buildSystemPrompt(task.parkId,process.env.PARK_SNAPSHOT_AT?.slice(0,10)) });
     } catch (e: any) {
-      console.error(`[${i + 1}/${tasks.length}] LLM error on ${task.id}: ${e?.message}`);
+      console.error(`[${i + 1}/${tasks.length}] episode failure on ${task.id}`);
+      perSample.push({ task, trajectory: null, reward: null, error: "episode_failure" });
       continue;
     }
     const r = await scoreTrajectory(traj, task, judge, "mid");
+    perSample.push({ task, trajectory: traj, reward: r,
+      error: traj.stoppedReason === "llm_error" || traj.stoppedReason === "timeout" ? traj.stoppedReason : null });
 
     const emHit = r.trajectory >= 1;
     const isHalluc = task.category !== "no_tool" && traj.toolCallCount === 0 && traj.answer !== null;
 
     if (traj.stoppedReason === "answer" && !traj.answerRepaired) answered++;
-    if (traj.formatErrorCount === 0) formatClean++;
+    if (traj.steps.length > 0 && traj.formatErrorCount === 0) formatClean++;
     if (emHit) toolEm++;
     if (isHalluc) halluc++;
+    const requests=traj.steps.filter(s=>s.parsed.toolCall&&s.toolResult);
+    logicalCalls+=requests.length;
+    successfulCalls+=requests.filter(s=>s.toolResult?.ok).length;
     tookCalls += traj.toolCallCount;
     rewardSum += r.total;
-    if (task.category === "plan_request") { planTotal++; if (r.constraints === 1) planPass++; }
+    if (task.category === "plan_request" && r.constraints === 1) planPass++;
 
-    const c = (perCategory[task.category] ??= { n: 0, tool_em: 0, reward_mean: 0 });
-    c.n++; c.tool_em += emHit ? 1 : 0; c.reward_mean += r.total;
+    c.tool_em += emHit ? 1 : 0; c.reward_mean += r.total;
 
     console.error(`[${i + 1}/${tasks.length}] ${task.id} ${task.category} calls=${traj.toolCallCount} reward=${r.total.toFixed(2)}`);
   }
@@ -100,8 +118,12 @@ export async function evaluate(llm: LLM, tasks: SeedTask[], name: string, model:
   }
 
   return {
-    name, model, n, date: new Date().toISOString().slice(0, 10),
+    version: "park-full-multiturn-v1", snapshotAt:process.env.PARK_SNAPSHOT_AT??"unfrozen-smoke",
+    protocolHash:createHash("sha256").update(JSON.stringify({tasks,prompts:tasks.map(t=>buildSystemPrompt(t.parkId,process.env.PARK_SNAPSHOT_AT?.slice(0,10))),snapshot:process.env.PARK_SNAPSHOT_AT,fixtures:process.env.PARK_SANDBOX_FIXTURES_ONLY??"0",phase:"mid",maxTurns:30,maxCalls:25})).digest("hex"), name, model, n, date: new Date().toISOString().slice(0, 10),
     metrics: {
+      logical_tool_requests:logicalCalls,
+      successful_tool_requests:successfulCalls,
+      tool_success_rate:logicalCalls ? successfulCalls/logicalCalls : -1,
       answered: +(answered / n).toFixed(3),
       format_clean: +(formatClean / n).toFixed(3),
       tool_em: +(toolEm / n).toFixed(3),
@@ -110,15 +132,17 @@ export async function evaluate(llm: LLM, tasks: SeedTask[], name: string, model:
       avg_tool_calls: +(tookCalls / n).toFixed(2),
       reward_mean: +(rewardSum / n).toFixed(3),
     },
-    perCategory,
+    perCategory, perSample,
   };
 }
 
 function printCompare() {
   if (!existsSync(OUT_DIR)) { console.log("还没有评测结果"); return; }
   const results: EvalResult[] = readdirSync(OUT_DIR).filter((f) => f.endsWith(".json"))
-    .map((f) => JSON.parse(readFileSync(join(OUT_DIR, f), "utf-8")));
-  if (!results.length) { console.log("还没有评测结果"); return; }
+    .map((f) => JSON.parse(readFileSync(join(OUT_DIR, f), "utf-8")))
+    .filter(r => r.version === "park-full-multiturn-v1");
+  if (!results.length) { console.log("没有v2结果；旧口径不能与最终行程校验分数混用"); return; }
+  console.log("以下仅汇总同评分版本结果；仍须核对相同任务、prompt、快照与解码设置后才能推断训练提升。");
 
   const keys = ["answered", "format_clean", "tool_em", "hallucination", "constraint_pass", "avg_tool_calls", "reward_mean"];
   console.log(`| 指标 | ${results.map((r) => r.name).join(" | ")} |`);
@@ -141,19 +165,21 @@ if (process.argv[1]?.endsWith("run_eval.ts")) {
       process.exit(1);
     }
     const name = arg("name", model.replace(/[^a-zA-Z0-9-]/g, "-"));
+    const outPath = join(OUT_DIR, `${name}.json`);
+    if (existsSync(outPath)) throw new Error("结果文件已存在，请使用新的--name，不能覆盖历史结果");
     const limit = Number(arg("limit", "50"));
     const seedsPath = arg("seeds", join(ROOT, "data", "rl", "seeds.jsonl"));
 
     const all: SeedTask[] = readFileSync(seedsPath, "utf-8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
-    const tasks = sampleTasks(all, limit);
+    if(!process.env.PARK_SNAPSHOT_AT)throw new Error("正式评测必须冻结 PARK_SNAPSHOT_AT");
+    const tasks = sampleTasks(all.filter(t=>t.split==="test"), limit);
     console.error(`评测 ${name}（${model}）: ${tasks.length} 任务（分层抽样）`);
 
     const llm = new OpenAICompatLLM(baseUrl, model, undefined, 0.3);
     const result = await evaluate(llm, tasks, name, model);
 
     mkdirSync(OUT_DIR, { recursive: true });
-    const outPath = join(OUT_DIR, `${name}.json`);
-    writeFileSync(outPath, JSON.stringify(result, null, 2));
+    writeFileSync(outPath, JSON.stringify(result, null, 2), { flag: "wx" });
     console.log(JSON.stringify(result.metrics, null, 2));
     console.log(`→ ${outPath}\n用 --compare 打印多模型对比表`);
   })();
