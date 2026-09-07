@@ -1,8 +1,9 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { getRestaurants } from "@/lib/parks-data";
+import { getRestaurants, RESTAURANT_KEYWORDS } from "@/lib/parks-data";
 import { reviewSnippet } from "@/lib/review-snippet";
 import { ArrowLeft, Star, MapPin, Clock, AlertCircle } from "lucide-react";
+import UserRating from "@/components/UserRating";
 
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +53,8 @@ export default function RestaurantDetailPage() {
           <p className="text-white/60 text-sm leading-relaxed mt-2">{rest.tips}</p>
         </div>
 
+        <UserRating type="restaurant" id={rest.id} name={rest.name} />
+
         <div>
           <h2 className="font-semibold text-sm text-white/70 mb-3">用户评论（{rest.reviews.length}条）</h2>
           <div className="space-y-3">
@@ -68,7 +71,7 @@ export default function RestaurantDetailPage() {
                 </div>
                 <p className="text-white/70 text-sm leading-relaxed">
                   {rev.media?.type === "video" && <span className="mr-1 text-magic-300">[视频]</span>}
-                  {reviewSnippet(rev.text, [rest.name, ...rev.tags], 180)}
+                  {reviewSnippet(rev.text, [rest.name, ...(RESTAURANT_KEYWORDS[rest.id] ?? [])], 180)}
                 </p>
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {rev.tags.map((t) => <span key={t} className="text-xs bg-white/5 text-white/30 px-1.5 py-0.5 rounded">#{t}</span>)}

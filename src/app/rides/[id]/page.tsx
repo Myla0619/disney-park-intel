@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getRideById } from "@/lib/parks-data";
+import { getRideById, RIDE_KEYWORDS } from "@/lib/parks-data";
 import { useProfileStore } from "@/lib/store";
 import WishlistButton from "@/components/WishlistButton";
+import UserRating from "@/components/UserRating";
 import { Review, Ride } from "@/types";
 import { reviewMatches, reviewSnippet } from "@/lib/review-snippet";
 import {
@@ -48,8 +49,9 @@ export default function RideDetailPage() {
     fetch(`/api/reviews?rideId=${id}`)
       .then((res) => res.json())
       .then((data) => {
+        const relevanceTerms = [r.name, ...(RIDE_KEYWORDS[r.id] ?? [])];
         const related: Review[] = (data.reviews ?? []).filter((review: Review) =>
-          reviewMatches(review.text, [r.name, r.id])
+          reviewMatches(review.text, relevanceTerms)
         );
         setReviews(related);
         setSummary(related.length ? {
@@ -135,6 +137,8 @@ export default function RideDetailPage() {
           </div>
         </div>
 
+        <UserRating type="ride" id={ride.id} name={ride.name} />
+
         {/* Sentiment summary */}
         {summary && (
           <div className="bg-night-800/55 rounded-xl p-4">
@@ -210,7 +214,7 @@ export default function RideDetailPage() {
                   </div>
                   <p className="text-white/70 text-sm leading-relaxed">
                     {review.media?.type === "video" && <span className="mr-1 text-magic-300">[视频]</span>}
-                    {reviewSnippet(review.text, [ride.name, ride.id], 180)}
+                    {reviewSnippet(review.text, [ride.name, ...(RIDE_KEYWORDS[ride.id] ?? [])], 180)}
                   </p>
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex gap-1 flex-wrap">

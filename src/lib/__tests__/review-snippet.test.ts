@@ -21,4 +21,9 @@ describe("reviewSnippet", () => {
     expect(reviewSnippet("无关内容".repeat(30), ["不存在的词"], 30)).toHaveLength(30);
     expect(reviewMatches("只有交通攻略", ["热力追踪"])).toBe(false);
   });
+
+  it("does not assign a generic post from a coincidental two-character overlap", () => {
+    expect(reviewMatches("动物园一日游，天气很热，体力消耗较大", ["疯狂动物城热力追踪"])).toBe(false);
+    expect(reviewMatches("热力追踪排队入口在疯狂动物城内", ["疯狂动物城热力追踪", "热力追踪值得玩吗"])).toBe(true);
+  });
 });

@@ -837,9 +837,12 @@ export function buildRoute(params: {
   nowMin?: number;
   /** 用户勾选「想去」的项目/机位/商店 id，会被大幅提权，几乎必然排入 */
   wishlist?: string[];
+  /** 已经完成的地点不会在当天的后续计划中再次出现。 */
+  completedItemIds?: string[];
 }): ItineraryItem[] {
   const { rides, scores, historical, live, profile, startArea, parkHours, anchors, nowMin } = params;
   const wishlist = new Set(params.wishlist ?? []);
+  const completed = new Set(params.completedItemIds ?? []);
 
   const openMin  = timeToMin(parkHours.open);
   const depMin   = timeToMin(profile.departureTime);
@@ -857,20 +860,20 @@ export function buildRoute(params: {
   const shopSpots  = getShopSpots(profile.park);
 
   // 按模式筛选候选池
-  let ridesPool = rides;
+  let ridesPool = rides.filter((ride) => !completed.has(ride.id));
   if (profile.mode === "thrill") {
     // 刺激项目优先，但排完之后继续用其余项目填满剩下的时间。
     // 此前是把非刺激项目直接排除在候选池外：园区符合条件的刺激项目只有个位数，
     // 排完就没东西可排了，一整天的行程断在中午——实测覆盖率只有 15%–36%。
-    const thrillRides = rides.filter((r) => r.thrillScore >= 3);
-    const others = rides.filter((r) => r.thrillScore < 3);
-    ridesPool = thrillRides.length > 0 ? [...thrillRides, ...others] : rides;
+    const thrillRides = ridesPool.filter((r) => r.thrillScore >= 3);
+    const others = ridesPool.filter((r) => r.thrillScore < 3);
+    ridesPool = thrillRides.length > 0 ? [...thrillRides, ...others] : ridesPool;
   }
   if (profile.mode === "family") {
-    const familyRides = rides.filter((r) => !isHeightBlocked(r, profile));
+    const familyRides = ridesPool.filter((r) => !isHeightBlocked(r, profile));
     // 边缘情况：family模式孩子太小导致候选池为空 → 放宽到 kidsScore >= 3
     if (familyRides.length === 0) {
-      ridesPool = rides.filter((r) => r.kidsScore >= 3);
+      ridesPool = ridesPool.filter((r) => r.kidsScore >= 3);
     } else {
       ridesPool = familyRides;
     }
@@ -928,7 +931,7 @@ export function buildRoute(params: {
   const estimatedTimeAt = (index: number) => startMin + slotSpan * (index + 1);
 
   if (profile.focusPhoto) {
-    const photoItems: CandidateItem[] = photoSpots.map((spot, i) => {
+    const photoItems: CandidateItem[] = photoSpots.filter((spot) => !completed.has(spot.id)).map((spot, i) => {
       const scored = scorePhotoSpot(spot, profile, estimatedTimeAt(i));
       return {
         id: spot.id, name: spot.name, area: spot.area, type: "photo" as const,
@@ -946,7 +949,7 @@ export function buildRoute(params: {
   }
 
   if (profile.focusShopping) {
-    const shopItems: CandidateItem[] = shopSpots.map((shop, i) => {
+    const shopItems: CandidateItem[] = shopSpots.filter((shop) => !completed.has(shop.id)).map((shop, i) => {
       const scored = scoreShop(shop, profile, estimatedTimeAt(i), openMin, closeMin);
       return {
         id: shop.id, name: shop.name, area: shop.area, type: "shop" as const,

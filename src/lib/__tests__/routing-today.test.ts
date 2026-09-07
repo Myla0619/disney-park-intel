@@ -69,4 +69,15 @@ describe("当天行程从此刻开始", () => {
     const rideItems = items.filter((i) => i.type === "ride");
     expect(rideItems).toEqual([]);
   });
+
+  it("实时重排不会再次推荐已经完成的项目", () => {
+    const firstRide = rides[0].id;
+    const items = buildRoute({
+      rides, scores, historical: [], live: [], profile,
+      startArea: "entrance", parkHours, anchors: [],
+      nowMin: timeToMin("10:00"), completedItemIds: [firstRide],
+    });
+    expect(items.some((item) => item.itemId === firstRide)).toBe(false);
+    expect(items.filter((item) => item.type === "ride").length).toBeGreaterThan(0);
+  });
 });

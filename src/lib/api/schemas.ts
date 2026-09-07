@@ -109,6 +109,8 @@ export const ItineraryBodySchema = z.object({
   polishNotes: z.boolean().default(true),
   /** 用户勾选「想去」的项目/机位/商店 id，会被大幅提权 */
   wishlist: z.array(z.string()).max(100).default([]),
+  /** 当天已完成的项目/餐厅；实时重排时不得再次推荐。 */
+  completedItemIds: z.array(z.string()).max(100).default([]),
 });
 
 export const AgentBodySchema = z.object({

@@ -63,7 +63,8 @@ export const usePlanStore = create<PlanStore>()(
 export function planFingerprint(
   profile: UserProfile,
   wishlist: string[],
-  currentArea: string
+  currentArea: string,
+  completedItemIds: string[] = []
 ): string {
   return JSON.stringify({
     mode: profile.mode,
@@ -88,6 +89,7 @@ export function planFingerprint(
     // 想去清单排序后再比，避免勾选顺序不同导致误判
     wishlist: [...wishlist].sort(),
     area: currentArea,
+    completed: [...completedItemIds].sort(),
   });
 }
 

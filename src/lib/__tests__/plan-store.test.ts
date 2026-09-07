@@ -57,6 +57,13 @@ describe("planFingerprint", () => {
   it("加入想去清单会改变指纹", () => {
     expect(planFingerprint(profile(), ["tron"], "entrance")).not.toBe(planFingerprint(profile(), [], "entrance"));
   });
+
+  it("完成项目后缓存立即失效，且完成顺序不影响指纹", () => {
+    const before = planFingerprint(profile(), [], "entrance", []);
+    const after = planFingerprint(profile(), [], "entrance", ["tron", "pirates"]);
+    expect(after).not.toBe(before);
+    expect(after).toBe(planFingerprint(profile(), [], "entrance", ["pirates", "tron"]));
+  });
 });
 
 describe("isPlanUsable", () => {

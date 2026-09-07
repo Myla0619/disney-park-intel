@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   const currentArea = parsed.data.currentArea;
   const polishNotes = parsed.data.polishNotes;
   const wishlist = parsed.data.wishlist;
+  const completedItemIds = parsed.data.completedItemIds;
 
   // 按园区时区判断"今天"，服务端时区不参与
   const isToday = profile.visitDate === todayInPark(profile.park);
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
   const parkHours = await getParkHours(profile.park, profile.visitDate, isToday);
 
   // 锚点（花车/烟花）
-  const anchors = buildAnchors(profile, parkHours, nowMin);
+  const completed = new Set(completedItemIds);
+  const anchors = buildAnchors(profile, parkHours, nowMin).filter((item) => !completed.has(item.itemId));
 
   // 起始区域
   const startArea = isToday && currentArea ? currentArea : "entrance";
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
     rides, scores,
     historical: historicalWaits,
     live: isToday ? liveWaits : [],
-    profile, startArea, parkHours, anchors, nowMin, wishlist,
+    profile, startArea, parkHours, anchors, nowMin, wishlist, completedItemIds,
   };
 
   const rawRoute = buildRoute(routeParams);
