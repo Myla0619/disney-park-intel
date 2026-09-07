@@ -17,6 +17,7 @@ import { AGENT_MODEL, AGENT_MAX_ITERATIONS } from "./models";
 import { logUsage } from "./usage-log";
 
 export type AgentEvent =
+  | { type: "provider"; name: "student" | "claude"; fallback: boolean }
   | { type: "tool"; name: string; iteration: number }
   | { type: "delta"; text: string }
   | { type: "done"; response: string; iterations: number; toolCalls: string[] }

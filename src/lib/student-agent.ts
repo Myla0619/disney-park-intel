@@ -8,7 +8,8 @@ export const studentConfigured = () => Boolean(process.env.PARK_MODEL_BASE_URL &
 
 /** Same prompt, registry and response envelope as training; never substitute Claude. */
 export async function* runStudentAgent(message: string, session: SessionMemory): AsyncGenerator<AgentEvent> {
-  const signal = AbortSignal.timeout(110_000);
+  const configuredTimeout = Number(process.env.PARK_STUDENT_TIMEOUT_MS ?? 20000);
+  const signal = AbortSignal.timeout(Number.isFinite(configuredTimeout) ? Math.min(60000, Math.max(1000, configuredTimeout)) : 20000);
   async function request(base: string, path: string, key: string, body?: unknown) {
     const res = await fetch(base.replace(/\/$/, '') + path, {
       method: body === undefined ? 'GET' : 'POST',

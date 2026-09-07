@@ -15,6 +15,7 @@ import {
 import { getRidesByPark } from "@/lib/parks-data";
 import { isAnthropicConfigured, hasEmptyApiKeyShadow } from "@/lib/anthropic-client";
 import { runAgentLoop } from "@/lib/agent-loop";
+import { withAgentFallback } from "@/lib/agent-fallback";
 import { usesStudent, studentConfigured, runStudentAgent } from "@/lib/student-agent";
 import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { parseBody } from "@/lib/api/respond";
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   const limited = checkRateLimit(req, "agent", RATE_LIMITS.agent);
   if (limited.response) return limited.response;
 
-  if (usesStudent() && !studentConfigured()) {
+  if (usesStudent() && !studentConfigured() && !isAnthropicConfigured()) {
     return NextResponse.json({ error: "自训模型服务尚未配置完成" }, { status: 503 });
   }
   if (!usesStudent() && !isAnthropicConfigured()) {
@@ -68,7 +69,12 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 
       try {
-        const events = usesStudent() ? runStudentAgent(message, activeSession) : runAgentLoop(message, activeSession, systemPrompt);
+        const claude = () => runAgentLoop(message, activeSession, systemPrompt);
+        const events = usesStudent() ? withAgentFallback(
+          studentConfigured() ? () => runStudentAgent(message, activeSession) : null,
+          isAnthropicConfigured() ? claude : null,
+        ) : claude();
+        if (!usesStudent()) send({ type: 'provider', name: 'claude', fallback: false });
         for await (const event of events) {
           send(event);
 

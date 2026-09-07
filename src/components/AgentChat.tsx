@@ -11,6 +11,7 @@ type Message = {
   isLoading?: boolean;
   /** 正在调用的工具，流式过程中显示给用户 */
   activeTool?: string;
+  providerLabel?: string;
 };
 
 /** 工具名 → 面向用户的说法 */
@@ -117,7 +118,10 @@ export default function AgentChat() {
             continue;
           }
 
-          if (event.type === "delta") {
+          if (event.type === "provider") {
+            text = "";
+            patchLast({ content: "", activeTool: undefined, providerLabel: event.name === "student" ? "自训模型" : event.fallback ? "自训模型暂不可用，已切换 Claude" : "Claude" });
+          } else if (event.type === "delta") {
             text += event.text;
             patchLast({ content: text, activeTool: undefined });
           } else if (event.type === "tool") {
@@ -150,7 +154,7 @@ export default function AgentChat() {
           <div className="font-medium text-white text-sm">迪士尼 AI 助手</div>
           <div className="text-white/40 text-xs flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-meadow-400" />
-            Claude · Tool Use · RAG 评论检索
+            智能问答 · 工具查询 · 评论检索
           </div>
         </div>
       </div>
@@ -179,6 +183,7 @@ export default function AgentChat() {
                 </div>
               ) : (
                 <>
+                  {msg.providerLabel && <p role="status" className="mb-1 text-xs text-white/60">{msg.providerLabel}</p>}
                   {msg.content && (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                   )}

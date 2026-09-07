@@ -26,14 +26,16 @@ PARK_TOOL_API_KEY=replace-in-secret-settings
 
 变量仅保存在服务端 secret 设置，不使用 NEXT_PUBLIC 前缀，不提交密钥。
 student 模式下助手使用自训模型；项目评分使用本地规则，备注使用排程原文，两者不调用 Claude。
-模型异常明确返回错误，不隐式调用 Claude。回滚显式将 PARK_AGENT_PROVIDER 改回 claude。
+自训服务未配置、失败或超时时，若 Anthropic 凭证可用，自动切换 Claude 一次，页面标明备用模型。
+默认自训整轮预算 20 秒，可用 PARK_STUDENT_TIMEOUT_MS 调整（1–60 秒）。冷启动超过预算会走备用服务。
+必须保留网站已有 Anthropic 凭证；两路均不可用时明确报错。回滚可将 PARK_AGENT_PROVIDER 改回 claude。
 
 ## 上线验收
 
 1. 用鉴权 GET /v1/models 核对实际加载的 checkpoint 和模型名，记录权重路径、训练运行号。
 2. 用鉴权 GET 工具 /health 确认 live 模式与协议版本。
 3. 网站询问排队、评论、规划，核对 GPU 请求日志和 SSE tool/done 事件。
-4. 故意关闭模型服务，网站必须报告错误；确认没有 Anthropic 调用。
+4. 故意关闭模型服务，网站应显示切换 Claude 并回答；删除备用凭证后应明确报错。
 5. 对同一组题跑 SFT 和 GRPO 完整工具循环评测，记录协议正确率与任务成功率，再选上线权重。
 
 公网服务、GPU 存活及权重均未确认前，不将生产变量切为 student。
