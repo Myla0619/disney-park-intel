@@ -11,7 +11,6 @@ type Message = {
   isLoading?: boolean;
   /** 正在调用的工具，流式过程中显示给用户 */
   activeTool?: string;
-  providerLabel?: string;
 };
 
 /** 工具名 → 面向用户的说法 */
@@ -120,7 +119,7 @@ export default function AgentChat() {
 
           if (event.type === "provider") {
             text = "";
-            patchLast({ content: "", activeTool: undefined, providerLabel: event.name === "student" ? "自训模型" : event.fallback ? "自训模型暂不可用，已切换 Claude" : "Claude" });
+            patchLast({ content: "", activeTool: undefined });
           } else if (event.type === "delta") {
             text += event.text;
             patchLast({ content: text, activeTool: undefined });
@@ -183,7 +182,6 @@ export default function AgentChat() {
                 </div>
               ) : (
                 <>
-                  {msg.providerLabel && <p role="status" className="mb-1 text-xs text-white/60">{msg.providerLabel}</p>}
                   {msg.content && (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                   )}
