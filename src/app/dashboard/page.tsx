@@ -525,7 +525,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Tabs */}
+        {/* 标签页 */}
         <div className="flex gap-1 mb-4 bg-night-800/55 p-1 rounded-xl">
           {(["itinerary","rides","agent"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}

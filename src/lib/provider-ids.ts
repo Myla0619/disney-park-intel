@@ -14,9 +14,9 @@
  */
 
 export type ProviderIds = {
-  /** themeparks.wiki entity UUID */
+  /** themeparks.wiki 实体标识。 */
   themeparks: string | null;
-  /** Queue-Times.com ride id */
+  /** Queue-Times.com 项目标识。 */
   queueTimes: number | null;
   /** Queue-Times.com 单人快速通道队列 id（若该项目提供 Single Rider） */
   queueTimesSingleRider?: number;

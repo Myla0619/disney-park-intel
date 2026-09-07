@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from sft_data import seed_family, validate_metadata
 
-# Integer multiplicities implement exact relative exposure without relying on ignored metadata.
+# 用整数重复次数控制相对样本曝光，避免依赖训练器忽略的元数据。
 STAGES = {"early": {"pass": 10, "borderline": 3},
           "mid": {"pass": 20, "borderline": 9},
           "late": {"pass": 5, "borderline": 3}}

@@ -1,4 +1,4 @@
-/** Teacher rewrites: 306 seeds × (original + 5 styles), then validate and deduplicate. */
+/** 教师扩写：306 个种子各保留原句并生成五种变体，再校验和去重。 */
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
@@ -11,7 +11,7 @@ const styles=["自然口语，像咨询朋友","简短直接，保留所有信�
 function arg(n:string,d:string){const i=process.argv.indexOf(`--${n}`);return i<0?d:process.argv[i+1];}
 export function validateRewrite(original:string, candidate:unknown): candidate is string {
   if(typeof candidate!=="string"||candidate.trim().length<5||candidate===original)return false;
-  // Reject added/dropped numerical facts; semantic preservation is checked separately.
+  // 拒绝增删数值约束的改写，语义等价另行检查。
   const nums=(s:string)=>(s.match(/\d+(?:\.\d+)?/g)??[]).sort().join("|");
   return nums(original)===nums(candidate) && !/<\/?(?:tool_call|answer|think)>/.test(candidate);
 }
@@ -60,7 +60,7 @@ export async function augment() {
       }catch(e:any){failures.push({id:seed.id,reason:e.message});}
     }
   }));
-  // Preserve originals first; no independent rewriting may silently relabel seed families.
+  // 先保留原句；改写不得改变种子家族归属。
   const all=[...seeds,...seeds.flatMap(s=>saved[s.id]??[])];
   const seen=new Set<string>(); const retained=dedup(all.filter(t=>{const q=t.query.replace(/\s/g,"");if(seen.has(q))return false;seen.add(q);return true;}));
   writeFileSync(output,retained.map(t=>JSON.stringify(t)).join("\n")+"\n");

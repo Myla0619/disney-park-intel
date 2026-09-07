@@ -148,8 +148,8 @@ export async function scoreTrajectory(
     w.format * format + w.trajectory * trajectory + w.efficiency * efficiency +
     w.constraints * constraints + w.callStatus * callStatus + w.answer * clamp01(answer)
   );
-  // Invalid plans cannot buy a high score with formatting or Judge prose.
-  // Keep partial feedback but cap all infeasible/unverified plans below valid ones.
+  // 无效行程不能靠格式分或评审文本获得高分。
+  // 保留分项反馈，并限制不可行或未验证行程的总分。
   const planFailed = needsPlan(t, task) && constraints < 1;
   const total = planFailed ? 0 : rawTotal;
 

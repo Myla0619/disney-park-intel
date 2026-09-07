@@ -153,7 +153,7 @@ function printCompare() {
   console.log(`\n(n = ${results.map((r) => `${r.name}:${r.n}`).join(", ")})`);
 }
 
-// CLI
+// 命令行入口。
 if (process.argv[1]?.endsWith("run_eval.ts")) {
   (async () => {
     if (process.argv.includes("--compare")) { printCompare(); return; }

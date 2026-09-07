@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Canonical pipeline only: explicit stages, full-parameter model checkpoints.
+# 主训练管线：显式指定阶段，使用完整模型权重。
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 stage="${1:-help}"

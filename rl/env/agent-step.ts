@@ -1,4 +1,4 @@
-/** Shared parser and tool execution for distributed veRL rollouts. */
+/** 分布式 veRL 采样共用的协议解析和工具执行。 */
 import { parseAgentStep, validateToolCall, formatToolResponse } from "../agent/protocol";
 import { callTool, TOOL_REGISTRY, type ToolContext } from "./tools";
 export async function executeAgentStep(raw:string, ctx:ToolContext, remainingCalls:number) {

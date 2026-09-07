@@ -25,7 +25,7 @@ def main():
         base=compose(config_name="ppo_trainer")
     overrides=OmegaConf.load(root/"rl/train/grpo_verl.yaml")
     del overrides["defaults"]
-    # RolloutConfig declares custom, while the pinned YAML omits the optional field.
+    # RolloutConfig 声明了 custom，固定版本的 YAML 未包含该可选字段。
     with open_dict(base.actor_rollout_ref.rollout):
         base.actor_rollout_ref.rollout.custom = overrides.actor_rollout_ref.rollout.custom
     config=OmegaConf.merge(base,overrides)
@@ -37,7 +37,7 @@ def main():
     if args.resume:
         config.trainer.resume_mode="resume_path"
         config.trainer.resume_from_path=str(Path(args.resume).resolve())
-        # veRL uses an absolute epoch target when resuming; advance one curriculum stage.
+        # veRL 恢复时使用绝对训练轮次目标，此处推进一个课程阶段。
         config.trainer.total_epochs={"early":1,"mid":2,"late":3}[args.phase]
     if config.actor_rollout_ref.model.lora_rank!=0:raise ValueError("Unexpected LoRA")
     if args.dry_run:
@@ -48,7 +48,7 @@ def main():
     target=Path(config.trainer.default_local_dir)
     target.mkdir(parents=True,exist_ok=False)
     (target/"resolved-config.yaml").write_text(OmegaConf.to_yaml(config,resolve=True))
-    # Keep the initial SFT model path fixed in every phase for the frozen KL reference.
+    # 各阶段固定初始 SFT 路径，作为冻结的 KL 参考模型。
     from verl.trainer.main_ppo import main as verl_main
     verl_main.__wrapped__(config)
 

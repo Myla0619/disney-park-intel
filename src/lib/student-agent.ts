@@ -6,7 +6,7 @@ import { parseAgentStep, validateToolCall, formatToolResponse } from '../../rl/a
 export const usesStudent = () => process.env.PARK_AGENT_PROVIDER === 'student';
 export const studentConfigured = () => Boolean(process.env.PARK_MODEL_BASE_URL && process.env.PARK_MODEL_NAME && process.env.PARK_TOOL_BASE_URL && process.env.PARK_MODEL_API_KEY && process.env.PARK_TOOL_API_KEY);
 
-/** Same prompt, registry and response envelope as training; never substitute Claude. */
+/** 复用训练提示词、工具表和返回格式；备用模型切换由外层处理。 */
 export async function* runStudentAgent(message: string, session: SessionMemory): AsyncGenerator<AgentEvent> {
   const configuredTimeout = Number(process.env.PARK_STUDENT_TIMEOUT_MS ?? 20000);
   const signal = AbortSignal.timeout(Number.isFinite(configuredTimeout) ? Math.min(60000, Math.max(1000, configuredTimeout)) : 20000);

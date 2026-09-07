@@ -1,4 +1,4 @@
-/** Process-local reservations are synchronous, so concurrent requests cannot overbook a key. */
+/** 进程内同步预留额度，避免并发请求超用同一个密钥。 */
 export class KeyPool {
   private slots: {key: string; active: number; readyAt: number; disabled: boolean}[];
   private cursor = 0;

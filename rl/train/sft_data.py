@@ -18,7 +18,7 @@ def validate_metadata(row):
 
 
 def seed_family(task_id):
-    # augment.ts suffix; repeated augmentation stays in the original family.
+    # 识别 augment.ts 添加的后缀，多次扩写仍归属原任务家族。
     return re.sub(r"(?:-v\d+)+$", "", task_id)
 
 
@@ -35,7 +35,7 @@ def split_families(rows, fraction=0.05, seed=42):
     val_ids = set(families[:count])
     train = [r for r in rows if seed_family(r["taskId"]) not in val_ids]
     val = [r for r in rows if seed_family(r["taskId"]) in val_ids]
-    # Exact text copied under a new ID is also leakage; semantic overlap needs review.
+    # 相同文本换 ID 也属于数据泄漏；语义重叠需要另行复核。
     def queries(rs):
         return {c["value"].strip() for r in rs for c in r["conversations"]
                 if c["from"] == "human" and "<tool_response>" not in c["value"]}

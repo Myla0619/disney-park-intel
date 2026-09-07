@@ -1,4 +1,4 @@
-/** Verify the delivered structured plan, not just a previous tool's self-report. */
+/** 校验最终交付的结构化行程，而非只检查工具之前的自报结果。 */
 import type { Trajectory } from "../agent/loop";
 import type { SeedTask } from "../data/seeds";
 import type { ItineraryItem } from "@/types";

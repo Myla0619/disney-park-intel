@@ -264,7 +264,7 @@ export function dedup(tasks: SeedTask[], threshold = 0.8): SeedTask[] {
   for (const task of tasks) {
     const g = grams(task.query);
     const dup = kept.some(({ task: prior, g: g2 }) => {
-      // Similar wording with a different explicit constraint is a distinct task.
+      // 表述相近但显式约束不同的查询视为不同任务。
       if (prior.category !== task.category || JSON.stringify(prior.profile) !== JSON.stringify(task.profile)) return false;
       let inter = 0;
       for (const x of g) if (g2.has(x)) inter++;

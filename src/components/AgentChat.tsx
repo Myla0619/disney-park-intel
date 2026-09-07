@@ -144,7 +144,7 @@ export default function AgentChat() {
 
   return (
     <div className="flex flex-col h-full bg-night-900">
-      {/* Header */}
+      {/* 页头 */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-night-800/55">
         <div className="w-8 h-8 rounded-full bg-magic-500/20 border border-magic-400/35 flex items-center justify-center">
           <Bot className="w-4 h-4 text-magic-400" />
@@ -158,7 +158,7 @@ export default function AgentChat() {
         </div>
       </div>
 
-      {/* Messages */}
+      {/* 消息列表 */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-none">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
@@ -202,7 +202,7 @@ export default function AgentChat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick prompts */}
+      {/* 快捷提问 */}
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto scrollbar-none">
         {QUICK_PROMPTS.map((p) => (
           <button key={p.text} onClick={() => sendMessage(p.text)} disabled={loading}
@@ -213,7 +213,7 @@ export default function AgentChat() {
         ))}
       </div>
 
-      {/* Input */}
+      {/* 输入框 */}
       <div className="px-4 pb-4 pt-2">
         <div className="flex gap-2 bg-night-800 border border-white/10 rounded-2xl px-3 py-2 focus-within:border-magic-400/50 transition-colors">
           <input

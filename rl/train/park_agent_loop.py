@@ -38,7 +38,7 @@ async def run_multiturn(adapter, task, messages, sampling_params, response_lengt
             break
         params = {**sampling_params, "max_tokens": min(remaining, 2048)}
         output = await asyncio.wait_for(adapter.generate(runtime, params), max(0.01, deadline-time.monotonic()))
-        # Exact generated token IDs are retained. Re-tokenizing decoded text would change log probabilities.
+        # 保留原始生成 token ID；对解码文本重新分词会改变对数概率。
         runtime, mask, logprobs = await adapter.assistant(runtime, output, mask, logprobs)
         raw = adapter.decode(output)
         messages.append({"role": "assistant", "content": raw})
@@ -53,7 +53,7 @@ async def run_multiturn(adapter, task, messages, sampling_params, response_lengt
         previous = copy.deepcopy(messages)
         updated = messages + [observation]
         merged, next_mask, next_probs = await adapter.observation(previous, updated, runtime, mask, logprobs)
-        # Never score a complete transcript while training on a truncated one.
+        # 训练文本被截断时，不能用完整轨迹评分。
         if len(next_mask) >= response_length:
             stopped = "context_budget"
             break
@@ -79,7 +79,7 @@ async def run_multiturn(adapter, task, messages, sampling_params, response_lengt
             "stopped": stopped, "calls": calls}
 
 
-# Import veRL lazily so CPU control-flow tests do not require CUDA/Ray.
+# 延迟导入 veRL，使 CPU 控制流测试无需 CUDA 或 Ray。
 def create_agent_class():
     from verl.experimental.agent_loop.agent_loop import AgentLoopBase, AgentLoopOutput
 

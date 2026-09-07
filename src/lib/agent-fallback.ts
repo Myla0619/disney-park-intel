@@ -1,6 +1,6 @@
 import type { AgentEvent } from './agent-loop';
 
-/** Only publish a complete student answer; switch once on failure. */
+/** 只返回完整的自训模型回答，失败后切换一次备用服务。 */
 export async function* withAgentFallback(
   primary: (() => AsyncGenerator<AgentEvent>) | null,
   fallback: (() => AsyncGenerator<AgentEvent>) | null,

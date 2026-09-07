@@ -41,7 +41,7 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
     <Link href={`/rides/${ride.id}`}>
       <div className="group bg-night-800/55 hover:bg-night-800 border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all duration-200 cursor-pointer">
         <div className="flex items-start gap-3">
-          {/* Score circle */}
+          {/* 评分环 */}
           {score && (
             <div className="relative flex-shrink-0 w-12 h-12">
               <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
@@ -70,21 +70,21 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
 
             <div className="text-white/40 text-xs mt-0.5">{ride.area}</div>
 
-            {/* Stats row */}
+            {/* 项目指标 */}
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              {/* Wait time */}
+              {/* 等待时间 */}
               <div className={`flex items-center gap-1 text-xs font-medium ${waitColor}`}>
                 <Clock className="w-3 h-3" />
                 {ride.waitTime != null ? `${ride.waitTime}分钟` : "演出/关闭"}
               </div>
 
-              {/* Thrill */}
+              {/* 刺激程度 */}
               <div className="flex items-center gap-1 text-xs text-white/40">
                 <Zap className="w-3 h-3" />
                 {THRILL_LABELS[ride.thrillScore]}
               </div>
 
-              {/* Rating */}
+              {/* 评分 */}
               {avgRating && (
                 <div className="flex items-center gap-1 text-xs text-castle-400">
                   <Star className="w-3 h-3 fill-amber-400" />
@@ -92,7 +92,7 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
                 </div>
               )}
 
-              {/* Sentiment */}
+              {/* 情感倾向 */}
               {sentimentPct !== null && (
                 <div className="flex items-center gap-1 text-xs text-white/40">
                   <TrendingUp className="w-3 h-3" />
@@ -101,7 +101,7 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
               )}
             </div>
 
-            {/* Height warning */}
+            {/* 身高提醒 */}
             {ride.heightRequirement && (
               <div className="flex items-center gap-1 mt-1.5 text-xs text-white/30">
                 <AlertCircle className="w-3 h-3" />
@@ -109,12 +109,12 @@ export function RideCard({ ride, score, reviews = [] }: Props) {
               </div>
             )}
 
-            {/* AI reasoning */}
+            {/* 推荐理由 */}
             {score?.reasoning && (
               <p className="text-white/50 text-xs mt-2 leading-relaxed line-clamp-2">{score.reasoning}</p>
             )}
 
-            {/* Tags from reviews */}
+            {/* 评论标签 */}
             {allTags.length > 0 && (
               <div className="flex gap-1 mt-2 flex-wrap">
                 {allTags.map((tag) => (

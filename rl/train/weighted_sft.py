@@ -33,8 +33,8 @@ def weighted_causal_loss(logits, labels, weights, normalizer=1.0):
     if not 0 < normalizer <= 1:
         raise ValueError("Expected fixed training-dataset mean weight")
     per_sample = (losses * mask).sum(-1) / counts
-    # A batch=1 normalization by sum(weights) would cancel the 0.6 weighting.
-    # The fixed training mean also preserves relative contributions across accumulation.
+    # 批量大小为 1 时，除以当前权重和会抵消 0.6 的降权。
+    # 固定训练集权重均值，使梯度累积保留相对贡献。
     return (per_sample * weights / normalizer).mean()
 
 

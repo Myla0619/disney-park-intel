@@ -175,7 +175,7 @@ if (process.argv[1] && process.argv[1].endsWith("clean.ts")) {
     const attempts: TrajectoryRecord[] = files.flatMap((f) =>
       readFileSync(f, "utf-8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l))
     );
-    // Prefer the latest successful attempt; never duplicate a resumed task in SFT.
+    // 保留最近一次成功结果，避免断点续跑产生重复 SFT 样本。
     const unique = new Map<string,TrajectoryRecord>();
     for(const r of attempts)if(!unique.has(r.taskId)||r.stoppedReason==="answer")unique.set(r.taskId,r);
     const records=[...unique.values()];

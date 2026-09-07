@@ -1,101 +1,35 @@
-# 🏰 Disney Park Intelligence
+# Disney Park Intelligence
 
 English | [中文](README.md)
 
-An AI itinerary planner built for Shanghai Disneyland.
+An itinerary planner for Shanghai Disneyland. It combines queue times, walking distances, height restrictions, dining reservations, and personal preferences into a suggested day plan.
 
-I started this project because park guides are plentiful, but a ranked list of attractions is not very useful once you are inside the park. What people actually need is an executable plan that can account for live queues, walking distance, height restrictions, dining reservations, Premier Access, and personal preferences at the same time.
+[Try the app](https://disney-park-intel.vercel.app)
 
-👉 [Try the live app](https://disney-park-intel.vercel.app)
+## Features
 
-## What it does
+- Plan routes around your group, arrival and departure times, and Premier Access choices.
+- Look up queues and estimate waits using historical snapshots.
+- Match posts by attraction names and aliases, then extract relevant passages. Video posts carry a `[视频]` label.
+- Record personal attraction and restaurant ratings, currently saved on the device.
+- Mark an activity complete and replan the remaining day. Progress is stored by park and date.
+- Ask about attractions, restaurants, shops, and photo spots in chat.
 
-- Builds a day plan from group heights, preferences, pace, and Premier Access choices
-- Orders attractions using live waits, historical snapshots, and walking cost
-- Treats dining reservations, shows, and must-do attractions as hard anchors
-- Revises a plan through natural language while streaming the Agent's tool activity
-- Includes attraction, restaurant, shop, and photo-spot pages, with offline caching
+## Implementation
 
-## Where most of the work went
+Deterministic code builds the route. The model interprets questions, calls tools, and explains results. Scheduling weighs waiting, walking, and physical effort while handling fixed time slots. It is a heuristic, not a guarantee of a globally optimal route.
 
-The hardest part was not getting the interface to run. It was proving that a plausible-looking itinerary was actually correct.
+The website supports Claude and a trained model. The trained model uses the training environment's prompt, tool registry, and text protocol. It can fall back to Claude when unavailable or timed out; the page does not display switching notices. In student mode, attraction scoring and itinerary notes use local logic.
 
-Earlier versions contained several silent failures: external provider IDs did not map to internal attractions; Chinese reviews were split on whitespace, which made almost every retrieval score zero; and walking cost was repeatedly measured from the starting point, causing routes to jump across the park. None of these bugs crashed the application. They simply produced bad advice.
+The integration code is committed, but deployment of the trained weights has not been verified online. See [student deployment](docs/student-deployment.md).
 
-I added deterministic evaluations and boundary tests, rewrote the Chinese BM25 tokenizer and scorer, centralized provider-ID mapping, and reworked the scheduler. That is the part of this project I care about most: it is not only an LLM interface, but an attempt to build a decision system that is testable, explainable, and honest when its data is weak.
+## Data and limitations
 
-## How it works
+Live waits come from external services; historical waits and posts come from the repository corpus. Missing data may produce labelled fallback results or examples, which should not be treated as on-site measurements.
 
-```text
-preferences + time / height / reservation constraints
-                         │
-                         ▼
-              filter and score candidates
-                         │
-                         ▼
-       live wait > historical forecast > static baseline
-                         │
-                         ▼
-          greedy routing + hard anchors + gap filling
-                         │
-                         ▼
-                  short Claude explanation
-```
+The `rating` field for Xiaohongshu posts is an engagement-based popularity indicator, not a star rating given by the author. Personal ratings are stored separately. Post matching uses keywords and aliases; it cannot reliably resolve every abbreviation, sarcastic statement, or opinion about multiple attractions in one post. Restaurant examples are not real user feedback.
 
-The LLM does not invent the schedule. Time, height, Premier Access intervals, and reservation anchors are handled by deterministic code. Claude selects tools, interprets user intent, and explains the result. The Agent runs for at most five rounds and streams text and tool progress over SSE.
-
-```text
-cost = waitWeight × effectiveWait
-     + walkWeight × walkMinutes
-     + energyWeight × thrillScore × 5
-```
-
-The `efficient`, `balanced`, and `easy` modes change the relative cost of waiting, walking, and physical intensity.
-
-## Data and fallback behavior
-
-| Capability | Source | Fallback |
-|---|---|---|
-| Live wait times | themeparks.wiki; 20 of 24 attractions mapped | Static baseline with `fallback: true` |
-| Wait forecast | Versioned historical snapshots | With fewer than 8 samples, extrapolate from the current snapshot and report low confidence |
-| Attraction reviews | Offline collection of public Xiaohongshu posts | Uncovered targets use clearly labelled hand-written samples |
-| AI scoring | Structured Claude output | Local rules when credentials are absent or the call fails |
-| Conversation state | Process memory; optional Upstash Redis | Without Redis, state is lost on a cold start |
-
-The repository currently contains 24 attractions, 11 restaurants, 29 shops, 44 photo locations, 280 real Xiaohongshu posts covering 14 attractions, and 1,300 versioned wait-time snapshots.
-
-I do not present those numbers as user counts. The project does not yet have verified active-user or retention data.
-
-### Known limitations
-
-- Xiaohongshu has no star rating. The stored `rating` is a popularity proxy, not a satisfaction score.
-- Dictionary sentiment performs poorly on informal language, hashtags, and emoji; about 75% of collected posts are classified as neutral.
-- Real restaurant reviews have not been collected. Those targets expose a fallback marker.
-
-## Reproducible results
-
-```bash
-npm test
-```
-
-There are 170 tests covering provider IDs, wait parsing, height boundaries, Premier Access, route constraints, Chinese retrieval, session persistence, rate limits, validation, and SSE framing. Three live-network checks are skipped by default.
-
-```bash
-RATE_LIMIT_LLM=100000 npm run dev
-python3 scripts/eval_itinerary.py
-```
-
-**100/100 itinerary scenarios pass** across normal, time, height, Premier Access, anchor, and route-mode categories. A deterministic script performs the scoring without calling an LLM.
-
-```bash
-npm run eval:retrieval
-```
-
-| P@1 | P@3 | Recall@3 | MRR | nDCG@5 |
-|---:|---:|---:|---:|---:|
-| 0.944 | 0.556 | 0.678 | 0.963 | 0.790 |
-
-These results use 14 hand-written examples and 18 queries labelled by one person. They are useful for comparing retrieval changes, but **they are not evidence of production retrieval quality**. `eval_tool_accuracy.py` has not been run, and the repository does not claim a result that does not exist.
+There are no verified active-user or retention statistics. Corpus sizes and evaluation question counts are not user counts.
 
 ## Run locally
 
@@ -107,33 +41,25 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The core application works without Anthropic credentials: scoring falls back to local rules, while the AI assistant returns a descriptive 503 response.
+Open [localhost:3000](http://localhost:3000). Routes can use local logic without a model service; chat needs valid model credentials. Keep keys in environment variables. Remove unused credential variables rather than leaving empty values that override other settings.
 
-> If you do not use `ANTHROPIC_API_KEY`, remove the line instead of leaving an empty value. An empty value still masks other valid credentials.
+## Validation and training
 
-## Stack and repository map
-
-- Next.js 14 App Router, TypeScript, Tailwind CSS, and Zustand
-- Anthropic Tool Use API with SSE streaming
-- BM25 with Chinese character bigrams
-- Vitest, GitHub Actions, Vercel, and optional Upstash Redis
-
-```text
-src/app/                 pages and API routes
-src/app/api/agent/       Agent loop, tool definitions, and execution
-src/lib/routing.ts       routing and constraint handling
-src/lib/wait-*.ts        live wait service and historical forecast
-src/lib/vector-store.ts  BM25 retrieval
-data/                    reviews and wait snapshots
-scripts/                 collection, validation, and evaluation tools
+```bash
+npm test
+npm run eval:retrieval
 ```
 
-## RL experiments versus the product
+Tests cover scheduling, data mapping, retrieval, and tool protocols. See the [evaluation directory](data/rl/eval/README.md) for historical results. They are not current scores for the code or deployed model; relevant evaluations must be rerun after changes.
 
-`rl/` contains distillation, SFT, GRPO, the tool environment, and evaluation code; results are in `data/rl/eval/`. These experiments are not yet connected to the web Agent. The product still calls models through the Anthropic client, with model IDs configurable through deployment environment variables. Training results are not production results: serving and protocol/safety validation are still needed before integration.
+`rl/` contains task generation, distillation, SFT, GRPO, and full tool-loop evaluation. Existing older weights are Qwen 32B QLoRA/SFT and GRPO adapters. The full-parameter training configurations describe subsequent work, not a completed full-parameter run. See [training instructions](rl/train/README.md).
 
-## Authorship and attribution
+## Repository and maintenance
 
-The project is maintained by [Myla0619](https://github.com/Myla0619), with development from both previous accounts consolidated here. AI coding assistance was used during development, and wait-time snapshots are collected automatically by author-configured GitHub Actions. Unified commit attribution does not imply that automated work was performed manually.
+- `src/app/`: pages and API routes.
+- `src/lib/`: scheduling, retrieval, sessions, and model integration.
+- `rl/`: training tools, data pipelines, and evaluation.
+- `data/`: posts, wait snapshots, and experiment records.
+- `scripts/`: collection and validation scripts.
 
-External APIs, Disney attraction information, and public Xiaohongshu content were not created by this project. The project implements their collection, mapping, fallback behavior, retrieval, and evaluation.
+Maintained by [Myla0619](https://github.com/Myla0619). AI coding assistance was used during development; scheduled jobs collect wait snapshots. External APIs, Disney information, and public posts belong to their respective sources. This project integrates, organizes, and uses them.

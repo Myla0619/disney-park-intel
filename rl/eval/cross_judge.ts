@@ -1,4 +1,4 @@
-/** Blind paired evaluation, both A/B orders, independent model identities, conflict flags. */
+/** 匿名成对评测：交换 A/B 顺序，校验模型独立性并记录评分分歧。 */
 import {readFileSync,writeFileSync} from "node:fs";
 import {OpenAICompatLLM} from "../agent/loop";
 import type {EvalResult} from "./run_eval";

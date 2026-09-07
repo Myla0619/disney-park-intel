@@ -151,7 +151,7 @@ def check_anchor_integrity(items: list, profile_data: dict) -> list:
     if profile_data.get("watchFireworks"):
         fireworks = next((i for i in anchor_items if i.get("type") == "fireworks"), None)
         if not fireworks:
-            # Could be legitimately skipped if time conflict - only error if no conflict
+            # 存在时间冲突时允许跳过；无冲突却遗漏才报错。
             parade_time = time_to_min(profile_data.get("paradeTime", "00:00"))
             fw_time = time_to_min(profile_data.get("fireworksTime", "00:00"))
             if abs(fw_time - parade_time) > 60:  # Not a conflict scenario
@@ -209,7 +209,7 @@ def check_coverage(items: list, profile_data: dict) -> list:
 
 def check_no_skip_rides(items: list) -> list:
     """Items marked as skip in scores should not appear."""
-    # This check requires knowing scores - approximate by checking known skip conditions
+    # 此检查需要项目评分，目前用已知跳过条件近似判断。
     return []  # Validated at score level, not itinerary level
 
 def validate_itinerary(items: list, profile_data: dict, skip_checks: list = None) -> dict:
@@ -352,7 +352,7 @@ today    = str(date.today())
 
 TEST_SCENARIOS = [
     # ══════════════════════════════════════════════════════════════════════
-    # CATEGORY 1: NORMAL CASES (20 scenarios)
+    # 第 1 类：常规场景（20 个场景）
     # ══════════════════════════════════════════════════════════════════════
     TestScenario("normal_01", "Standard family day", "normal",
         profile(mode="family", arrival="09:00", departure="21:00",
@@ -451,7 +451,7 @@ TEST_SCENARIOS = [
         description="6-ride kids bundle for family"),
 
     # ══════════════════════════════════════════════════════════════════════
-    # CATEGORY 2: TIME EDGE CASES (20 scenarios)
+    # 第 2 类：时间边界（20 个场景）
     # ══════════════════════════════════════════════════════════════════════
     TestScenario("time_01", "Very short visit: 1 hour", "time",
         profile(arrival="10:00", departure="11:00"),
@@ -563,7 +563,7 @@ TEST_SCENARIOS = [
         description="9-hour visit covering both meal times"),
 
     # ══════════════════════════════════════════════════════════════════════
-    # CATEGORY 3: HEIGHT / KIDS EDGE CASES (20 scenarios)
+    # 第 3 类：身高与儿童边界（20 个场景）
     # ══════════════════════════════════════════════════════════════════════
     TestScenario("height_01", "Kid exactly at TRON height (122cm)", "height",
         profile(mode="family", kids=[kid(10,122)]),
@@ -652,7 +652,7 @@ TEST_SCENARIOS = [
         description="Very small child, only peter-pan/pirates/winnie/dumbo available"),
 
     # ══════════════════════════════════════════════════════════════════════
-    # CATEGORY 4: LIGHTNING LANE EDGE CASES (20 scenarios)
+    # 第 4 类：尊享卡边界（20 个场景）
     # ══════════════════════════════════════════════════════════════════════
     TestScenario("ll_01", "No LL package", "ll",
         profile(ll="none"),
@@ -737,7 +737,7 @@ TEST_SCENARIOS = [
         description="Smoke test: bundle6-fun loads without errors"),
 
     # ══════════════════════════════════════════════════════════════════════
-    # CATEGORY 5: ANCHOR EDGE CASES (10 scenarios)
+    # 第 5 类：固定时段边界（10 个场景）
     # ══════════════════════════════════════════════════════════════════════
     TestScenario("anchor_01", "Parade only", "anchor",
         profile(watch_parade=True, parade_time="15:45"),
@@ -791,7 +791,7 @@ TEST_SCENARIOS = [
         description="VIP package: anchor notes should mention reserved spots"),
 
     # ══════════════════════════════════════════════════════════════════════
-    # CATEGORY 6: MODE EDGE CASES (10 scenarios)
+    # 第 6 类：游玩模式边界（10 个场景）
     # ══════════════════════════════════════════════════════════════════════
     TestScenario("mode_01", "Thrill mode all high rides", "mode",
         profile(mode="thrill"),
@@ -869,7 +869,7 @@ def run_scenario(scenario: TestScenario, verbose: bool = False) -> TestResult:
     if api_err:
         return TestResult(scenario, False, [f"API error: {api_err}"], 0, api_err, elapsed)
 
-    # Check expected empty
+    # 检查预期为空的行程。
     non_walk = [i for i in items if i.get("type") != "walk"]
     if scenario.expect_empty and len(non_walk) > 3:
         return TestResult(
@@ -878,7 +878,7 @@ def run_scenario(scenario: TestScenario, verbose: bool = False) -> TestResult:
             len(non_walk), None, elapsed
         )
 
-    # Check skipped anchors
+    # 检查跳过的固定时段。
     anchor_errors = []
     for anchor_type in scenario.expect_skipped_anchors:
         if any(i.get("type") == anchor_type for i in items):
@@ -929,7 +929,7 @@ def run_all(categories: list = None, verbose: bool = False, fail_only: bool = Fa
             if verbose and result.passed:
                 print(f"              items={result.item_count}, {result.duration_ms:.0f}ms")
 
-    # Summary
+    # 汇总。
     total   = len(results)
     passed  = sum(r.passed for r in results)
     failed  = total - passed
@@ -960,7 +960,7 @@ def run_all(categories: list = None, verbose: bool = False, fail_only: bool = Fa
 
     print(f"{'═'*60}\n")
 
-    # Save results
+    # 保存结果。
     output = {
         "summary": {"total": total, "passed": passed, "failed": failed, "pass_rate": passed/total},
         "by_category": {k: {"passed": v["passed"], "failed": v["failed"]} for k, v in by_category.items()},

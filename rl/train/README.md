@@ -1,12 +1,10 @@
-# 乐园 Agent：唯一训练主线
+# 训练与部署 / Training and deployment
 
-主线为 Qwen2.5-32B-Instruct，全参 SFT 冷启动 → 全参、多轮 GRPO。LLaMA-Factory 负责 SFT，veRL 负责 GRPO。`run_all.sh` 是唯一启动入口。旧 adapter 脚本保留作历史参考，直接运行会退出。
+## 中文
 
-## 数据
+现有实验包括 Qwen 32B 的 QLoRA/SFT 与 GRPO adapter。后续全参方案使用 Qwen2.5-32B-Instruct、LLaMA-Factory 和 veRL，以 `run_all.sh` 为入口。配置存在不代表训练已跑完；旧 adapter 脚本保留作历史参考。
 
-`data/rl/seeds.jsonl` 是实际生成的 306 个任务家族，覆盖 12 类；先固定家族划分，再扩写。每个种子生成 5 个经教师核查的表达变体，保留原句，去重后目标不少于 1,800 条。最终数量以 `seeds_augmented.jsonl.manifest.json` 为准。扩写查询不等于蒸馏轨迹。
-
-教师扩写、蒸馏均须配置 `TEACHER_BASE_URL`、`TEACHER_MODEL`、`LLM_API_KEY`。多 Key 可用 `LLM_API_KEYS` JSON 数组，仅使用已授权配额。`PARK_SNAPSHOT_AT` 固定回放日期。Key 只留在环境变量或用户指定配置文件，不进仓库。
+### 数据准备
 
 ```bash
 bash rl/train/run_all.sh seeds
@@ -16,47 +14,66 @@ bash rl/train/run_all.sh clean
 bash rl/train/run_all.sh prepare-sft
 ```
 
-扩写使用规则检查、教师语义等价复核、字符 n-gram 去重和断点日志。约束改变会被拒绝；近重复可能导致总量不足，此时命令失败并保留进度，不能把目标量当成实际产量。清洗保留成功恢复的轨迹，输出逐条拒绝原因。只有已完成的 teacher trajectory 才能进入 SFT。
+教师服务使用 TEACHER_BASE_URL、TEACHER_MODEL、LLM_API_KEY；PARK_SNAPSHOT_AT 固定回放时间。种子按家族划分，扩写数量和拒绝原因写入清单。实际产量以生成文件为准。详见 [数据说明](../data/README.md)。
 
-## 全参 SFT
+### 全参训练方案
 
-配置为 `sft_full_early.yaml`、`sft_full_mid.yaml`、`sft_full_late.yaml`，均明确 `finetuning_type: full`，使用 BF16 与 ZeRO-3，不加载量化基座和 LoRA。安装 `framework-lock.json` 固定提交的 LLaMA-Factory。
-
-三个阶段使用同一批固定验证家族。前期使用 easy/medium，之后加入 hard。为确保 LLaMA-Factory 实际使用质量权重，预处理将权重转成明确的样本曝光次数：borderline 相对 pass 的曝光为 0.30、0.45、0.60；与学习率、阶段步数共同写入清单。这是采样课程，不宣称原生 Trainer 自动消费 weight 字段。配置的训练步数是起始预算，尚非经过消融确定的最优值。
+安装版本以 `framework-lock.json` 为准。SFT 配置为 `sft_full_early.yaml`、`sft_full_mid.yaml`、`sft_full_late.yaml`，使用 BF16 和 ZeRO-3。按 early、mid、late 顺序运行，下一阶段从上一阶段的完整权重初始化。
 
 ```bash
 bash rl/train/run_all.sh sft-early
 bash rl/train/run_all.sh sft-mid
 bash rl/train/run_all.sh sft-late
-```
-
-阶段产物是完整模型权重，后一阶段从前一阶段权重初始化。训练只监督 assistant 消息，包含完整历史 assistant 动作；工具观察不作为标签目标。GPU 上仍需核对实际 tokenizer 的标签掩码和显存峰值。
-
-## 全参多轮 GRPO
-
-安装 `framework-lock.json` 固定提交的 veRL。环境先运行 `npm run env:serve`，并配置真实 `JUDGE_BASE_URL` / `JUDGE_MODEL` / `LLM_API_KEY`；启发式 Judge 只用于本地联调，不允许进入正式训练。
-
-```bash
 bash rl/train/run_all.sh prepare-rl
 python rl/train/launch_grpo.py --dry-run
 bash rl/train/run_all.sh grpo --phase early
 ```
 
-`park_agent_loop.py` 使用该 veRL 提交的 AgentLoop 与 Continuous Token 接口，保留生成 token 和 log probability，工具观察对应 response mask 为 0。每次输出交给 `/agent-step`，共享 TypeScript 协议解析与工具执行；完整消息交给 `/reward`。停止条件是答案、调用预算、上下文预算和超时。缺失/截断答案得零分；奖励服务不可用会终止训练，不冒充模型低分。
+SFT 只监督 assistant 消息，工具返回不作为标签；质量权重通过样本曝光次数实现。GRPO 需要工具环境和独立 Judge，正式训练不能用启发式 Judge 代替。多轮生成保留原始 token 和对数概率，工具返回的训练掩码为零。KL 参考固定为 SFT 权重；恢复阶段前需核对数据迭代器和优化器状态。
 
-每题组采样八条完整轨迹。`model.lora_rank: 0`，KL 参考为固定 SFT 权重。`launch_grpo.py --phase mid/late --resume <上一阶段checkpoint>` 保留优化器与 SFT 参考；正式运行时必须核对 pinned veRL 恢复数据迭代器的阶段边界，不能直接把它当成已经完成的课程实验。
+这些配置仍需在目标 GPU 上验证标签掩码、显存峰值及恢复行为，不保证在单卡上可运行。流程记录见 [训练对齐记录](../../docs/TRAINING_ALIGNMENT.md)。
 
-答案奖励权重依次为 0.60、0.68、0.75；硬约束不通过或最终行程无证据时总奖励为零。其余过程维度继续记录，便于诊断。
+### 评测与部署
 
-## 评估
+`rl/eval/run_eval.ts` 使用冻结测试家族，对比模型时固定提示词和环境快照，保存逐题轨迹。`cross_judge.ts` 交换 A/B 顺序并记录评审分歧。首步协议评测见 [EVALUATION.md](EVALUATION.md)，不能替代最终任务成功率。
 
-`rl/eval/run_eval.ts` 默认只读取冻结的 test 家族；三个 checkpoint 使用同一任务、同一 prompt、同一环境快照。保留逐题完整输出、协议摘要与失败记录。规则分数和 LLM 质量分分别报告。
+2026-09-08 核查旧实例：QLoRA/SFT、GRPO adapter 和本地 Qwen 基座文件仍在，实例当时未分配 GPU。尚未验证它们的线上推理。网站接入与备用服务说明见 [部署文档](../../docs/student-deployment.md)。
 
-`rl/eval/cross_judge.ts --left ... --right ... --out ...` 做匿名成对评审，交换 A/B 两次，至少两个独立 Judge；`EVAL_JUDGES` 配置模型、端点和 key 环境变量名，`TRAINING_MODEL_IDS` 列出学生和所有教师模型。位置分歧或跨 Judge 冲突写入 `reviewRequired`，不能靠均值掩盖。
+## English
 
-## 当前执行状态
+Existing experiments include Qwen 32B QLoRA/SFT and GRPO adapters. The subsequent full-parameter plan uses Qwen2.5-32B-Instruct, LLaMA-Factory, and veRL through `run_all.sh`. Configuration files do not mean training has completed. Old adapter scripts remain as historical references.
 
-- 306 个种子文件已生成。
-- 本地 TypeScript 检查、数据/工具/奖励/评估冒烟、Python 控制流测试已执行；完整记录见 `docs/TRAINING_ALIGNMENT.md`。
-- 尚无本次教师扩写/蒸馏产物：本地尚未配置 DeepSeek；个人 GitHub 仓库存在 DEEPSEEK_API_KEY Actions secret，尚未验证或使用它启动生成。
-- 尚无本次全参 GPU 训练结果：当前会话未取得 CUDA 机器连接。这里的代码联调不代表八卡训练已成功。
+### Data preparation
+
+```bash
+bash rl/train/run_all.sh seeds
+bash rl/train/run_all.sh augment
+bash rl/train/run_all.sh distill
+bash rl/train/run_all.sh clean
+bash rl/train/run_all.sh prepare-sft
+```
+
+Teacher calls use TEACHER_BASE_URL, TEACHER_MODEL, and LLM_API_KEY; PARK_SNAPSHOT_AT fixes replay time. Seeds are split by family; manifests record expansion counts and rejection reasons. Generated files determine actual output. See [data instructions](../data/README.md).
+
+### Full-parameter training plan
+
+Use versions pinned in `framework-lock.json`. SFT configurations are `sft_full_early.yaml`, `sft_full_mid.yaml`, and `sft_full_late.yaml`, using BF16 and ZeRO-3. Run early, mid, and late in order; each stage starts from the previous stage's full weights.
+
+```bash
+bash rl/train/run_all.sh sft-early
+bash rl/train/run_all.sh sft-mid
+bash rl/train/run_all.sh sft-late
+bash rl/train/run_all.sh prepare-rl
+python rl/train/launch_grpo.py --dry-run
+bash rl/train/run_all.sh grpo --phase early
+```
+
+SFT supervises assistant messages only; tool observations are not targets. Quality weights are implemented through sample exposure. GRPO requires the tool environment and an independent Judge; formal training cannot substitute the heuristic Judge. Multiturn generation retains original tokens and log probabilities, with tool observations masked out. The KL reference stays fixed at the SFT weights; verify iterator and optimizer state before resuming a stage.
+
+Validate label masks, peak memory, and resumption on the target GPUs. These configurations are not guaranteed to run on one GPU. See [training alignment notes](../../docs/TRAINING_ALIGNMENT.md).
+
+### Evaluation and deployment
+
+`rl/eval/run_eval.ts` uses frozen test families. Keep prompts and environment snapshots fixed across models and retain per-question trajectories. `cross_judge.ts` swaps A/B order and records disagreement. [EVALUATION.md](EVALUATION.md) describes first-step protocol evaluation, which does not replace final task success.
+
+The old instance was checked on 2026-09-08: QLoRA/SFT and GRPO adapter files and the local Qwen base remain present, but no GPU was allocated. Online inference has not been verified. See [deployment instructions](../../docs/student-deployment.md) for website integration and fallback behavior.

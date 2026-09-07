@@ -206,7 +206,7 @@ export async function runEpisode(
     }
     step.toolResult = feedback;
 
-    // Reserve space for one final answer before reaching the hard context cap.
+    // 达到上下文上限前，为最终回答预留空间。
     let responseMsg = formatToolResponse(feedback);
     if (contextSize() + responseMsg.length > maxContextChars * 0.8 || toolCallCount >= maxToolCalls) {
       responseMsg += `\n${EARLY_STOP_NUDGE}`;

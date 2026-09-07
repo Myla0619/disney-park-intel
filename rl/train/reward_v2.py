@@ -37,7 +37,7 @@ def score_first_step(text, category, ref_answer, ref_tool_name, ref_tool_args):
     if not p['format_ok']: return 0.0
     if category == 'no_tool':
         if not p['has_answer']: return 0.0
-        # Nonempty answer gets format credit, not a claim of semantic correctness.
+        # 非空回答只获得格式分，不代表语义正确。
         return 0.2
     name, args = p['tool_name'], p['arguments']
     if name not in SCHEMAS or not valid(args, SCHEMAS[name]): return 0.0

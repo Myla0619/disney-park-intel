@@ -1,4 +1,4 @@
-/** Build a reproducible, constraint-aware 306-family corpus before augmentation. */
+/** 扩写前生成可复现、包含约束的 306 个任务家族。 */
 import { writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
@@ -11,7 +11,7 @@ export function buildCorpus(target = 306): SeedTask[] {
   const seen = new Set<string>();
   const human = loadHumanQueries(join(ROOT, "data/rl/human_queries.jsonl"));
   for (const t of [...human, ...Array.from({length: 30}, (_, i) => generateSeeds("shanghai", 20260901 + i)).flat()]) {
-    // Exact identical wording cannot encode conflicting hidden profiles.
+    // 相同文本不能对应互相冲突的隐含用户档案。
     const key = t.query.replace(/\s/g, "");
     if (seen.has(key)) continue;
     seen.add(key);

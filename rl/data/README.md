@@ -1,41 +1,37 @@
-# 数据管线：种子 → 扩增 → 蒸馏 → 清洗
+# 训练数据 / Training data
+
+## 中文
+
+流程为种子生成、查询扩写、教师蒸馏和轨迹清洗。扩写出的查询不能直接算作 SFT 轨迹；只有完成工具循环的教师输出才进入清洗。
 
 ```bash
-npm run data:seeds     # ① 生成种子任务 → data/rl/seeds.jsonl（离线可跑，确定性）
-# ② 扩增（需教师端点）：TEACHER_BASE_URL/TEACHER_MODEL/LLM_API_KEY
-npx tsx rl/data/augment.ts --variants 4        # → data/rl/seeds_augmented.jsonl
-# ③ 蒸馏（需教师端点；断点续跑，已完成任务自动跳过）
+npm run data:seeds
+npx tsx rl/data/augment.ts --variants 4
 npx tsx rl/data/distill.ts --seeds data/rl/seeds_augmented.jsonl --concurrency 4
-# ④ 清洗 → SFT 数据
-npx tsx rl/data/clean.ts                        # → data/rl/sft/train.jsonl
-npm run data:smoke     # 管线冒烟测试（14 项断言，零外部依赖）
+npx tsx rl/data/clean.ts
+npm run data:smoke
 ```
 
-## Query 多样性四层对策的落地位置
+扩写和蒸馏需要 TEACHER_BASE_URL、TEACHER_MODEL、LLM_API_KEY。实际数量、变体数和家族划分以生成清单为准。先固定家族划分，避免同一种子的改写分散到训练集与测试集。
 
-| 层 | 位置 |
-|---|---|
-| ① 真实人类语料（目标 30–50%） | `data/rl/human_queries.jsonl`，`gen_seeds.ts` 自动合入且去重时优先保留。格式：每行 `{"query":"...","category":"human","profile":{...}}`。来源：小红书攻略帖/评论区提问（Apify 抓取后人工改写） |
-| ② persona 池 × 约束采样器 | `seeds.ts`：7 类 persona × 优速通档位 × 时间窗 × 身高（含 97/112/122 边界值）× 烟花/花车/必玩/忌口，确定性 RNG 可复现 |
-| ③ 去重 | `seeds.ts` 的 `dedup()`：字符 3-gram Jaccard > 0.8 丢弃（扩增后再跑一遍；embedding 去重后续升级） |
-| ④ 人工抽检 | 每批抽 5–10% 看"像不像真人问的"，无代码，流程要求 |
+种子覆盖排队、评论、规划、地点、无需工具的问题及边界情况。约束包括时间、身高、尊享卡和演出。人工问题有来源记录后才能标为真实语料，采样目标不等于已经取得的数量。
 
-## 种子类别（对齐 eval_tool_accuracy 的 11 类 + 规划难样本）
+清洗检查答案、格式和工具结果，保留成功纠错的轨迹，记录拒绝原因并划分难度。权重字段是否生效取决于训练器；当前全参方案通过样本曝光次数使用权重。沙箱回放减少外部工具请求，但教师模型调用仍可能收费。
 
-explicit_wait / implicit_wait / review_quality / review_specific / **plan_request（多约束长程，主力难样本）** /
-spot_info / no_tool / edge_negation / edge_multi_intent / weather_dependent / edge_name_variant
+## English
 
-## 清洗四道关卡（`clean.ts`）
+The pipeline generates seeds, expands queries, distils teacher trajectories, and cleans them. Expanded queries are not SFT trajectories; only teacher outputs with completed tool loops enter cleaning.
 
-1. **硬过滤**：无 answer、LLM 报错、格式错误率 100% → 丢弃并记录原因
-2. **工具健康度**：全部调用失败 → 丢弃；**部分失败但恢复的保留**（教模型纠错的宝贵样本）
-3. **难度分级**：按工具调用次数 easy(≤3)/medium(4–10)/hard(≥10)，输出按 easy→hard 排序，直接支持课程学习
-4. **加权**：完美轨迹 weight=1.0，有补救/失败恢复的 borderline 降权 0.6（保多样性不保噪声权重）
+```bash
+npm run data:seeds
+npx tsx rl/data/augment.ts --variants 4
+npx tsx rl/data/distill.ts --seeds data/rl/seeds_augmented.jsonl --concurrency 4
+npx tsx rl/data/clean.ts
+npm run data:smoke
+```
 
-输出为 messages 结构的 JSONL，LLaMA-Factory / ms-swift 直接可用（weight 字段供支持样本加权的 trainer 使用）。
+Expansion and distillation require TEACHER_BASE_URL, TEACHER_MODEL, and LLM_API_KEY. Generated manifests define actual counts, variants, and family splits. Freeze family splits first so variants of a seed do not cross training and test sets.
 
-## 蒸馏说明
+Seeds cover queues, reviews, planning, locations, no-tool questions, and edge cases. Constraints include time, height, Premier Access, and shows. Human questions need source records before being labelled real data; sampling targets are not collected counts.
 
-- 教师在**沙箱环境**跑轨迹（record & replay），不打真实 API：可复现、零成本、不受 QPS 限制
-- 教师选型：DeepSeek-chat（便宜量大）或 Claude（质量高）做轨迹；两者都**不参与最终 LLM-as-Judge**（防 bias），Judge 用未参与训练与蒸馏的第三方模型
-- `--concurrency` 控制并发，断点续跑安全
+Cleaning checks answers, formatting, and tool results, retains successful recovery, records rejection reasons, and assigns difficulty. Weight support depends on the trainer; the current full-parameter plan uses sample exposure counts. Sandbox replay reduces external tool requests, but teacher model calls may still cost money.

@@ -44,8 +44,8 @@ function extractTag(text: string, tag: string): { content: string | null; unclos
 
 export function parseAgentStep(text: string, opts: { allowLegacyAssistantCall?: boolean } = {}): ParsedStep {
   const errors: string[] = [];
-  // Opt-in inference compatibility only. Never apply to tool-result messages,
-  // training targets, or native-model evaluation. Keep the format violation.
+  // 仅在推理时显式开启旧协议兼容，不处理工具返回、
+  // 训练目标或原生模型评测；兼容后仍记录格式错误。
   if (opts.allowLegacyAssistantCall) {
     const legacy = text.match(/^(\s*<think>(?:(?!<\/?think>)[\s\S])*<\/think>\s*)<tool_response>([^<>]*)<\/tool_response>(\s*)$/);
     if (legacy) {
@@ -99,7 +99,7 @@ export function parseAgentStep(text: string, opts: { allowLegacyAssistantCall?: 
   if (!toolCall && answer === null && tc.content === null) {
     errors.push("既没有 tool_call 也没有 answer");
   }
-  // Fail closed: never execute the first call from a multi-call/mixed transcript.
+  // 一轮包含多次调用或混合输出时拒绝执行，不截取第一条调用。
   const envelope = /^\s*<think>([\s\S]*?)<\/think>\s*(?:<tool_call>([\s\S]*?)<\/tool_call>|<answer>([\s\S]*?)<\/answer>)\s*$/.test(text);
   if (!envelope || think.count !== 1 || tc.count + ans.count !== 1 || text.includes("<tool_response>")) {
     errors.push("协议必须为 think 后跟唯一 tool_call 或 answer，不允许额外内容");
@@ -133,7 +133,7 @@ export function validateToolCall(
   return validateSchema(call.arguments, tool.input_schema, `工具 ${call.name}`);
 }
 
-/** Supported JSON Schema subset, shared by direct calls and HTTP dispatch. */
+/** 直接调用和 HTTP 接口共用的 JSON Schema 子集校验。 */
 export function validateSchema(value: unknown, schema: any, path = "arguments"): string | null {
   if (!schema || typeof schema !== "object") return `${path}: 缺少 schema`;
   const type = schema.type;

@@ -63,7 +63,7 @@ class ProtocolTests(unittest.TestCase):
             compare(result, improved)
 
     def test_actual_training_reward_parser(self):
-        # Extract the actual parser and regex assignments, without importing torch/TRL.
+        # 提取实际解析器和正则定义，避免导入 torch 或 TRL。
         source = ast.parse(Path(__file__).with_name("grpo_trl.py").read_text())
         nodes = [n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == "composite_reward"]
         namespace = {"score_first_step": score_first_step}

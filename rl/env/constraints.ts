@@ -20,7 +20,7 @@ export type ConstraintCheck = {
 const TIME_TOLERANCE_MIN = 2;
 const DEPARTURE_TOLERANCE_MIN = 5;
 const LL_INTERVAL_MIN = 90;
-// Simulator policy, not a claim about current official park entitlement rules.
+// 模拟器采用的规则，不代表园区当前官方权益。
 
 export function checkItinerary(
   items: ItineraryItem[],
@@ -107,8 +107,8 @@ export function checkItinerary(
       : "均在入园时间后",
   });
 
-  // A selected event must actually be present and span its configured start time.
-  // Do not silently omit an infeasible event to make an itinerary score as feasible.
+  // 选定演出必须出现在行程中，并覆盖配置的开场时间。
+  // 无法安排的演出应报告冲突，不能通过遗漏演出让行程通过校验。
   const missing = ([
     [profile.watchParade, "parade", profile.paradeTime],
     [profile.watchFireworks, "fireworks", profile.fireworksTime],

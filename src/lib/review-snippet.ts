@@ -1,4 +1,4 @@
-/** Extract a readable window around the strongest project/query match. */
+/** 围绕最强项目或查询匹配提取可读片段。 */
 export function reviewSnippet(text: string, terms: string[], maxLength = 180): string {
   const clean = text.replace(/\s+/g, " ").trim();
   if (!clean || clean.length <= maxLength) return clean;
@@ -23,7 +23,7 @@ export function reviewSnippet(text: string, terms: string[], maxLength = 180): s
   let start = Math.max(0, best.index - Math.floor((maxLength - best.length) / 2));
   let end = Math.min(clean.length, start + maxLength);
   start = Math.max(0, end - maxLength);
-  // Prefer nearby sentence/punctuation boundaries without losing the match.
+  // 优先在附近标点处截断，并保留命中的文字。
   const left = clean.slice(start, best.index).search(/[^。！？；.!?;]{0,24}$/);
   if (start > 0 && left >= 0) start += left;
   const boundary = clean.slice(best.index + best.length, end).search(/[。！？；.!?;]/);

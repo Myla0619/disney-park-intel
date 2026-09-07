@@ -212,7 +212,7 @@ frozen, dragon, winnie, buzz-lightyear, peter-pan, crystal-grotto, slinky-dash
                 messages=[{"role": "user", "content": prompt}]
             )
             raw = resp.content[0].text.strip()
-            # Strip markdown code blocks if present
+            # 去掉可能存在的 Markdown 代码围栏。
             raw = re.sub(r"```json\s*|\s*```", "", raw).strip()
             cases = json.loads(raw)
             all_cases.extend(cases)
@@ -221,7 +221,7 @@ frozen, dragon, winnie, buzz-lightyear, peter-pan, crystal-grotto, slinky-dash
         except Exception as e:
             print(f"    ✗ Error: {e}")
 
-    # Save to file
+    # 保存到文件。
     Path(output_path).write_text(
         json.dumps(all_cases, ensure_ascii=False, indent=2),
         encoding="utf-8"
@@ -241,9 +241,9 @@ def check_params(actual: dict, expected: dict) -> tuple[bool, list[str]]:
         if key not in actual:
             mismatches.append(f"missing key '{key}'")
         elif actual[key] != val:
-            # For rideId/targetId: allow partial match (alias handling)
+            # rideId 和 targetId 允许部分匹配，以兼容别名。
             if key in ("rideId", "targetId") and isinstance(val, str):
-                # Accept if actual contains expected or vice versa
+                # 实际值包含期望值或反向包含时判定匹配。
                 if val not in str(actual[key]) and str(actual[key]) not in val:
                     mismatches.append(f"'{key}': expected={val}, actual={actual.get(key)}")
             else:
@@ -265,7 +265,7 @@ def evaluate_case(client: anthropic.Anthropic, case: dict) -> dict:
 
         tool_calls = [b for b in resp.content if b.type == "tool_use"]
 
-        # No tool called
+        # 未调用工具。
         if not tool_calls:
             correct = case["expected_tool"] == "none"
             return {
@@ -354,7 +354,7 @@ def analyze_results(results: list) -> dict:
     param_correct = sum(r.get("param_correct", False) for r in results)
     errors        = sum(1 for r in results if r.get("error"))
 
-    # By difficulty
+    # 按难度统计。
     by_diff = {}
     for diff in ["easy", "medium", "hard"]:
         subset = [r for r in results if r.get("difficulty") == diff]
@@ -365,7 +365,7 @@ def analyze_results(results: list) -> dict:
                 "tool_acc":    sum(r["tool_correct"] for r in subset) / len(subset),
             }
 
-    # By category
+    # 按类别统计。
     by_cat = {}
     for r in results:
         cat = r.get("category", "unknown")
@@ -376,25 +376,25 @@ def analyze_results(results: list) -> dict:
     for cat in by_cat:
         by_cat[cat]["accuracy"] = by_cat[cat]["correct"] / by_cat[cat]["total"]
 
-    # Confusion matrix
+    # 混淆矩阵。
     confusion = {}
     for r in results:
         if not r["tool_correct"]:
             pair = f"{r['expected_tool']} → {r['actual_tool']}"
             confusion[pair] = confusion.get(pair, 0) + 1
 
-    # No-tool precision
+    # 无需工具任务的准确率。
     no_tool_cases = [r for r in results if r["expected_tool"] == "none"]
     no_tool_prec  = (sum(r["correct"] for r in no_tool_cases) / len(no_tool_cases)
                      if no_tool_cases else None)
 
-    # Hallucination rate (called tool when none expected)
+    # 误调用率：不需要工具时调用了工具。
     hallucinations = sum(
         1 for r in results
         if r["expected_tool"] == "none" and r["actual_tool"] not in ("none", "error")
     )
 
-    # Worst performing inputs
+    # 表现最差的输入。
     failures = [r for r in results if not r["correct"]]
     failures.sort(key=lambda r: r.get("difficulty", "easy"))
 
@@ -452,7 +452,7 @@ def print_report(analysis: dict):
 
     print("\n" + "="*60)
 
-    # Pass/fail verdict
+    # 通过或失败判定。
     em = analysis["exact_match"]
     ta = analysis["tool_accuracy"]
     if em >= 0.75 and ta >= 0.85:
@@ -493,7 +493,7 @@ def main():
         results = run_evaluation(client, args.cases, args.results)
         analysis = analyze_results(results)
         print_report(analysis)
-        # Save analysis
+        # 保存分析结果。
         Path(args.results.replace(".json", "_analysis.json")).write_text(
             json.dumps(analysis, ensure_ascii=False, indent=2), encoding="utf-8"
         )

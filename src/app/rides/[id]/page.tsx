@@ -78,7 +78,7 @@ export default function RideDetailPage() {
 
   return (
     <div className="min-h-screen bg-night-900 text-white pb-8">
-      {/* Header */}
+      {/* 页头 */}
       <div className="sticky top-0 z-10 bg-night-900/95 backdrop-blur border-b border-white/5 px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <button onClick={() => router.back()} className="p-2 rounded-lg bg-white/5 hover:bg-white/10">
@@ -93,7 +93,7 @@ export default function RideDetailPage() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
-        {/* Hero stats */}
+        {/* 项目概况 */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-night-800/55 rounded-xl p-3 text-center">
             <Clock className={`w-5 h-5 mx-auto mb-1 ${waitColor}`} />
@@ -112,7 +112,7 @@ export default function RideDetailPage() {
           </div>
         </div>
 
-        {/* Description */}
+        {/* 项目介绍 */}
         <div className="bg-night-800/55 rounded-xl p-4">
           <p className="text-white/70 text-sm leading-relaxed">{ride.description}</p>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -139,7 +139,7 @@ export default function RideDetailPage() {
 
         <UserRating type="ride" id={ride.id} name={ride.name} />
 
-        {/* Sentiment summary */}
+        {/* 情感统计 */}
         {summary && (
           <div className="bg-night-800/55 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -162,7 +162,7 @@ export default function RideDetailPage() {
                 </div>
               ))}
             </div>
-            {/* Sentiment bar */}
+            {/* 情感占比 */}
             <div className="h-2 rounded-full bg-night-700 overflow-hidden flex">
               {summary.positive > 0 && (
                 <div className="bg-meadow-500 h-full" style={{ width: `${(summary.positive / (summary.positive + summary.neutral + summary.negative)) * 100}%` }} />
@@ -175,7 +175,7 @@ export default function RideDetailPage() {
               )}
             </div>
 
-            {/* Common tags */}
+            {/* 常见标签 */}
             {allTags.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {allTags.map((tag) => (
@@ -186,7 +186,7 @@ export default function RideDetailPage() {
           </div>
         )}
 
-        {/* Reviews */}
+        {/* 评论 */}
         <div>
           <h2 className="font-semibold text-sm mb-3 text-white/70">项目相关用户笔记 ({reviews.length})</h2>
           {loading ? (

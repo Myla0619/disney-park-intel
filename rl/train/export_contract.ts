@@ -1,7 +1,7 @@
-/** Generated artifact: Python training must use the runtime's tool schemas. */
+/** 生成工具协议文件，供 Python 训练复用运行时参数定义。 */
 import { writeFileSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
-// Read literal declarations without importing live tool handlers or park datasets.
+// 读取字面量声明，避免加载实时工具处理器和园区数据。
 const source = ts.createSourceFile('tools.ts', readFileSync(new URL('../env/tools.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 function literal(node: ts.Expression): any {
   if (ts.isStringLiteral(node) || ts.isNumericLiteral(node)) return ts.isNumericLiteral(node) ? Number(node.text) : node.text;

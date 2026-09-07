@@ -117,7 +117,7 @@ def run(args, generate, backend, inputs=None):
         try:
             row["raw_output"] = generate([{"role": "system", "content": prompt}, {"role": "user", "content": seed["query"]}])
         except Exception as error:
-            # Do not persist exception bodies: HTTP responses can contain credentials.
+            # 不保存异常正文，HTTP 响应可能包含凭证。
             row["request_error"] = type(error).__name__
         row.update(score(seed, row["raw_output"]))
         rows.append(row)
