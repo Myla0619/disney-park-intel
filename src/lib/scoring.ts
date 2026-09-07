@@ -51,6 +51,9 @@ export async function scoreRides({
     const live = waitTimes.find((w) => w.rideId === ride.id);
     return { ...ride, waitTime: live?.waitMinutes ?? ride.waitTime };
   });
+  if (process.env.PARK_AGENT_PROVIDER === "student") {
+    return { scores: ridesWithWait.map((ride) => generateFallbackScore(ride, profile)), fallback: true };
+  }
 
   // 构建发给 Claude 的上下文字符串
   const rideContext = ridesWithWait

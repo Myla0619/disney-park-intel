@@ -15,6 +15,7 @@ import {
 import { getRidesByPark } from "@/lib/parks-data";
 import { isAnthropicConfigured, hasEmptyApiKeyShadow } from "@/lib/anthropic-client";
 import { runAgentLoop } from "@/lib/agent-loop";
+import { usesStudent, studentConfigured, runStudentAgent } from "@/lib/student-agent";
 import { inferAndUpdatePreferences } from "@/lib/preference-inference";
 import { parseBody } from "@/lib/api/respond";
 import { AgentBodySchema } from "@/lib/api/schemas";
@@ -27,7 +28,10 @@ export async function POST(req: NextRequest) {
   const limited = checkRateLimit(req, "agent", RATE_LIMITS.agent);
   if (limited.response) return limited.response;
 
-  if (!isAnthropicConfigured()) {
+  if (usesStudent() && !studentConfigured()) {
+    return NextResponse.json({ error: "自训模型服务尚未配置完成" }, { status: 503 });
+  }
+  if (!usesStudent() && !isAnthropicConfigured()) {
     return NextResponse.json(
       {
         error: hasEmptyApiKeyShadow()
@@ -64,7 +68,8 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 
       try {
-        for await (const event of runAgentLoop(message, activeSession, systemPrompt)) {
+        const events = usesStudent() ? runStudentAgent(message, activeSession) : runAgentLoop(message, activeSession, systemPrompt);
+        for await (const event of events) {
           send(event);
 
           if (event.type === "done") {

@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 不需要润色时直接返回确定性结果，不产生任何模型调用
-  if (!polishNotes || !isAnthropicConfigured()) {
+  if (process.env.PARK_AGENT_PROVIDER === "student" || !polishNotes || !isAnthropicConfigured()) {
     return NextResponse.json(
       { itinerary: localRoute, isToday, parkHours, polished: false },
       { headers: limited.headers }

@@ -40,6 +40,9 @@ function json(res: any, status: number, body: unknown) {
 }
 
 const server = createServer((req, res) => {
+  if (process.env.PARK_TOOL_API_KEY && req.headers.authorization !== `Bearer ${process.env.PARK_TOOL_API_KEY}`) {
+    return json(res, 401, { ok: false, error: "Unauthorized" });
+  }
   if (req.method === "GET" && req.url === "/health") {
     return json(res, 200, { status: "ok", mode: DEFAULT_MODE, tools: TOOL_REGISTRY.length, judge: judge.constructor.name, protocol: "park-full-multiturn-v1" });
   }
