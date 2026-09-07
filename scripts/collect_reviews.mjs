@@ -133,6 +133,16 @@ function toIso(raw) {
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
+function mediaOf(note) {
+  const card = note?.note_card ?? note?.noteCard ?? note;
+  const video = card?.video ?? note?.video ?? {};
+  const type = String(card?.type ?? note?.noteType ?? note?.note_type ?? note?.type ?? "").toLowerCase();
+  const hasVideoObject = video && typeof video === "object" && Object.keys(video).length > 0;
+  return type.includes("video") || note?.videoUrl || note?.video_url || hasVideoObject
+    ? { type: "video" }
+    : undefined;
+}
+
 // ─── 与 src/lib/reviews.ts 一致的情感与标签规则 ──────────────────────────────
 const POS = ["好玩","推荐","必玩","值得","棒","超好","amazing","great","loved","fantastic","好吃","美味","惊艳"];
 const NEG = ["排队","太久","不值","失望","bad","waste","terrible","boring","一般","难吃","贵","坑"];
@@ -221,6 +231,7 @@ async function collectTarget({ targetId, targetType, keywords }, token) {
       tags: tagsOf(text),
       sentiment: sentiment(text),
       url: String(n?.url ?? ""),
+      media: mediaOf(n),
       scrapedAt,
       engagement: {
         likes,

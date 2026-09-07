@@ -134,6 +134,12 @@ export type RestaurantReview = {
   rating: number;
   text: string;
   tags: string[];
+  url?: string;
+  media?: ReviewMedia;
+};
+
+export type ReviewMedia = {
+  type: "video";
 };
 
 export type Restaurant = {
@@ -180,6 +186,7 @@ export type Review = {
   tags: string[];
   sentiment: "positive" | "neutral" | "negative";
   url?: string;
+  media?: ReviewMedia;
   /** 抓取时间（ISO 8601）。示例数据没有这个字段，据此可区分真实语料与降级内容。 */
   scrapedAt?: string;
   /** 原始互动数据，用于排序与可信度判断 */

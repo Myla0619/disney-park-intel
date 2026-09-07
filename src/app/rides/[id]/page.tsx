@@ -209,6 +209,7 @@ export default function RideDetailPage() {
                     </div>
                   </div>
                   <p className="text-white/70 text-sm leading-relaxed">
+                    {review.media?.type === "video" && <span className="mr-1 text-magic-300">[视频]</span>}
                     {reviewSnippet(review.text, [ride.name, ride.id], 180)}
                   </p>
                   <div className="flex items-center justify-between mt-2">

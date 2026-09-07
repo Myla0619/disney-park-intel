@@ -1,5 +1,7 @@
 "use client";
 
+import { reviewSnippet } from "@/lib/review-snippet";
+
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/lib/store";
@@ -442,7 +444,7 @@ export default function OnboardingPage() {
                             {r.photoWorthy && <span className="text-xs bg-spark-500/20 text-spark-300 px-1.5 py-0.5 rounded">📸</span>}
                           </div>
                           <div className="text-xs text-white/40 mt-0.5">{r.areaName} · {r.cuisine} · {r.priceRange}</div>
-                          {r.reviews[0] && <p className="mt-1 text-xs text-white/40 line-clamp-1">&ldquo;{r.reviews[0].text.slice(0,55)}…&rdquo;</p>}
+                          {r.reviews[0] && <p className="mt-1 text-xs text-white/40 line-clamp-1">&ldquo;{reviewSnippet(r.reviews[0].text, [r.name, ...r.reviews[0].tags], 90)}&rdquo;</p>}
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           <span className="text-castle-400 text-sm font-bold">⭐{r.rating}</span>

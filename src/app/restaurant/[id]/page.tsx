@@ -66,7 +66,10 @@ export default function RestaurantDetailPage() {
                     {[...Array(5)].map((_,j) => <Star key={j} className={`w-3 h-3 ${j<rev.rating?"fill-amber-400 text-castle-400":"text-white/10"}`} />)}
                   </div>
                 </div>
-                <p className="text-white/70 text-sm leading-relaxed">{reviewSnippet(rev.text, [rest.name, ...rev.tags], 180)}</p>
+                <p className="text-white/70 text-sm leading-relaxed">
+                  {rev.media?.type === "video" && <span className="mr-1 text-magic-300">[视频]</span>}
+                  {reviewSnippet(rev.text, [rest.name, ...rev.tags], 180)}
+                </p>
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {rev.tags.map((t) => <span key={t} className="text-xs bg-white/5 text-white/30 px-1.5 py-0.5 rounded">#{t}</span>)}
                 </div>
