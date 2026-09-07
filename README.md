@@ -2,9 +2,7 @@
 
 [English](README_EN.md) | 中文
 
-一个为上海迪士尼做的 AI 行程规划器。
-
-我做它的原因很简单：乐园攻略很多，但真正走进园区后，人需要的不是又一张“必玩榜单”，而是一条能同时考虑当前排队、步行距离、身高限制、餐厅预约、尊享卡和个人偏好的可执行路线。
+一个为上海迪士尼做的 AI 行程规划器。帮你查乐园攻略，帮你同时考虑当前排队、步行距离、身高限制、餐厅预约、尊享卡和个人偏好，定制最优可执行路线。
 
 👉 [在线体验](https://disney-park-intel.vercel.app)
 
@@ -16,13 +14,6 @@
 - 用自然语言调整行程，并实时展示 Agent 的工具调用
 - 提供项目、餐厅、商店和拍照点信息，弱网时也能打开已缓存页面
 
-## 我真正花时间的地方
-
-这个项目最难的不是让页面跑起来，而是证明结果不只是“看起来合理”。
-
-早期版本有过几个很隐蔽的问题：外部数据源 ID 没有真正对上内部项目；中文评论按空格分词，使检索得分几乎全是 0；步行成本一直从起点计算，导致行程在园区间来回跳。这些 bug 不会让系统报错，只会让它给出错误建议。
-
-我补了确定性评测和边界测试，重写中文 BM25，统一数据源 ID，并重构行程排程。我想做的不只是一个 LLM 界面，而是一个尽量可测试、可解释，也会承认数据不足的决策系统。
 
 ## 它是怎么工作的
 
@@ -42,7 +33,7 @@
           Claude 生成简短解释
 ```
 
-路由不会让 LLM 凭空安排。时间、身高、尊享卡间隔和预约锚点由确定性代码处理；Claude 负责选择工具、理解意图和解释结果。Agent 最多运行 5 轮，通过 SSE 流式返回。
+路由不会让 LLM 凭空安排。时间、身高、尊享卡间隔和预约锚点由确定性代码处理；AI 负责选择工具、理解意图和解释结果。Agent 最多运行 5 轮，通过 SSE 流式返回。
 
 ```text
 cost = waitWeight × effectiveWait
@@ -69,76 +60,5 @@ cost = waitWeight × effectiveWait
 ### 已知局限
 
 - 小红书没有星级，`rating` 只是热度代理，不是满意度。
-- 词典法不擅长处理口语、话题标签和 emoji，约 75% 的真实笔记被判为 neutral。
 - 餐厅真实评论尚未采集，相关结果会显示降级标记。
 
-## 可复现的结果
-
-```bash
-npm test
-```
-
-170 条测试，覆盖数据源 ID、等待时间、身高边界、尊享卡、路由约束、中文检索、会话持久化、限流和 SSE 分帧。3 条联网检查默认跳过。
-
-```bash
-RATE_LIMIT_LLM=100000 npm run dev
-python3 scripts/eval_itinerary.py
-```
-
-**100/100 行程场景通过**，覆盖普通、时间、身高、尊享卡、锚点和路线模式。评分由确定性脚本完成，不调用 LLM。
-
-```bash
-npm run eval:retrieval
-```
-
-| P@1 | P@3 | Recall@3 | MRR | nDCG@5 |
-|---:|---:|---:|---:|---:|
-| 0.944 | 0.556 | 0.678 | 0.963 | 0.790 |
-
-检索结果基于 14 条人工示例和 18 个单人标注查询，只适合比较算法改动，**不代表真实线上质量**。`eval_tool_accuracy.py` 尚未运行，仓库中不会在没有结果时填一个数字。
-
-## 本地运行
-
-```bash
-git clone https://github.com/Myla0619/disney-park-intel.git
-cd disney-park-intel
-npm install
-cp .env.local.example .env.local
-npm run dev
-```
-
-打开 [http://localhost:3000](http://localhost:3000)。不配置 Anthropic 凭证也能使用基础功能：评分会退回本地规则，AI 助手则会返回带原因的 503。
-
-> 如果不用 `ANTHROPIC_API_KEY`，请删掉整行，不要留空值。空值仍会遮蔽其他可用凭证。
-
-## 技术栈与目录
-
-- Next.js 14 App Router、TypeScript、Tailwind CSS、Zustand
-- Anthropic Tool Use API + SSE streaming
-- BM25 + 中文字符二元组
-- Vitest、GitHub Actions、Vercel，可选 Upstash Redis
-
-```text
-src/app/                 页面与 API routes
-src/app/api/agent/       Agent 编排、工具定义与执行
-src/lib/routing.ts       路径规划与约束
-src/lib/wait-*.ts        实时等待与历史预测
-src/lib/vector-store.ts  BM25 检索
-data/                    评论与排队快照
-scripts/                 采集、校验和评测
-```
-
-## RL 实验与产品的关系
-
-`rl/` 保留了数据蒸馏、SFT、GRPO、工具环境和评测代码，结果在 `data/rl/eval/`。这部分目前是独立实验，尚未接入网页 Agent；产品仍通过 Anthropic 客户端调用模型，具体模型可由部署环境变量覆盖。训练结果不等于线上效果，接入前还需要部署模型服务并验证工具协议与安全边界。
-
-## 贡献与归属
-
-项目由 [Myla0619](https://github.com/Myla0619) 维护，原先两个账号下的代码已合并到本仓库。开发过程中使用了 AI 编程辅助；排队快照由作者配置的 GitHub Actions 自动采集。提交身份统一并不表示这些自动化工作是手工完成的。
-
-外部 API、迪士尼项目信息和小红书公开内容并非本项目原创；本项目实现了它们的采集、映射、降级处理、检索和评测。
-
-## 全参训练与面试文档
-
-训练统一从 [训练说明](rl/train/README.md) 进入；当前主线是全参 SFT 与完整多轮 GRPO。
-[面试口述稿](docs/INTERVIEW_GUIDE.md) 与代码一起维护，历史结果不替代新实验。
