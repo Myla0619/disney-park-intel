@@ -2,34 +2,113 @@
 
 English | [中文](README.md)
 
-An itinerary planner for Shanghai Disneyland. It combines queue times, walking distances, height restrictions, dining reservations, and personal preferences into a suggested day plan.
+**An AI day planner built for Shanghai Disneyland.**
 
-[Try the app](https://disney-park-intel.vercel.app)
+It turns your arrival time, group heights, preferences, dining reservations, Premier Access, live queues, and walking distance into one itinerary you can actually follow inside the park.
 
-## Features
+[Try the live app](https://disney-park-intel.vercel.app)
 
-- Plan routes around your group, arrival and departure times, and Premier Access choices.
-- Look up queues and estimate waits using historical snapshots.
-- Match posts by attraction names and aliases, then extract relevant passages. Video posts carry a `[视频]` label.
-- Record personal attraction and restaurant ratings, currently saved on the device.
-- Mark an activity complete and replan the remaining day. Progress is stored by park and date.
-- Ask about attractions, restaurants, shops, and photo spots in chat.
+> Stop piecing together a plan from scattered guides. Tell the app who is coming, what matters, and where you need to be at a fixed time—it will plan the rest of the day around you.
 
-## Implementation
+## From arrival to fireworks
 
-Deterministic code builds the route. The model interprets questions, calls tools, and explains results. Scheduling weighs waiting, walking, and physical effort while handling fixed time slots. It is a heuristic, not a guarantee of a globally optimal route.
+### 1. Describe your day
 
-The website supports Claude and a trained model. The trained model uses the training environment's prompt, tool registry, and text protocol. It can fall back to Claude when unavailable or timed out; the page does not display switching notices. In student mode, attraction scoring and itinerary notes use local logic.
+Choose a family, thrill, relaxed, photo, or shopping-and-food experience, then add:
 
-The integration code is committed, but deployment of the trained weights has not been verified online. See [student deployment](docs/student-deployment.md).
+- Arrival and departure times
+- Each child's age and height
+- An efficient, balanced, or low-walking route
+- Your Premier Access package
+- Dining reservations, parade, and fireworks times
+- Must-do attractions, photo stops, and shopping preferences
 
-## Data and limitations
+### 2. Get a schedule you can follow
 
-Live waits come from external services; historical waits and posts come from the repository corpus. Missing data may produce labelled fallback results or examples, which should not be treated as on-site measurements.
+The app places attractions, walks, meals, shows, photo stops, and shopping on a single timeline. Reservations and shows become fixed anchors. Everything else is arranged around them, while attractions that fail a height or time constraint are left out.
 
-The `rating` field for Xiaohongshu posts is an engagement-based popularity indicator, not a star rating given by the author. Personal ratings are stored separately. Post matching uses keywords and aliases; it cannot reliably resolve every abbreviation, sarcastic statement, or opinion about multiple attractions in one post. Restaurant examples are not real user feedback.
+### 3. Adapt while you are in the park
 
-There are no verified active-user or retention statistics. Corpus sizes and evaluation question counts are not user counts.
+The itinerary is not frozen after its first draft. You can:
+
+- Replan around current wait times
+- Ask, “I'm in Treasure Cove—where should I go next?”
+- Find child-friendly attractions, photo times, or restaurants without reservations
+- Press and hold an itinerary item to replace, move, or remove it
+- Save attractions to a wishlist and route the day around them
+
+## Core experience
+
+| Situation | How the app helps |
+|---|---|
+| Spend less time in queues | Combines live waits, historical snapshots, and attraction duration |
+| Avoid unnecessary walking | Calculates travel cost between consecutive locations |
+| Visit with children | Filters attractions against every child's height |
+| Keep existing bookings | Pins dining, parades, and fireworks to the timeline |
+| Use Premier Access well | Understands individual passes and bundles and schedules them appropriately |
+| Change plans on the fly | Uses natural language to query conditions and rebuild the itinerary |
+| Handle weak connectivity | Caches previously visited core pages and falls back to local scoring |
+
+## What you can ask the AI assistant
+
+The in-app assistant can use wait-time, review-search, place-information, and itinerary tools instead of only returning chat text. For example:
+
+```text
+Which attraction has the shortest wait right now?
+I'm in Treasure Cove. Where should I go next?
+My daughter is five and 108cm tall. What can she ride?
+Where and when should I take castle photos?
+Replan my afternoon, but keep my 5:30pm dining reservation.
+```
+
+Tool activity is streamed in the interface, so recommendations are grounded in application data rather than an itinerary invented from a prompt alone.
+
+## How recommendations are built
+
+```text
+group + preferences + time and reservations
+                      ↓
+          remove infeasible candidates
+                      ↓
+       live waits → forecast → baseline
+                      ↓
+   balance queues, walking, energy, and fit
+                      ↓
+       insert meals, shows, photos, shops
+                      ↓
+            produce a timed day plan
+```
+
+Deterministic rules handle time, height, Premier Access intervals, and reservation conflicts. AI interprets natural language, selects tools, and explains recommendations. If the AI provider is temporarily unavailable, local scoring and the core itinerary flow still work.
+
+## Current coverage
+
+- Shanghai Disneyland
+- 24 attractions
+- 11 restaurants
+- 29 shops
+- 44 photo locations
+- 280 public trip notes covering 14 attractions
+- 1,300+ versioned wait-time snapshots
+
+Tokyo, Hong Kong, Paris, and the US resorts are not available yet.
+
+## Data status and fallback behavior
+
+| Capability | Primary source | If unavailable |
+|---|---|---|
+| Live waits | themeparks.wiki | Use a static baseline and mark it as a fallback |
+| Wait forecast | Historical wait snapshots | Extrapolate from the current snapshot with lower confidence |
+| Attraction reviews | Offline collection of public Xiaohongshu posts | Show clearly labelled sample content for uncovered attractions |
+| AI scoring | Structured model output | Switch automatically to local scoring rules |
+| Conversation state | Memory, with optional Upstash Redis | Start a new session after a cold start when Redis is absent |
+
+### Important limits
+
+- Waits, operating status, shows, and dining information can change at any time. Follow official in-park information when it differs.
+- Xiaohongshu has no star ratings. The stored `rating` is a popularity proxy, not a satisfaction score.
+- Real restaurant-review coverage is incomplete, so some results use fallback data.
+- This is not an official product of Shanghai Disney Resort or The Walt Disney Company.
 
 ## Run locally
 
@@ -41,25 +120,30 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). Routes can use local logic without a model service; chat needs valid model credentials. Keep keys in environment variables. Remove unused credential variables rather than leaving empty values that override other settings.
+Open [http://localhost:3000](http://localhost:3000). Configure Claude credentials or connect a compatible trained-model service for the complete AI assistant. Without a model service, local scoring and the core itinerary remain available.
 
-## Validation and training
+## Technical overview
 
-```bash
-npm test
-npm run eval:retrieval
+- Next.js 14, TypeScript, Tailwind CSS, and Zustand
+- Claude or trained-model tool use with SSE streaming
+- Chinese BM25 retrieval, live wait service, and historical forecasting
+- Vitest, GitHub Actions, Vercel, and optional Upstash Redis
+
+Implementation entry points:
+
+```text
+src/app/                 product pages and APIs
+src/app/api/agent/       AI assistant and tool execution
+src/lib/routing.ts       itinerary planning and constraints
+src/lib/wait-*.ts        live waits and historical forecasts
+src/lib/vector-store.ts  review retrieval
+data/                    reviews and wait-time data
 ```
 
-Tests cover scheduling, data mapping, retrieval, and tool protocols. See the [evaluation directory](data/rl/eval/README.md) for historical results. They are not current scores for the code or deployed model; relevant evaluations must be rerun after changes.
+Tests and research assets remain available under `src/lib/__tests__/`, `scripts/`, `rl/`, and `docs/`, but they are not prerequisites for using the product.
 
-`rl/` contains task generation, distillation, SFT, GRPO, and full tool-loop evaluation. Existing older weights are Qwen 32B QLoRA/SFT and GRPO adapters. The full-parameter training configurations describe subsequent work, not a completed full-parameter run. See [training instructions](rl/train/README.md).
+## Maintenance and data attribution
 
-## Repository and maintenance
+The project is maintained by [Myla0619](https://github.com/Myla0619). Wait-time snapshots are collected on a schedule by GitHub Actions.
 
-- `src/app/`: pages and API routes.
-- `src/lib/`: scheduling, retrieval, sessions, and model integration.
-- `rl/`: training tools, data pipelines, and evaluation.
-- `data/`: posts, wait snapshots, and experiment records.
-- `scripts/`: collection and validation scripts.
-
-Maintained by [Myla0619](https://github.com/Myla0619). AI coding assistance was used during development; scheduled jobs collect wait snapshots. External APIs, Disney information, and public posts belong to their respective sources. This project integrates, organizes, and uses them.
+External APIs, Disney attraction information, and public Xiaohongshu content were not created by this project. The application implements their collection, mapping, fallback behavior, retrieval, and presentation.
