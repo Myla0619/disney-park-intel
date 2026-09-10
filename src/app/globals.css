@@ -76,14 +76,14 @@
   .landing-story { @apply relative mx-auto w-full max-w-[1500px] px-5 pb-28 sm:px-8 lg:px-16 lg:pb-40; }
   .landing-story::before { content: ""; @apply pointer-events-none absolute -left-60 top-24 h-[38rem] w-[38rem] rounded-full bg-lagoon-500/[0.07] blur-3xl; }
   .landing-story::after { content: ""; @apply pointer-events-none absolute -right-48 bottom-24 h-[34rem] w-[34rem] rounded-full bg-spark-500/[0.07] blur-3xl; }
-  .landing-route-map { @apply pointer-events-none absolute inset-x-0 top-0 z-0 hidden h-[920px] overflow-visible lg:block; }
+  .landing-route-map { @apply pointer-events-none absolute inset-x-0 top-0 z-0 hidden h-[920px] overflow-visible sm:block; }
   .landing-route-map svg { @apply absolute inset-0 h-full w-full overflow-visible; }
   .landing-route-map path { fill: none; stroke-linecap: round; }
   .landing-route-shadow { stroke: rgba(13,6,32,.9); stroke-width: 15; }
-  .landing-route-main { stroke: rgba(192,132,252,.26); stroke-width: 2; stroke-dasharray: 3 12; }
-  .landing-route-secondary { stroke: rgba(34,211,238,.16); stroke-width: 1.5; stroke-dasharray: 2 14; }
+  .landing-route-main { stroke: rgba(192,132,252,.44); stroke-width: 2.5; stroke-dasharray: 3 12; }
+  .landing-route-secondary { stroke: rgba(34,211,238,.32); stroke-width: 2; stroke-dasharray: 2 14; }
   .landing-route-map circle { fill: #150b2e; stroke: rgba(252,211,77,.65); stroke-width: 2; }
-  .landing-map-label { @apply absolute rounded-full bg-night-900/80 px-3 py-1.5 text-[10px] tracking-[.16em] text-white/35 ring-1 ring-white/10; }
+  .landing-map-label { @apply absolute hidden rounded-full bg-night-900/90 px-3 py-1.5 text-[10px] tracking-[.16em] text-white/60 ring-1 ring-white/15 md:block; }
   .label-fantasy { @apply left-[3%] top-[9%]; }
   .label-cove { @apply right-[8%] top-[36%]; }
   .label-tomorrow { @apply bottom-[20%] left-[42%]; }

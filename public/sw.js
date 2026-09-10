@@ -11,7 +11,7 @@
  * 关键点：排队数据宁可给出"3 分钟前"的旧值并明确标注，也不要转圈到超时。
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
@@ -124,6 +124,13 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirst(request, DATA_CACHE));
+    return;
+  }
+
+  // 页面导航优先获取线上最新版，失败时再回放缓存。
+  // 静态资源文件名带内容哈希，仍然适合 cache-first。
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirst(request, SHELL_CACHE));
     return;
   }
 
