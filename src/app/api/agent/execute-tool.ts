@@ -179,18 +179,20 @@ async function planItineraryTool(input: Record<string, any>, session: SessionMem
       parkHours,
       anchors: buildAnchors(profile, parkHours, nowMin),
       nowMin,
+      completedItemIds: session.completedItemIds ?? [],
     });
 
     // maxWait 是会话级软约束：超时项目从"接下来"里剔除，但不改动已排定的锚点
     const currentMin = nowMinutesInPark(PARK_ID);
     const remaining = itinerary
-      .filter((i) => timeToMin(i.time) >= currentMin)
+      .filter((i) => !isToday || timeToMin(i.time) >= currentMin)
       .filter((i) => maxWait == null || i.estimatedWait <= maxWait);
 
     return {
       totalItems: itinerary.length,
       remainingItems: remaining.length,
       parkHours,
+      itinerary: remaining,
       appliedConstraints: {
         avoidRides: avoidRides.length ? avoidRides : undefined,
         mustRides: mustRides.length ? mustRides : undefined,

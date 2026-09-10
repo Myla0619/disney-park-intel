@@ -27,6 +27,8 @@ export type SessionMemory = {
   baseProfile: UserProfile;
   updates: PreferenceUpdate[];
   currentArea?: string;
+  /** 今日已完成的条目，由页面同步；重排时不得再次放回行程。 */
+  completedItemIds?: string[];
   conversationHistory: { role: "user" | "assistant"; content: string }[];
   inferredPreferences: {
     maxWaitMinutes?: number;

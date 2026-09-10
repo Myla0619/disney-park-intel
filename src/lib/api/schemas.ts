@@ -118,6 +118,12 @@ export const AgentBodySchema = z.object({
   message: z.string().min(1, "message 不能为空").max(2000, "单条消息不超过 2000 字"),
   sessionId: z.string().min(1).max(128),
   profile: UserProfileSchema.optional(),
+  currentArea: z.string().max(100).optional(),
+  completedItemIds: z.array(z.string()).max(100).default([]),
+  history: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string().max(8000),
+  })).max(20).default([]),
 });
 
 export const WaitTimesQuerySchema = z.object({

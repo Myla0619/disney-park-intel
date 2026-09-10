@@ -19,6 +19,7 @@ import { logUsage } from "./usage-log";
 export type AgentEvent =
   | { type: "provider"; name: "student" | "claude"; fallback: boolean }
   | { type: "tool"; name: string; iteration: number }
+  | { type: "tool_result"; name: string; result: unknown }
   | { type: "delta"; text: string }
   | { type: "done"; response: string; iterations: number; toolCalls: string[] }
   | { type: "error"; message: string };
@@ -83,20 +84,44 @@ export async function* runAgentLoop(
         }
 
         // 并行工具的 tool_result 必须放在同一条 user 消息里回传
-        const results: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        const results = await Promise.all(
           toolUseBlocks.map(async (block) => {
             const result = await executeTool(block.name, block.input as any, session);
+            if (block.name === "plan_itinerary" && !("error" in result)) {
+              // 规划结果不仅给模型看，也要交给前端，让用户能明确选择是否应用。
+              // 否则助手口头说“已重排”，今日行程实际上完全没有变化。
+              return {
+                block,
+                result,
+                toolResult: {
+                  type: "tool_result" as const,
+                  tool_use_id: block.id,
+                  content: JSON.stringify(result),
+                  is_error: false,
+                },
+              };
+            }
             return {
-              type: "tool_result" as const,
-              tool_use_id: block.id,
-              content: JSON.stringify(result),
-              is_error: "error" in result,
+              block,
+              result,
+              toolResult: {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: JSON.stringify(result),
+                is_error: "error" in result,
+              },
             };
           })
         );
 
+        for (const item of results) {
+          if (item.block.name === "plan_itinerary" && !("error" in item.result)) {
+            yield { type: "tool_result", name: item.block.name, result: item.result };
+          }
+        }
+
         messages.push({ role: "assistant", content: final.content });
-        messages.push({ role: "user", content: results });
+        messages.push({ role: "user", content: results.map((item) => item.toolResult) });
         // 工具调用轮里模型可能已经说了几句过渡语，计入最终回答
         response += turnText;
         continue;

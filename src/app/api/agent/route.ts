@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getSession, createSession, addMessage, buildMemoryContext, SessionMemory,
+  getSession, createSession, addMessage, saveSession, buildMemoryContext, SessionMemory,
 } from "@/lib/session-memory";
 import { getRidesByPark } from "@/lib/parks-data";
 import { isAnthropicConfigured, hasEmptyApiKeyShadow } from "@/lib/anthropic-client";
@@ -45,17 +45,26 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, AgentBodySchema);
   if (!parsed.ok) return parsed.response;
-  const { message, sessionId } = parsed.data;
+  const { message, sessionId, history, currentArea, completedItemIds } = parsed.data;
   const profile = parsed.data.profile as UserProfile | undefined;
 
   let session = await getSession(sessionId);
-  if (!session && profile) session = await createSession(sessionId, profile);
+  if (!session && profile) {
+    session = await createSession(sessionId, profile);
+    // 无 Redis 或服务冷启动时，用浏览器保存的最近对话恢复上下文。
+    for (const item of history) await addMessage(sessionId, item.role, item.content);
+    session = await getSession(sessionId);
+  }
   if (!session) {
     return NextResponse.json(
       { error: "会话不存在，请在请求中带上 profile 以创建会话" },
       { status: 400 }
     );
   }
+
+  session.currentArea = currentArea ?? session.currentArea;
+  session.completedItemIds = completedItemIds;
+  await saveSession(session);
 
   await addMessage(sessionId, "user", message);
 

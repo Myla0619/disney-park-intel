@@ -51,6 +51,9 @@ export async function* runStudentAgent(message: string, session: SessionMemory):
           toolCalls.push(parsed.toolCall.name);
           yield {type: 'tool', name: parsed.toolCall.name, iteration};
           feedback = await env('/call', {tool: parsed.toolCall.name, args: parsed.toolCall.arguments, mode: 'live'});
+          if (parsed.toolCall.name === 'plan_itinerary' && feedback && typeof feedback === 'object' && !('error' in feedback)) {
+            yield {type: 'tool_result', name: parsed.toolCall.name, result: feedback};
+          }
         }
       }
       messages.push({role: 'user', content: formatToolResponse(feedback)});

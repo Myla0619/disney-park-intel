@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useProfileStore } from "@/lib/store";
-import { Send, Bot, User, Sparkles, MapPin, Clock, Loader2 } from "lucide-react";
+import { Send, Bot, User, Sparkles, Loader2, Route, Check } from "lucide-react";
+import type { ItineraryItem } from "@/types";
 
 type Message = {
   role: "user" | "assistant";
@@ -11,6 +12,8 @@ type Message = {
   isLoading?: boolean;
   /** 正在调用的工具，流式过程中显示给用户 */
   activeTool?: string;
+  proposedItinerary?: ItineraryItem[];
+  planApplied?: boolean;
 };
 
 /** 工具名 → 面向用户的说法 */
@@ -30,28 +33,68 @@ const QUICK_PROMPTS = [
   { icon:"🎠", text:"花车巡游在哪里看最好？" },
 ];
 
-export default function AgentChat() {
+type AgentChatProps = {
+  completedItemIds?: string[];
+  onApplyItinerary?: (itinerary: ItineraryItem[]) => void;
+};
+
+const GREETING: Message = {
+  role: "assistant",
+  content: "你好，我可以帮你查等待时间、找评价，也可以根据当前位置和已完成项目重排今天的路线。需要重排时，我会先给出方案，由你确认后再应用。",
+  timestamp: new Date(),
+};
+
+export default function AgentChat({ completedItemIds = [], onApplyItinerary }: AgentChatProps) {
   const profile = useProfileStore((s) => s.profile);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "👋 你好！我是迪士尼 AI 助手。我可以帮你：\n\n• 查询实时等待时间\n• 根据你的位置推荐下一步\n• 搜索项目和餐厅评论\n• 随时重新规划行程\n\n有什么可以帮你的？",
-      timestamp: new Date(),
-    },
-  ]);
+  const chatKey = `disney-agent-chat-v1:${profile?.park ?? "shanghai"}:${profile?.visitDate ?? "default"}`;
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const [sessionId, setSessionId] = useState("");
+  const [hydrated, setHydrated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(chatKey) ?? "null");
+      if (saved?.sessionId) setSessionId(saved.sessionId);
+      else setSessionId(`session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+      if (Array.isArray(saved?.messages) && saved.messages.length) {
+        setMessages(saved.messages.map((m: Message & { timestamp: string }) => ({
+          ...m,
+          timestamp: new Date(m.timestamp),
+          isLoading: false,
+          activeTool: undefined,
+        })));
+      } else {
+        setMessages([{ ...GREETING, timestamp: new Date() }]);
+      }
+    } catch {
+      setSessionId(`session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    } finally {
+      setHydrated(true);
+    }
+  }, [chatKey]);
+
+  useEffect(() => {
+    if (!hydrated || !sessionId) return;
+    const settled = messages.filter((m) => !m.isLoading).slice(-50);
+    localStorage.setItem(chatKey, JSON.stringify({ sessionId, messages: settled }));
+  }, [chatKey, hydrated, messages, sessionId]);
+
   const sendMessage = async (text?: string) => {
     const msg = text ?? input.trim();
-    if (!msg || loading) return;
+    if (!msg || loading || !sessionId) return;
     setInput("");
+
+    const history = messages
+      .filter((m) => !m.isLoading)
+      .slice(-20)
+      .map(({ role, content }) => ({ role, content }));
 
     const userMsg: Message = { role:"user", content:msg, timestamp:new Date() };
     setMessages((prev) => [...prev, userMsg]);
@@ -64,7 +107,7 @@ export default function AgentChat() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, sessionId, profile }),
+        body: JSON.stringify({ message: msg, sessionId, profile, completedItemIds, history }),
       });
 
       // 限流、未配置 key 等情况仍返回 JSON，如实把原因告诉用户
@@ -125,6 +168,9 @@ export default function AgentChat() {
             patchLast({ content: text, activeTool: undefined });
           } else if (event.type === "tool") {
             patchLast({ activeTool: TOOL_LABELS[event.name] ?? event.name });
+          } else if (event.type === "tool_result" && event.name === "plan_itinerary") {
+            const plan = event.result?.itinerary;
+            if (Array.isArray(plan) && plan.length) patchLast({ proposedItinerary: plan });
           } else if (event.type === "error") {
             patchLast({ content: event.message, activeTool: undefined });
           } else if (event.type === "done") {
@@ -191,6 +237,28 @@ export default function AgentChat() {
                       <span className="text-white/50 text-sm">正在{msg.activeTool}…</span>
                     </div>
                   )}
+                  {msg.proposedItinerary?.length ? (
+                    <div className="mt-3 rounded-xl border border-magic-400/25 bg-magic-500/10 p-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-white">
+                        <Route className="h-4 w-4 text-magic-300" />
+                        新路线已生成
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-white/50">
+                        共 {msg.proposedItinerary.length} 项，确认后会替换“今日行程”。
+                      </p>
+                      <button
+                        type="button"
+                        disabled={msg.planApplied}
+                        onClick={() => {
+                          onApplyItinerary?.(msg.proposedItinerary!);
+                          setMessages((prev) => prev.map((item, index) => index === i ? { ...item, planApplied: true } : item));
+                        }}
+                        className="mt-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-magic-500 px-3 text-sm font-medium text-white transition-colors hover:bg-magic-400 disabled:bg-meadow-500/20 disabled:text-meadow-300"
+                      >
+                        {msg.planApplied ? <><Check className="h-4 w-4" /> 已应用到今日行程</> : "应用到今日行程"}
+                      </button>
+                    </div>
+                  ) : null}
                 </>
               )}
               <div className={`text-xs mt-1 ${msg.role === "user" ? "text-magic-200" : "text-white/30"}`}>
@@ -221,7 +289,7 @@ export default function AgentChat() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
             placeholder="问我任何关于迪士尼的问题…"
-            disabled={loading}
+            disabled={loading || !hydrated}
             className="flex-1 bg-transparent text-white text-sm placeholder-white/30 outline-none"
           />
           <button onClick={() => sendMessage()} disabled={loading || !input.trim()}

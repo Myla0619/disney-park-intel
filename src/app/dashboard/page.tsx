@@ -357,6 +357,24 @@ export default function DashboardPage() {
     loadAllData("entrance", nextCompleted);
   };
 
+  const handleApplyAgentPlan = (nextItinerary: ItineraryItem[]) => {
+    if (!profile || !nextItinerary.length) return;
+    const appliedAt = Date.now();
+    setItinerary(nextItinerary);
+    setLastUpdated(new Date(appliedAt));
+    setStage("done");
+    savePlan({
+      fingerprint: planFingerprint(profile, wishlist, "entrance", completedIds),
+      itinerary: nextItinerary,
+      scores,
+      parkHours: parkHours ? { ...parkHours, source: "estimated" } : null,
+      isToday,
+      stage: "polished",
+      computedAt: appliedAt,
+    });
+    setTab("itinerary");
+  };
+
   const filteredRides = rides
     .map((r) => ({ ride:r, score:scores.find((s)=>s.rideId===r.id), reviews:allReviews[r.id]??[] }))
     .filter(({ score }) => { const p=FILTER_MAP[filter]; return p===null||score?.priority===p; })
@@ -691,7 +709,7 @@ export default function DashboardPage() {
         {/* AI Agent 对话 */}
         {tab==="agent" && (
           <div className="h-[600px] rounded-2xl overflow-hidden border border-white/10">
-            <AgentChat />
+            <AgentChat completedItemIds={completedIds} onApplyItinerary={handleApplyAgentPlan} />
           </div>
         )}
 
