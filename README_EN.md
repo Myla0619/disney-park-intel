@@ -2,44 +2,21 @@
 
 English | [中文](README.md)
 
-Before visiting Shanghai Disneyland, it is easy to save dozens of guides. Once you are inside the park, the questions are much simpler: Where should we go next? How long is the queue? Is my child tall enough? Will we make our restaurant reservation?
+Whether you want a day built around photos, an easy trip with children, or as many thrill rides as possible, Disney Park Intelligence helps you find a route that fits.
 
-This website puts those decisions into one itinerary. Enter your date, group, and preferences, and it will suggest a route you can follow through the day.
+It plans around your available time, group, ride preferences, queue times, walking distance, and reservations. If you enter late, change your mind, or finish an attraction earlier than expected, it can replan the rest of the day from where you are now.
 
-## [Open the website and start planning](https://disney-park-intel.vercel.app)
+## [Open the website](https://disney-park-intel.vercel.app)
 
-There is nothing to download, and no account is required.
+### What it can do
 
-### How to use it
+- **Plan around the kind of day you want:** photo spots, family attractions, thrill rides, or a mix—without forcing everyone into the same itinerary.
+- **Reduce queues and backtracking:** combine estimated waits with park locations to find a more practical order.
+- **Read reviews for you:** pull out the parts of public posts and comments that are actually about an attraction or restaurant, so the useful details are easier to find.
+- **Remember time-sensitive plans:** keep restaurant reservations, parades, and fireworks in the itinerary while fitting other activities around them.
+- **Replan during the day:** when reality no longer matches the morning plan, continue from the current time instead of starting over.
+- **Answer specific questions:** ask things like “Where is a good photo spot nearby?”, “What can a 110 cm child ride?”, or “Where should I go next to save time?”
 
-1. Choose your visit date and approximate arrival and departure times.
-2. Add children's heights, choose the kind of day you want, and select any Premier Access products you have bought.
-3. Add restaurant reservations, the parade, or fireworks if they are part of your day.
-4. Generate the itinerary, then open attraction details, queues, restaurants, and photo spots as needed.
-5. After finishing an attraction, tap “完成并重排剩余行程” (Complete and replan). The website will continue from the current time instead of rebuilding the morning schedule.
+Queues, shows, and reservations can change at short notice. Please check the official Disney app for the latest information on the day of your visit.
 
-You can also ask the assistant questions such as:
-
-- “Which attraction has the shortest queue right now?”
-- “I am in Treasure Cove. Where should I go next?”
-- “My child is 110 cm tall. Which attractions are unavailable?”
-- “Find me a restaurant that does not require a reservation.”
-
-### What you will see
-
-- A timed route that includes walking, meals, and shows.
-- Queue times, height requirements, and notes about who an attraction suits.
-- Relevant excerpts from public travel posts. Video posts carry a `[视频]` label.
-- Personal ratings on attraction and restaurant pages. These ratings are currently saved on this device only.
-
-### Keep in mind
-
-Queues can change quickly. Check the official Disney app for the day's showtimes, fireworks, closures, and reservation details. If a network service is unavailable, the website may show a historical estimate or clearly labelled reference data.
-
-The generated itinerary is a suggestion, not a promise from the park. Temporary closures, weather, and how your group feels on the day may change the best route.
-
-### About the project
-
-The project is maintained by [Myla0619](https://github.com/Myla0619). Routes take queue times, walking distance, height restrictions, reservations, and personal preferences into account. The project is still being updated and does not claim verified active-user or retention figures.
-
-Developers who want the code, training records, or model files can continue through `docs/`, `rl/`, and the [model backup](https://github.com/Myla0619/disney-park-intel/releases/tag/model-backup-2026-09-08). None of those materials are needed to use the website.
+Maintained by [Myla0619](https://github.com/Myla0619).
