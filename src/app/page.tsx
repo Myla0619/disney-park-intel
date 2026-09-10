@@ -1,14 +1,8 @@
 import Link from "next/link";
 import {
   ArrowRight, CalendarClock, Camera, Check, ChevronRight, Clock3,
-  MapPin, MessageCircleMore, RefreshCw, Sparkles, Star, Users, Zap,
+  MapPin, MessageCircleMore, RefreshCw, Sparkles, Star,
 } from "lucide-react";
-
-const preferences = [
-  { label: "拍照打卡", detail: "城堡与光影优先", icon: Camera, tone: "landing-mode-photo" },
-  { label: "亲子慢游", detail: "身高与体力都算进去", icon: Users, tone: "landing-mode-family" },
-  { label: "刺激项目", detail: "把热门项目排得更顺", icon: Zap, tone: "landing-mode-thrill" },
-];
 
 export default function Home() {
   return (
@@ -18,29 +12,27 @@ export default function Home() {
           <span className="landing-brand-mark"><Sparkles aria-hidden="true" /></span>
           <span>Disney Park Intelligence</span>
         </Link>
-        <Link href="/onboarding" className="landing-nav-action">开始规划 <ArrowRight aria-hidden="true" /></Link>
+        <Link href="/onboarding" className="landing-nav-action">生成游园路线 <ArrowRight aria-hidden="true" /></Link>
       </nav>
 
       <section className="landing-hero">
         <div className="landing-hero-copy">
-          <h1>你想怎么玩，<br /><span>路线就怎么排。</span></h1>
-          <p>想拍照、带孩子轻松玩，还是把刺激项目刷个遍？告诉我们你的时间和偏好，行程会把排队、步行、预约和当天进度一起算进去。</p>
+          <h1>把时间留给<br /><span>真正想玩的。</span></h1>
+          <p>少排队，少走回头路。无论想拍照、带孩子轻松玩，还是专门挑战刺激项目，我们都会按你的偏好排出一条更顺路的迪士尼行程。</p>
           <div className="landing-actions">
-            <Link href="/onboarding" className="landing-primary-action">规划我的一天 <ChevronRight aria-hidden="true" /></Link>
-            <span>目前支持上海迪士尼</span>
+            <Link href="/onboarding" className="landing-primary-action">生成我的游园路线 <ChevronRight aria-hidden="true" /></Link>
+            <span>免费使用 · 目前支持上海迪士尼</span>
           </div>
-          <div className="landing-modes" aria-label="支持的游玩偏好">
-            {preferences.map(({ label, detail, icon: Icon, tone }) => (
-              <div className={`landing-mode ${tone}`} key={label}>
-                <Icon aria-hidden="true" /><div><strong>{label}</strong><span>{detail}</span></div>
-              </div>
-            ))}
+          <div className="landing-assurances" aria-label="路线规划能力">
+            <span><Check aria-hidden="true" /> 按喜好安排</span>
+            <span><Check aria-hidden="true" /> 预约不会漏</span>
+            <span><Check aria-hidden="true" /> 进度随时重排</span>
           </div>
         </div>
 
         <div className="landing-plan-preview" aria-label="智能行程示例">
           <div className="landing-plan-head">
-            <div><span>今天的路线</span><strong>少排队，也少走回头路</strong></div>
+            <div><span>你今天的路线</span><strong>下一站，直接告诉你</strong></div>
             <span className="landing-live"><i /> 实时调整</span>
           </div>
           <ol className="landing-timeline">
@@ -55,8 +47,8 @@ export default function Home() {
 
       <section className="landing-story" aria-labelledby="story-title">
         <div className="landing-story-intro">
-          <h2 id="story-title">攻略收藏了一堆，<br />真正需要的是下一步。</h2>
-          <p>它不只给你一张固定清单，而是跟着当天的情况继续往下排。</p>
+          <h2 id="story-title">不用来回翻攻略。<br />现在去哪，直接告诉你。</h2>
+          <p>不是出发前生成一次就结束。晚到、提前玩完或临时改变主意，后面的路线都会跟着调整。</p>
         </div>
         <div className="landing-story-grid">
           <article className="landing-review-feature">
@@ -74,8 +66,8 @@ export default function Home() {
       </section>
 
       <section className="landing-final-cta">
-        <div><h2>先选你想要的一天。</h2><p>剩下的路线、时间和提醒，交给我们来排。</p></div>
-        <Link href="/onboarding" className="landing-primary-action">开始规划 <ArrowRight aria-hidden="true" /></Link>
+        <div><h2>少做选择，多玩几个项目。</h2><p>告诉我们你想玩什么，几分钟生成一条适合你的路线。</p></div>
+        <Link href="/onboarding" className="landing-primary-action">生成我的路线 <ArrowRight aria-hidden="true" /></Link>
       </section>
       <footer className="landing-footer"><span>Disney Park Intelligence</span><span>行程为规划建议，实时信息请以迪士尼官方 App 为准。</span></footer>
     </main>

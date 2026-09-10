@@ -42,15 +42,9 @@
   .landing-actions > span { @apply text-xs text-white/45; }
   .landing-primary-action { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-magic-500 to-spark-500 px-6 py-3.5 font-semibold text-white shadow-[0_10px_32px_-12px_rgba(236,72,153,.75)] transition duration-300 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-castle-300 focus-visible:ring-offset-2 focus-visible:ring-offset-night-900 active:translate-y-0; }
 
-  .landing-modes { @apply mt-10 grid max-w-2xl gap-3 sm:grid-cols-3; }
-  .landing-mode { @apply flex items-start gap-3 border-t border-white/10 py-4; }
-  .landing-mode > svg { @apply mt-0.5 h-5 w-5 shrink-0; }
-  .landing-mode strong, .landing-mode span { @apply block; }
-  .landing-mode strong { @apply text-sm font-semibold text-white; }
-  .landing-mode span { @apply mt-1 text-xs leading-5 text-white/45; }
-  .landing-mode-photo > svg { @apply text-magic-400; }
-  .landing-mode-family > svg { @apply text-lagoon-300; }
-  .landing-mode-thrill > svg { @apply text-spark-400; }
+  .landing-assurances { @apply mt-9 flex max-w-2xl flex-wrap gap-x-6 gap-y-3 border-t border-white/10 pt-5; }
+  .landing-assurances span { @apply flex items-center gap-2 text-xs font-medium text-white/60; }
+  .landing-assurances svg { @apply h-3.5 w-3.5 text-meadow-400; }
 
   .landing-plan-preview { @apply relative z-10 rounded-2xl bg-night-800/80 p-5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.8)] ring-1 ring-white/10 backdrop-blur-xl sm:p-7; }
   .landing-plan-head { @apply flex items-start justify-between gap-4 border-b border-white/10 pb-5; }
