@@ -73,29 +73,48 @@
   .landing-replan strong { @apply text-sm font-semibold; }
   .landing-replan span { @apply mt-1 text-xs leading-5 text-lagoon-300/60; }
 
-  .landing-story { @apply mx-auto w-full max-w-7xl px-5 pb-28 sm:px-8 lg:px-12 lg:pb-36; }
-  .landing-story-intro { @apply grid gap-5 border-t border-white/10 pt-14 lg:grid-cols-[1.2fr_.8fr] lg:items-end; }
+  .landing-story { @apply relative mx-auto w-full max-w-[1500px] px-5 pb-28 sm:px-8 lg:px-16 lg:pb-40; }
+  .landing-story::before { content: ""; @apply pointer-events-none absolute -left-60 top-24 h-[38rem] w-[38rem] rounded-full bg-lagoon-500/[0.07] blur-3xl; }
+  .landing-story::after { content: ""; @apply pointer-events-none absolute -right-48 bottom-24 h-[34rem] w-[34rem] rounded-full bg-spark-500/[0.07] blur-3xl; }
+  .landing-route-map { @apply pointer-events-none absolute inset-x-0 top-0 z-0 hidden h-[920px] overflow-visible lg:block; }
+  .landing-route-map svg { @apply absolute inset-0 h-full w-full overflow-visible; }
+  .landing-route-map path { fill: none; stroke-linecap: round; }
+  .landing-route-shadow { stroke: rgba(13,6,32,.9); stroke-width: 15; }
+  .landing-route-main { stroke: rgba(192,132,252,.26); stroke-width: 2; stroke-dasharray: 3 12; }
+  .landing-route-secondary { stroke: rgba(34,211,238,.16); stroke-width: 1.5; stroke-dasharray: 2 14; }
+  .landing-route-map circle { fill: #150b2e; stroke: rgba(252,211,77,.65); stroke-width: 2; }
+  .landing-map-label { @apply absolute rounded-full bg-night-900/80 px-3 py-1.5 text-[10px] tracking-[.16em] text-white/35 ring-1 ring-white/10; }
+  .label-fantasy { @apply left-[3%] top-[9%]; }
+  .label-cove { @apply right-[8%] top-[36%]; }
+  .label-tomorrow { @apply bottom-[20%] left-[42%]; }
+  .landing-story-intro { @apply relative z-10 grid gap-5 border-t border-white/10 pt-14 lg:grid-cols-[1.2fr_.8fr] lg:items-end; }
   .landing-story-intro h2, .landing-final-cta h2 { @apply text-3xl font-bold leading-tight tracking-[-.025em] text-white sm:text-5xl; text-wrap: balance; }
   .landing-story-intro p { @apply max-w-lg text-sm leading-7 text-white/50 lg:justify-self-end; }
-  .landing-story-grid { @apply mt-12 grid gap-4 lg:grid-cols-12; }
-  .landing-story-grid article { @apply rounded-2xl bg-night-800/55 ring-1 ring-white/10; }
-  .landing-review-feature { @apply p-6 sm:p-8 lg:col-span-7; }
+  .landing-story-grid { @apply relative z-10 mt-16 grid gap-5 lg:grid-cols-12 lg:gap-y-16; }
+  .landing-story-grid article { @apply rounded-2xl bg-night-800/80 shadow-[0_26px_70px_-32px_rgba(0,0,0,.9)] ring-1 ring-white/10; }
+  .landing-review-feature { @apply p-6 sm:p-8 lg:col-span-7 lg:ml-10; }
   .landing-feature-title { @apply flex items-center gap-2 text-sm font-medium text-magic-400; }
   .landing-feature-title svg { @apply h-4 w-4; }
   .landing-review-feature blockquote { @apply my-8 max-w-2xl text-xl font-medium leading-9 text-white sm:text-2xl; }
   .landing-review-meta { @apply flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/40; }
   .landing-review-meta span:first-child { @apply flex items-center gap-1.5 text-castle-300; }
   .landing-review-meta svg { @apply h-3.5 w-3.5 fill-current; }
-  .landing-reminder-feature { @apply flex min-h-64 flex-col justify-between p-6 sm:p-8 lg:col-span-5; background: linear-gradient(150deg, rgba(245,158,11,.15), rgba(36,21,72,.65) 55%); }
+  .landing-reminder-feature { @apply flex min-h-72 flex-col justify-between p-6 sm:p-8 lg:col-span-4 lg:col-start-9 lg:mt-20; background: linear-gradient(150deg, rgba(245,158,11,.18), rgba(36,21,72,.82) 55%); }
   .landing-reminder-feature > svg { @apply h-7 w-7 text-castle-300; }
   .landing-reminder-feature span { @apply text-xs font-medium text-castle-300; }
   .landing-reminder-feature h3 { @apply mt-2 text-2xl font-semibold text-white; }
   .landing-reminder-feature p { @apply mt-3 max-w-md text-sm leading-6 text-white/50; }
-  .landing-question-feature { @apply p-6 sm:p-8 lg:col-span-12; }
+  .landing-question-feature { @apply p-6 sm:p-8 lg:col-span-8 lg:col-start-3 lg:-mt-4; }
   .landing-question-feature > span { @apply text-xs font-medium text-lagoon-300; }
   .landing-question-feature > p { @apply my-5 text-xl font-medium text-white sm:text-3xl; }
   .landing-question-feature > div { @apply flex items-center gap-2 text-xs text-white/40; }
   .landing-question-feature svg { @apply h-4 w-4 text-magic-400; }
+  .landing-route-result { @apply relative z-10 mt-12 grid items-center gap-3 border-y border-white/10 py-7 sm:grid-cols-[8rem_1fr_1.3fr_auto] sm:gap-6 lg:mx-24 lg:mt-20; }
+  .landing-route-result-time { @apply flex items-center gap-3 text-2xl font-semibold tabular-nums text-white; }
+  .landing-route-result-time i { @apply h-2 w-2 rounded-full bg-lagoon-400 shadow-[0_0_14px_rgba(34,211,238,.75)]; }
+  .landing-route-result p { @apply text-sm leading-6 text-white/45; }
+  .landing-route-result strong { @apply text-sm font-semibold leading-6 text-lagoon-300; }
+  .landing-route-result > svg { @apply hidden h-5 w-5 text-lagoon-300 sm:block; }
 
   .landing-final-cta { @apply mx-auto mb-12 flex w-[calc(100%-2.5rem)] max-w-7xl flex-col items-start justify-between gap-8 rounded-2xl bg-white/[0.06] px-6 py-9 ring-1 ring-white/10 sm:w-[calc(100%-4rem)] sm:px-10 sm:py-12 lg:w-[calc(100%-6rem)] lg:flex-row lg:items-center lg:px-12; }
   .landing-final-cta p { @apply mt-3 text-sm text-white/50 sm:text-base; }

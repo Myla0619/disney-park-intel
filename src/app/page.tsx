@@ -46,6 +46,22 @@ export default function Home() {
       </section>
 
       <section className="landing-story" aria-labelledby="story-title">
+        <div className="landing-route-map" aria-hidden="true">
+          <svg viewBox="0 0 1440 920" preserveAspectRatio="none">
+            <path className="landing-route-shadow" d="M-40 126 C180 70 285 278 470 240 S744 70 870 202 1055 450 1470 352" />
+            <path className="landing-route-main" d="M-40 126 C180 70 285 278 470 240 S744 70 870 202 1055 450 1470 352" />
+            <path className="landing-route-secondary" d="M132 650 C320 530 475 716 650 610 S925 482 1080 622 1260 786 1510 720" />
+            <circle cx="94" cy="108" r="6" />
+            <circle cx="470" cy="240" r="7" />
+            <circle cx="870" cy="202" r="6" />
+            <circle cx="1212" cy="378" r="7" />
+            <circle cx="650" cy="610" r="6" />
+            <circle cx="1080" cy="622" r="7" />
+          </svg>
+          <span className="landing-map-label label-fantasy">奇想花园</span>
+          <span className="landing-map-label label-cove">宝藏湾</span>
+          <span className="landing-map-label label-tomorrow">明日世界</span>
+        </div>
         <div className="landing-story-intro">
           <h2 id="story-title">不用来回翻攻略。<br />现在去哪，直接告诉你。</h2>
           <p>不是出发前生成一次就结束。晚到、提前玩完或临时改变主意，后面的路线都会跟着调整。</p>
@@ -62,6 +78,12 @@ export default function Home() {
           <article className="landing-question-feature">
             <span>你可以直接问</span><p>“我现在在宝藏湾，接下来去哪儿最省时间？”</p><div><Sparkles aria-hidden="true" /> 正在结合位置、排队与剩余行程…</div>
           </article>
+        </div>
+        <div className="landing-route-result" aria-label="路线重新规划示例">
+          <div className="landing-route-result-time"><span>10:37</span><i /></div>
+          <p>加勒比海盗排队突然增加到 45 分钟</p>
+          <strong>已改去晶彩奇航，预计少等 28 分钟</strong>
+          <RefreshCw aria-hidden="true" />
         </div>
       </section>
 
