@@ -48,9 +48,9 @@
   .landing-mode strong, .landing-mode span { @apply block; }
   .landing-mode strong { @apply text-sm font-semibold text-white; }
   .landing-mode span { @apply mt-1 text-xs leading-5 text-white/45; }
-  .landing-mode-photo > svg { @apply text-magic-300; }
+  .landing-mode-photo > svg { @apply text-magic-400; }
   .landing-mode-family > svg { @apply text-lagoon-300; }
-  .landing-mode-thrill > svg { @apply text-spark-300; }
+  .landing-mode-thrill > svg { @apply text-spark-400; }
 
   .landing-plan-preview { @apply relative z-10 rounded-2xl bg-night-800/80 p-5 shadow-[0_28px_80px_-30px_rgba(0,0,0,.8)] ring-1 ring-white/10 backdrop-blur-xl sm:p-7; }
   .landing-plan-head { @apply flex items-start justify-between gap-4 border-b border-white/10 pb-5; }
@@ -69,7 +69,7 @@
   .landing-timeline li > div strong { @apply text-sm font-medium text-white/85; }
   .landing-timeline li > div span { @apply mt-1 text-xs leading-5 text-white/40; }
   .landing-timeline .is-done .landing-node { @apply bg-meadow-500/15 text-meadow-400 ring-meadow-400/20; }
-  .landing-timeline .is-current .landing-node { @apply bg-magic-500 text-white ring-magic-300/40 shadow-[0_5px_20px_-5px_rgba(168,85,247,.8)]; }
+  .landing-timeline .is-current .landing-node { @apply bg-magic-500 text-white ring-magic-400/40 shadow-[0_5px_20px_-5px_rgba(168,85,247,.8)]; }
   .landing-timeline .is-current > div strong { @apply text-white; }
   .landing-timeline .has-reminder { @apply rounded-xl bg-castle-400/[0.07] px-2; }
   .landing-timeline .has-reminder .landing-node { @apply bg-castle-400/15 text-castle-300 ring-castle-300/25; }
@@ -86,7 +86,7 @@
   .landing-story-grid { @apply mt-12 grid gap-4 lg:grid-cols-12; }
   .landing-story-grid article { @apply rounded-2xl bg-night-800/55 ring-1 ring-white/10; }
   .landing-review-feature { @apply p-6 sm:p-8 lg:col-span-7; }
-  .landing-feature-title { @apply flex items-center gap-2 text-sm font-medium text-magic-200; }
+  .landing-feature-title { @apply flex items-center gap-2 text-sm font-medium text-magic-400; }
   .landing-feature-title svg { @apply h-4 w-4; }
   .landing-review-feature blockquote { @apply my-8 max-w-2xl text-xl font-medium leading-9 text-white sm:text-2xl; }
   .landing-review-meta { @apply flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/40; }
@@ -101,7 +101,7 @@
   .landing-question-feature > span { @apply text-xs font-medium text-lagoon-300; }
   .landing-question-feature > p { @apply my-5 text-xl font-medium text-white sm:text-3xl; }
   .landing-question-feature > div { @apply flex items-center gap-2 text-xs text-white/40; }
-  .landing-question-feature svg { @apply h-4 w-4 text-magic-300; }
+  .landing-question-feature svg { @apply h-4 w-4 text-magic-400; }
 
   .landing-final-cta { @apply mx-auto mb-12 flex w-[calc(100%-2.5rem)] max-w-7xl flex-col items-start justify-between gap-8 rounded-2xl bg-white/[0.06] px-6 py-9 ring-1 ring-white/10 sm:w-[calc(100%-4rem)] sm:px-10 sm:py-12 lg:w-[calc(100%-6rem)] lg:flex-row lg:items-center lg:px-12; }
   .landing-final-cta p { @apply mt-3 text-sm text-white/50 sm:text-base; }

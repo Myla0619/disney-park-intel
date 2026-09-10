@@ -57,6 +57,22 @@ const B = 0.75;
 
 type IndexedDoc<T> = { doc: T; tf: Map<string, number>; length: number };
 
+/**
+ * 判断词在原文里是否至少出现过一次肯定表达。
+ * “不刺激”“没有失重感”不能因为词面重合就被当成“刺激”“失重”的正向证据。
+ */
+function hasNonNegatedOccurrence(text: string, token: string): boolean {
+  let start = 0;
+  while (start < text.length) {
+    const index = text.indexOf(token, start);
+    if (index < 0) return false;
+    const prefix = text.slice(Math.max(0, index - 8), index);
+    if (!/(?:不(?:太|怎么|够)?|没(?:有)?|并不)\s*$/.test(prefix)) return true;
+    start = index + token.length;
+  }
+  return false;
+}
+
 export class VectorStore<T extends { text: string }> {
   private docs: IndexedDoc<T>[] = [];
   private df = new Map<string, number>();
@@ -90,6 +106,7 @@ export class VectorStore<T extends { text: string }> {
       for (const token of queryTokens) {
         const freq = tf.get(token);
         if (!freq) continue;
+        if (!hasNonNegatedOccurrence(doc.text.toLowerCase(), token)) continue;
         const df = this.df.get(token) ?? 0;
         // BM25 的概率型 IDF，加 1 保证非负（避免高频词把总分拉成负数）
         const idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
@@ -100,7 +117,7 @@ export class VectorStore<T extends { text: string }> {
       return { ...doc, score };
     });
 
-    return scored.filter((item) => item.score > 0).sort((a, b) => b.score - a.score).slice(0, topK);
+    return scored.sort((a, b) => b.score - a.score).slice(0, topK);
   }
 }
 
@@ -121,7 +138,8 @@ export function indexReviews(rideId: string, reviews: Review[]) {
 }
 
 export function searchReviews(rideId: string, query: string, topK = 5): Review[] {
-  return getReviewStore(rideId).search(query, topK);
+  // 面向用户的评论结果不补零分文档，避免无关评论混进详情页。
+  return getReviewStore(rideId).search(query, topK).filter((item) => item.score > 0);
 }
 
 /** 仅供测试使用。 */
